@@ -354,22 +354,28 @@ impl Sudoku {
     }
 
     pub fn display_possibilities(&self) {
+        println!("");
         for y in 0..self.n2 {
             if y != 0 && y % self.n == 0 {
-                println!("{}", "-".repeat(self.n2 * self.n2 * 2 + self.n2 + 1));
+                println!("{}┼{}┼{}", "─".repeat(self.n2 * self.n + self.n*2),
+                "─".repeat(self.n2 * self.n + self.n*2),
+                "─".repeat(self.n2 * self.n + self.n*2),
+                )
+                ;
             }
             for x in 0..self.n2 {
                 if x != 0 && x % self.n == 0 {
-                    print!("| ");
+                    print!("│");
                 }
                 print!(
-                    "{}{}",
+                    " {}{}{} " ,
+                    " ".repeat((self.n2 + 1 - self.possibility_board[y][x].len())/2),
                     self.possibility_board[y][x]
                         .iter()
                         .map(usize::to_string)
                         .collect::<Vec<String>>()
-                        .join(","),
-                    " ".repeat((self.n2 + 1 - self.possibility_board[y][x].len()) * 2)
+                        .join(""),
+                    " ".repeat((self.n2 - self.possibility_board[y][x].len())/2)
                 )
             }
             println!();
