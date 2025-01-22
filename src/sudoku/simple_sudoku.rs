@@ -136,28 +136,26 @@ impl Sudoku {
     // THE RULES ARE LISTED BY INCREASING DIFFICULTY
     // A RULE RETURN TRUE IF IT FIXED SOME CELLS
 
+    // règle 1
     fn last_free_cells(&mut self) -> bool {
         let mut last_free_cells: Vec<((usize, usize), usize)> = Vec::new();
         let groups = Sudoku::get_groups(self.n);
 
-        for group in groups{
-            let mut value=0;
-            let g: Vec<usize> = group.iter().map(|&(x,y)| self.board[y][x]).collect();
-            if g.iter().filter(|&n| *n==0).count()==1{
-
-                for i in 1..=self.n2{
-                    if !g.contains(&i){
+        for group in groups {
+            let mut value = 0;
+            let g: Vec<usize> = group.iter().map(|&(x, y)| self.board[y][x]).collect();
+            if g.iter().filter(|&n| *n == 0).count() == 1 {
+                for i in 1..=self.n2 {
+                    if !g.contains(&i) {
                         value = i;
                     }
-
                 }
-                for (x,y) in group{
-                    if self.board[y][x]==0{
-                        last_free_cells.push(((x,y), value));
+                for (x, y) in group {
+                    if self.board[y][x] == 0 {
+                        last_free_cells.push(((x, y), value));
                     }
                 }
             }
-            
         }
         if last_free_cells.is_empty() {
             false
@@ -173,31 +171,21 @@ impl Sudoku {
         }
     }
 
-    fn last_remaining_cells(&mut self) -> bool {
-        let groups = Sudoku::get_groups(self.n);
-        let mut last_remaining_cell: Vec<((usize, usize), usize)> = Vec::new();
-        for group in groups.into_iter() {
-            let mut apparition_count: Vec<usize> = vec![0; self.n2 + 1];
-            for &(x, y) in group.iter() {
-                for &value in self.possibility_board[y][x].iter() {
-                    apparition_count[value] += 1;
+    // règle 3
+    fn last_possible_number(&mut self) -> bool {
+        let mut last_possible_number: Vec<((usize, usize), usize)> = Vec::new();
+        for y in 0..self.n2 {
+            for x in 0..self.n2 {
+                if self.possibility_board[y][x].len() == 1 {
+                    let value = self.possibility_board[y][x].iter().next().unwrap();
+                    last_possible_number.push(((x, y), *value));
                 }
-            }
-            for (value, &count) in apparition_count.iter().enumerate() {
-                if count != 1 {
-                    continue;
-                }
-                let &(x, y) = group
-                    .iter()
-                    .find(|&&(x, y)| self.possibility_board[y][x].contains(&value))
-                    .unwrap();
-                last_remaining_cell.push(((x, y), value));
             }
         }
-        if last_remaining_cell.is_empty() {
+        if last_possible_number.is_empty() {
             false
         } else {
-            for ((x, y), value) in last_remaining_cell.into_iter() {
+            for ((x, y), value) in last_possible_number.into_iter() {
                 self.board[y][x] = value;
                 self.possibility_board[y][x] = HashSet::new();
                 for (x, y) in Sudoku::get_cell_group(self.n, x, y) {
@@ -208,21 +196,27 @@ impl Sudoku {
         }
     }
 
-    //règle 3
-    fn last_possible_number(&mut self) -> bool {
-        let mut last_possible_number: Vec<((usize, usize), usize)> = Vec::new();
-        for y in 0..self.n2{
-            for x in 0..self.n2{
-                if self.possibility_board[y][x].len()==1 {
-                    let value = self.possibility_board[y][x].iter().next().unwrap();
-                    last_possible_number.push(((x,y), *value));
+    // règle 8
+    fn hidden_singles(&mut self) -> bool {
+        let groups = Sudoku::get_groups(self.n);
+        let mut hidden_singles: Vec<((usize, usize), usize)> = Vec::new();
+        for group in groups.into_iter() {
+            for value in 1..=self.n2 {
+                let cells_with_value: Vec<&(usize, usize)> = group
+                    .iter()
+                    .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
+                    .collect();
+                if cells_with_value.len() == 1 {
+                    let (x, y) = cells_with_value.first().unwrap();
+                    hidden_singles.push(((*x, *y), value));
                 }
             }
         }
-        if last_possible_number.is_empty() {
+
+        if hidden_singles.is_empty() {
             false
         } else {
-            for ((x, y), value) in last_possible_number.into_iter() {
+            for ((x, y), value) in hidden_singles.into_iter() {
                 self.board[y][x] = value;
                 self.possibility_board[y][x] = HashSet::new();
                 for (x, y) in Sudoku::get_cell_group(self.n, x, y) {
@@ -243,14 +237,14 @@ impl Sudoku {
                 println!("regle 1 a été utilisée");
                 continue;
             }
-            // if self.last_remaining_cells() {
-            //     difficulty = max(difficulty, 2);
-            //     println!("regle 2 a été utilisée");
-            //     continue;
-            // }
             if self.last_possible_number() {
                 difficulty = max(difficulty, 3);
                 println!("regle 3 a été utilisée");
+                continue;
+            }
+            if self.hidden_singles() {
+                difficulty = max(difficulty, 8);
+                println!("regle 2 a été utilisée");
                 continue;
             }
             break;
