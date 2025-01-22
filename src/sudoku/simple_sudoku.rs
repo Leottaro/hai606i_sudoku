@@ -11,6 +11,7 @@ pub struct Sudoku {
 impl Sudoku {
     // GLOBAL FUNCTIONS
 
+    // retourne la liste de tout les groupes de cellules (lignes, colonnes et carrés)
     pub fn get_groups(n: usize) -> Vec<Vec<(usize, usize)>> {
         let n2 = n * n;
         // lines and columns
@@ -48,6 +49,7 @@ impl Sudoku {
             .collect()
     }
 
+    // retourne toutes les cellules qui sont dans un groupe commun avec (x,y) (ligne, colonne ou carré)
     pub fn get_cell_group(n: usize, x: usize, y: usize) -> Vec<(usize, usize)> {
         let mut cells: Vec<(usize, usize)> = Vec::new();
         // lines and columns
@@ -87,6 +89,7 @@ impl Sudoku {
         }
     }
 
+    // crées un sudoku à partir d'un fichier
     pub fn parse_file(file_name: &str) -> Self {
         let file_path = {
             let mut path_builder = current_dir().unwrap();
@@ -135,6 +138,7 @@ impl Sudoku {
     // THE RULES ARE LISTED BY INCREASING DIFFICULTY
     // A RULE RETURN TRUE IF IT FIXED SOME CELLS
 
+    // règle 1
     fn last_free_cells(&mut self) -> bool {
         let mut last_free_cells: Vec<((usize, usize), usize)> = Vec::new();
         for y in 0..self.n2 {
@@ -165,6 +169,7 @@ impl Sudoku {
         }
     }
 
+    // règle 2
     fn last_remaining_cells(&mut self) -> bool {
         let groups = Sudoku::get_groups(self.n);
         let mut last_remaining_cell: Vec<((usize, usize), usize)> = Vec::new();
@@ -200,9 +205,10 @@ impl Sudoku {
         }
     }
 
+    // tente d'exécuter chaque règles jusqu'à ce qu'aucune ne puisse être appliquée ou que le sudoku soit fini
     pub fn rule_solve(&mut self) -> usize {
         let mut difficulty: usize = 0;
-        loop {
+        while !self.is_finished() {
             // try the rules and set the difficulty in consequence
             if self.last_free_cells() {
                 difficulty = max(difficulty, 1);
@@ -315,6 +321,7 @@ impl Sudoku {
         lines.join("\n")
     }
 
+    // affiche le tableau des possibilitées
     pub fn display_possibilities(&self) {
         for y in 0..self.n2 {
             if y != 0 && y % self.n == 0 {
@@ -341,6 +348,7 @@ impl Sudoku {
 
     // UTILITY
 
+    // check si le sudoku actuel est valide (si aucune cellule n'entre en conflit avec une autre)
     pub fn is_valid(&self) -> bool {
         // lines
         for y in 0..self.n2 {
@@ -383,8 +391,21 @@ impl Sudoku {
 
         return true;
     }
+
+    // check si le sudoku est fini
+    pub fn is_finished(&self) -> bool {
+        for line in self.board.iter() {
+            for cell in line.iter() {
+                if *cell == 0 {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 }
 
+// on peut print le sudoku directement
 impl std::fmt::Display for Sudoku {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.to_string())
