@@ -4,7 +4,7 @@ use sudoku::simple_sudoku::Sudoku;
 mod tests;
 
 fn main() {
-    let mut sudoku = Sudoku::parse_file("sudoku-2-testr3.txt");
+    let mut sudoku = Sudoku::parse_file("test.txt");
     sudoku.display_possibilities();
     println!("{}", sudoku);
     let difficulty = sudoku.rule_solve();

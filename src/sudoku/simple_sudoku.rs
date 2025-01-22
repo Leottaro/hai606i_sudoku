@@ -171,7 +171,7 @@ impl Sudoku {
         }
     }
 
-    // règle 3
+    // règle 3 OU 4
     fn last_possible_number(&mut self) -> bool {
         let mut last_possible_number: Vec<((usize, usize), usize)> = Vec::new();
         for y in 0..self.n2 {
@@ -234,17 +234,20 @@ impl Sudoku {
             // try the rules and set the difficulty in consequence
             if self.last_free_cells() {
                 difficulty = max(difficulty, 1);
-                println!("regle 1 a été utilisée");
+                println!("last_free_cells a été utilisée");
+                self.display_possibilities();
                 continue;
             }
             if self.last_possible_number() {
                 difficulty = max(difficulty, 3);
-                println!("regle 3 a été utilisée");
+                println!("last_possible_number a été utilisée");
+                self.display_possibilities();
                 continue;
             }
             if self.hidden_singles() {
                 difficulty = max(difficulty, 8);
-                println!("regle 2 a été utilisée");
+                println!("hidden_singles a été utilisée");
+                self.display_possibilities();
                 continue;
             }
             break;
