@@ -4,10 +4,12 @@ use sudoku::simple_sudoku::Sudoku;
 mod tests;
 
 fn main() {
-    let mut sudoku = Sudoku::parse_file("sudoku-3-facile-2.txt");
+    let mut sudoku = Sudoku::parse_file("sudoku-2-testr3.txt");
+    sudoku.display_possibilities();
     println!("{}", sudoku);
-    sudoku.rule_solve();
+    let difficulty = sudoku.rule_solve();
     println!("{}", sudoku);
+    println!("difficulty : {}", difficulty);
     if sudoku.is_valid() {
         println!("Sudoku is valid");
     } else {
