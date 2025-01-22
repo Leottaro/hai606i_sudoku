@@ -276,6 +276,44 @@ impl Sudoku {
         }
     }
 
+    // règle 9
+    fn intersection<T: PartialEq + Clone>(vec1: &Vec<T>, vec2: &Vec<T>) -> Vec<T> {
+        let mut result = vec1.clone();
+        result.retain(|item| vec2.contains(item));
+        result
+    }
+    fn hidden_pairs(&mut self) -> bool {
+        let mut modified = false;
+        for group in Sudoku::get_groups(self.n).into_iter() {
+            for case in group.clone() {
+                for other_case in group.clone() {
+                    if case == other_case {
+                        continue;
+                    }
+                    let intersection = Sudoku::intersection(
+                        &self.possibility_board[case.1][case.0]
+                            .iter()
+                            .map(|&x| x)
+                            .collect(),
+                        &self.possibility_board[other_case.1][other_case.0]
+                            .iter()
+                            .map(|&x| x)
+                            .collect(),
+                    );
+                    if intersection.len() == 2 {
+                        self.possibility_board[case.1][case.0] =
+                            intersection.iter().cloned().collect();
+                        self.possibility_board[other_case.1][other_case.0] =
+                            intersection.iter().cloned().collect();
+                        modified = true;
+                        //println!("hidden_pairs a été utilisée pour x:{} y:{} et x:{} y:{} avec pour valeurs {:?}", case.0, case.1, other_case.0, other_case.1, intersection);
+                    }
+                }
+            }
+        }
+        modified
+    }
+
     // tente d'exécuter chaque règles jusqu'à ce qu'aucune ne puisse être appliquée ou que le sudoku soit fini
     pub fn rule_solve(&mut self) -> usize {
         let mut difficulty: usize = 0;
