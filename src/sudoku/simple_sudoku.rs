@@ -76,6 +76,14 @@ impl Sudoku {
         cells
     }
 
+    pub fn fix_value(&mut self, x: usize, y: usize, value: usize) {
+        self.board[y][x] = value;
+        self.possibility_board[y][x] = HashSet::new();
+        for (x, y) in Sudoku::get_cell_group(self.n, x, y) {
+            self.possibility_board[y][x].remove(&value);
+        }
+    }
+
     // CREATION
 
     pub fn new(n: usize) -> Self {
@@ -161,11 +169,7 @@ impl Sudoku {
             false
         } else {
             for ((x, y), value) in last_free_cells.into_iter() {
-                self.board[y][x] = value;
-                self.possibility_board[y][x] = HashSet::new();
-                for (x, y) in Sudoku::get_cell_group(self.n, x, y) {
-                    self.possibility_board[y][x].remove(&value);
-                }
+                self.fix_value(x, y, value);
             }
             true
         }
@@ -186,14 +190,63 @@ impl Sudoku {
             false
         } else {
             for ((x, y), value) in last_possible_number.into_iter() {
-                self.board[y][x] = value;
-                self.possibility_board[y][x] = HashSet::new();
-                for (x, y) in Sudoku::get_cell_group(self.n, x, y) {
-                    self.possibility_board[y][x].remove(&value);
-                }
+                self.fix_value(x, y, value);
             }
             true
         }
+    }
+
+    // rule 6
+    fn obvious_pairs(&mut self) -> bool {
+        let mut modified = false;
+        for group in Sudoku::get_groups(self.n).into_iter() {
+            let pairs: Vec<&(usize, usize)> = group
+                .iter()
+                .filter(|&&(x, y)| self.possibility_board[y][x].len() == 2)
+                .collect();
+
+            let mut obvious_pairs: HashSet<(usize, usize)> = HashSet::new();
+            let mut obvious_values: HashSet<usize> = HashSet::new();
+            for i in 0..pairs.len() {
+                for j in (i + 1)..pairs.len() {
+                    let &(x1, y1) = pairs[i];
+                    let &(x2, y2) = pairs[j];
+                    if self.possibility_board[y1][x1] == self.possibility_board[y2][x2] {
+                        for &value in self.possibility_board[y1][x1].iter() {
+                            obvious_pairs.insert((x1, y1));
+                            obvious_pairs.insert((x2, y2));
+                            obvious_values.insert(value);
+                        }
+                    }
+                }
+            }
+            let obvious_values_count: Vec<usize> = obvious_values
+                .iter()
+                .map(|value| {
+                    group
+                        .iter()
+                        .filter(|&&(x, y)| self.possibility_board[y][x].contains(value))
+                        .count()
+                })
+                .collect();
+
+            if obvious_pairs.iter().count() < 2
+                || obvious_values_count.iter().all(|&count| count < 3)
+            {
+                continue;
+            }
+            modified = true;
+
+            for &(x, y) in group.iter() {
+                if obvious_pairs.contains(&(x, y)) {
+                    continue;
+                }
+                for value in obvious_values.iter() {
+                    self.possibility_board[y][x].remove(value);
+                }
+            }
+        }
+        modified
     }
 
     // règle 8
@@ -217,11 +270,7 @@ impl Sudoku {
             false
         } else {
             for ((x, y), value) in hidden_singles.into_iter() {
-                self.board[y][x] = value;
-                self.possibility_board[y][x] = HashSet::new();
-                for (x, y) in Sudoku::get_cell_group(self.n, x, y) {
-                    self.possibility_board[y][x].remove(&value);
-                }
+                self.fix_value(x, y, value);
             }
             true
         }
@@ -234,19 +283,25 @@ impl Sudoku {
             // try the rules and set the difficulty in consequence
             if self.last_free_cells() {
                 difficulty = max(difficulty, 1);
-                println!("last_free_cells a été utilisée");
+                println!("last_free_cells a été utilisée\n{}", self);
                 self.display_possibilities();
                 continue;
             }
             if self.last_possible_number() {
                 difficulty = max(difficulty, 3);
-                println!("last_possible_number a été utilisée");
+                println!("last_possible_number a été utilisée\n{}", self);
+                self.display_possibilities();
+                continue;
+            }
+            if self.obvious_pairs() {
+                difficulty = max(difficulty, 6);
+                println!("obvious_pairs a été utilisée\n{}", self);
                 self.display_possibilities();
                 continue;
             }
             if self.hidden_singles() {
                 difficulty = max(difficulty, 8);
-                println!("hidden_singles a été utilisée");
+                println!("hidden_singles a été utilisée\n{}", self);
                 self.display_possibilities();
                 continue;
             }
@@ -357,25 +412,26 @@ impl Sudoku {
         println!("");
         for y in 0..self.n2 {
             if y != 0 && y % self.n == 0 {
-                println!("{}┼{}┼{}", "─".repeat(self.n2 * self.n + self.n*2),
-                "─".repeat(self.n2 * self.n + self.n*2),
-                "─".repeat(self.n2 * self.n + self.n*2),
-                )
-                ;
+                println!(
+                    "{}┼{}┼{}",
+                    "─".repeat(self.n2 * self.n + self.n * 2),
+                    "─".repeat(self.n2 * self.n + self.n * 2),
+                    "─".repeat(self.n2 * self.n + self.n * 2),
+                );
             }
             for x in 0..self.n2 {
                 if x != 0 && x % self.n == 0 {
                     print!("│");
                 }
                 print!(
-                    " {}{}{} " ,
-                    " ".repeat((self.n2 + 1 - self.possibility_board[y][x].len())/2),
+                    " {}{}{} ",
+                    " ".repeat((self.n2 + 1 - self.possibility_board[y][x].len()) / 2),
                     self.possibility_board[y][x]
                         .iter()
                         .map(usize::to_string)
                         .collect::<Vec<String>>()
                         .join(""),
-                    " ".repeat((self.n2 - self.possibility_board[y][x].len())/2)
+                    " ".repeat((self.n2 - self.possibility_board[y][x].len()) / 2)
                 )
             }
             println!();
