@@ -108,7 +108,7 @@ impl Sudoku {
         let n2 = n * n;
 
         let board: Vec<Vec<usize>> = lines
-            .into_iter()
+            .take(n2)
             .map(|line| {
                 line.split_whitespace()
                     .map(|s| s.parse().unwrap())
@@ -249,6 +249,69 @@ impl Sudoku {
         modified
     }
 
+    // rule 7
+    fn obvious_triples(&mut self) -> bool {
+        let mut modified = false;
+        for group in Sudoku::get_groups(self.n).into_iter() {
+            let triples: Vec<&(usize, usize)> = group
+                .iter()
+                .filter(|&&(x, y)| self.possibility_board[y][x].len() == 2)
+                .collect();
+
+            let mut obvious_triples: HashSet<(usize, usize)> = HashSet::new();
+            let mut obvious_values: HashSet<usize> = HashSet::new();
+            for i in 0..triples.len() {
+                for j in (i + 1)..triples.len() {
+                    for k in (j + 1)..triples.len() {
+                        let &(x1, y1) = triples[i];
+                        let &(x2, y2) = triples[j];
+                        let &(x3, y3) = triples[k];
+                        let values: HashSet<usize> = self.possibility_board[y1][x1]
+                            .clone()
+                            .into_iter()
+                            .chain(self.possibility_board[y2][x2].clone().into_iter())
+                            .chain(self.possibility_board[y3][x3].clone().into_iter())
+                            .collect();
+                        if values.len() == 3 {
+                            for value in values.into_iter() {
+                                obvious_triples.insert((x1, y1));
+                                obvious_triples.insert((x2, y2));
+                                obvious_triples.insert((x3, y3));
+                                obvious_values.insert(value);
+                            }
+                        }
+                    }
+                }
+            }
+            let obvious_values_count: Vec<usize> = obvious_values
+                .iter()
+                .map(|value| {
+                    group
+                        .iter()
+                        .filter(|&&(x, y)| self.possibility_board[y][x].contains(value))
+                        .count()
+                })
+                .collect();
+
+            if obvious_triples.iter().count() < 3
+                || obvious_values_count.iter().all(|&count| count < 4)
+            {
+                continue;
+            }
+            modified = true;
+
+            for &(x, y) in group.iter() {
+                if obvious_triples.contains(&(x, y)) {
+                    continue;
+                }
+                for value in obvious_values.iter() {
+                    self.possibility_board[y][x].remove(value);
+                }
+            }
+        }
+        modified
+    }
+
     // règle 8
     fn hidden_singles(&mut self) -> bool {
         let groups = Sudoku::get_groups(self.n);
@@ -316,34 +379,41 @@ impl Sudoku {
 
     // tente d'exécuter chaque règles jusqu'à ce qu'aucune ne puisse être appliquée ou que le sudoku soit fini
     pub fn rule_solve(&mut self) -> usize {
+        let rules: Vec<(fn(&mut Sudoku) -> bool, usize)> = vec![
+            (Sudoku::last_free_cells, 1),
+            (Sudoku::last_possible_number, 3),
+            (Sudoku::obvious_pairs, 6),
+            (Sudoku::obvious_triples, 7),
+            (Sudoku::hidden_singles, 8),
+        ];
+
         let mut difficulty: usize = 0;
+        let mut modified;
         loop {
             // try the rules and set the difficulty in consequence
-            if self.last_free_cells() {
-                difficulty = max(difficulty, 1);
-                println!("last_free_cells a été utilisée\n{}", self);
+            modified = false;
+            for &(rule, diff) in rules.iter() {
+                // if the rule can't be applied, then pass to the next one
+                if !rule(self) {
+                    continue;
+                }
+
+                println!("la rule {} a été appliquée", diff);
+                println!("{}", self);
                 self.display_possibilities();
-                continue;
+
+                difficulty = max(difficulty, diff);
+                modified = true;
+                if !self.is_valid() {
+                    println!("le sudoku est maintenant invalide");
+                    return 0;
+                }
+                break;
             }
-            if self.last_possible_number() {
-                difficulty = max(difficulty, 3);
-                println!("last_possible_number a été utilisée\n{}", self);
-                self.display_possibilities();
-                continue;
+            // if no rules can be applied, then stop
+            if !modified {
+                break;
             }
-            if self.obvious_pairs() {
-                difficulty = max(difficulty, 6);
-                println!("obvious_pairs a été utilisée\n{}", self);
-                self.display_possibilities();
-                continue;
-            }
-            if self.hidden_singles() {
-                difficulty = max(difficulty, 8);
-                println!("hidden_singles a été utilisée\n{}", self);
-                self.display_possibilities();
-                continue;
-            }
-            break;
         }
         difficulty
     }
@@ -480,46 +550,20 @@ impl Sudoku {
     // UTILITY
 
     pub fn is_valid(&self) -> bool {
-        // lines
-        for y in 0..self.n2 {
-            let mut values = vec![false; self.n2];
-            for x in 0..self.n2 {
-                if self.board[y][x] == 0 || values[self.board[y][x] - 1] {
+        for group in Sudoku::get_groups(self.n).into_iter() {
+            let mut already_seen_values = vec![false; self.n2];
+            for (x, y) in group.into_iter() {
+                let cell_value = self.board[y][x];
+                if cell_value == 0 {
+                    continue;
+                }
+                if already_seen_values[cell_value - 1] {
                     return false;
                 }
-                values[self.board[y][x] - 1] = true;
+                already_seen_values[cell_value - 1] = true;
             }
         }
-
-        // columns
-        for x in 0..self.n2 {
-            let mut values = vec![false; self.n2];
-            for y in 0..self.n2 {
-                if self.board[y][x] == 0 || values[self.board[y][x] - 1] {
-                    return false;
-                }
-                values[self.board[y][x] - 1] = true;
-            }
-        }
-
-        // squares
-        for y0 in 0..self.n {
-            for x0 in 0..self.n {
-                let mut values = vec![false; self.n2];
-                for j in 0..self.n {
-                    for i in 0..self.n {
-                        let y = y0 * self.n + j;
-                        let x = x0 * self.n + i;
-                        if self.board[y][x] == 0 || values[self.board[y][x] - 1] {
-                            return false;
-                        }
-                        values[self.board[y][x] - 1] = true;
-                    }
-                }
-            }
-        }
-
-        return true;
+        true
     }
 }
 
