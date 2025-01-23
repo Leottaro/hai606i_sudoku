@@ -146,10 +146,8 @@ impl Sudoku {
 
     // règle 1
     fn last_free_cells(&mut self) -> bool {
-        let mut last_free_cells: Vec<((usize, usize), usize)> = Vec::new();
-        let groups = Sudoku::get_groups(self.n);
-
-        for group in groups {
+        let mut modified = false;
+        for group in Sudoku::get_groups(self.n).into_iter() {
             let mut value = 0;
             let g: Vec<usize> = group.iter().map(|&(x, y)| self.board[y][x]).collect();
             if g.iter().filter(|&n| *n == 0).count() == 1 {
@@ -160,40 +158,28 @@ impl Sudoku {
                 }
                 for (x, y) in group {
                     if self.board[y][x] == 0 {
-                        last_free_cells.push(((x, y), value));
+                        modified = true;
+                        self.fix_value(x, y, value);
                     }
                 }
             }
         }
-        if last_free_cells.is_empty() {
-            false
-        } else {
-            for ((x, y), value) in last_free_cells.into_iter() {
-                self.fix_value(x, y, value);
-            }
-            true
-        }
+        modified
     }
 
     // règle 3 OU 4
     fn last_possible_number(&mut self) -> bool {
-        let mut last_possible_number: Vec<((usize, usize), usize)> = Vec::new();
+        let mut modified = false;
         for y in 0..self.n2 {
             for x in 0..self.n2 {
                 if self.possibility_board[y][x].len() == 1 {
                     let value = self.possibility_board[y][x].iter().next().unwrap();
-                    last_possible_number.push(((x, y), *value));
+                    modified = true;
+                    self.fix_value(x, y, *value);
                 }
             }
         }
-        if last_possible_number.is_empty() {
-            false
-        } else {
-            for ((x, y), value) in last_possible_number.into_iter() {
-                self.fix_value(x, y, value);
-            }
-            true
-        }
+        modified
     }
 
     // rule 6
@@ -315,7 +301,7 @@ impl Sudoku {
     // règle 8
     fn hidden_singles(&mut self) -> bool {
         let groups = Sudoku::get_groups(self.n);
-        let mut hidden_singles: Vec<((usize, usize), usize)> = Vec::new();
+        let mut modified = false;
         for group in groups.into_iter() {
             for value in 1..=self.n2 {
                 let cells_with_value: Vec<&(usize, usize)> = group
@@ -323,20 +309,14 @@ impl Sudoku {
                     .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
                     .collect();
                 if cells_with_value.len() == 1 {
-                    let (x, y) = cells_with_value.first().unwrap();
-                    hidden_singles.push(((*x, *y), value));
+                    let &&(x, y) = cells_with_value.first().unwrap();
+                    modified = true;
+                    self.fix_value(x, y, value);
                 }
             }
         }
 
-        if hidden_singles.is_empty() {
-            false
-        } else {
-            for ((x, y), value) in hidden_singles.into_iter() {
-                self.fix_value(x, y, value);
-            }
-            true
-        }
+        modified
     }
 
     // règle 9
