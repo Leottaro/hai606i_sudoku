@@ -1,5 +1,10 @@
-use std::{cmp::max, collections::HashSet, env::current_dir};
+use std::{
+    cmp::max,
+    collections::{HashMap, HashSet},
+    env::current_dir,
+};
 
+#[derive(Debug)]
 pub struct Sudoku {
     n: usize,
     n2: usize,
@@ -9,6 +14,28 @@ pub struct Sudoku {
 
 #[allow(dead_code)] // no warning due to unused functions
 impl Sudoku {
+    // GETTERS / SETTERS
+    pub fn get_n(&self) -> usize {
+        self.n
+    }
+    pub fn get_n2(&self) -> usize {
+        self.n2
+    }
+    pub fn get_board(&self) -> Vec<Vec<usize>> {
+        self.board.clone()
+    }
+    pub fn get_possibility_board(&self) -> Vec<Vec<HashSet<usize>>> {
+        self.possibility_board.clone()
+    }
+
+    pub fn fix_value(&mut self, x: usize, y: usize, value: usize) {
+        self.board[y][x] = value;
+        self.possibility_board[y][x].clear();
+        for (x, y) in Sudoku::get_cell_group(self.n, x, y) {
+            self.possibility_board[y][x].remove(&value);
+        }
+    }
+
     // GLOBAL FUNCTIONS
 
     pub fn get_groups(n: usize) -> Vec<Vec<(usize, usize)>> {
@@ -76,14 +103,6 @@ impl Sudoku {
         cells
     }
 
-    pub fn fix_value(&mut self, x: usize, y: usize, value: usize) {
-        self.board[y][x] = value;
-        self.possibility_board[y][x] = HashSet::new();
-        for (x, y) in Sudoku::get_cell_group(self.n, x, y) {
-            self.possibility_board[y][x].remove(&value);
-        }
-    }
-
     // CREATION
 
     pub fn new(n: usize) -> Self {
@@ -95,16 +114,16 @@ impl Sudoku {
         }
     }
 
-    pub fn parse_file(file_name: &str) -> Self {
+    pub fn parse_file(file_name: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let file_path = {
             let mut path_builder = current_dir().unwrap();
             path_builder.push("res/sudoku_samples/");
             path_builder.push(file_name);
             path_builder.into_os_string().into_string().unwrap()
         };
-        let file = std::fs::read_to_string(file_path).expect("Failed to read file");
+        let file = std::fs::read_to_string(file_path)?;
         let mut lines = file.lines();
-        let n: usize = lines.next().unwrap().parse().unwrap();
+        let n: usize = lines.next().unwrap().parse()?;
         let n2 = n * n;
 
         let board: Vec<Vec<usize>> = lines
@@ -125,18 +144,28 @@ impl Sudoku {
                 if value == 0 {
                     continue;
                 }
-                possibility_board[y][x] = HashSet::new();
+                possibility_board[y][x].clear();
                 for (x, y) in Sudoku::get_cell_group(n, x, y) {
                     possibility_board[y][x].remove(&value);
                 }
             }
         }
-        Sudoku {
+
+        let sudoku = Self {
             n,
             n2,
             board,
             possibility_board,
+        };
+
+        if let Err(((x1, y1), (x2, y2))) = sudoku.is_valid() {
+            return Err(format!(
+				"Sudoku isn't valid ! \n the cells ({},{}) and ({},{}) contains the same value\nThere must be an error in the file",
+				x1, y1, x2, y2
+			)
+			.into());
         }
+        Ok(sudoku)
     }
 
     // RULES SOLVING
@@ -384,8 +413,8 @@ impl Sudoku {
 
                 difficulty = max(difficulty, diff);
                 modified = true;
-                if !self.is_valid() {
-                    println!("le sudoku est maintenant invalide");
+                if let Err(((x1, y1), (x2, y2))) = self.is_valid() {
+                    println!("Sudoku isn't valid ! \n the cells ({},{}) and ({},{}) contains the same value\nThere must be an error in a rule", x1, y1, x2, y2);
                     return 0;
                 }
                 break;
@@ -416,7 +445,7 @@ impl Sudoku {
 
         let possible_values = self.possibility_board[y][x].clone();
         let cell_group = Sudoku::get_cell_group(self.n, x, y);
-        self.possibility_board[y][x] = HashSet::new();
+        self.possibility_board[y][x].clear();
         for value in possible_values.clone().into_iter() {
             self.board[y][x] = value;
             let changing_cells: Vec<&(usize, usize)> = cell_group
@@ -529,26 +558,65 @@ impl Sudoku {
 
     // UTILITY
 
-    pub fn is_valid(&self) -> bool {
+    pub fn is_valid(&self) -> Result<(), ((usize, usize), (usize, usize))> {
+        // check si un groupe contient 2 fois la même valeur
         for group in Sudoku::get_groups(self.n).into_iter() {
-            let mut already_seen_values = vec![false; self.n2];
+            let mut already_seen_values: HashMap<usize, (usize, usize)> = HashMap::new();
             for (x, y) in group.into_iter() {
                 let cell_value = self.board[y][x];
                 if cell_value == 0 {
                     continue;
                 }
-                if already_seen_values[cell_value - 1] {
-                    return false;
+                if already_seen_values.contains_key(&cell_value) {
+                    return Err((
+                        (x, y),
+                        already_seen_values.get(&cell_value).unwrap().clone(),
+                    ));
                 }
-                already_seen_values[cell_value - 1] = true;
+                already_seen_values.insert(cell_value, (x, y));
             }
         }
-        true
+
+        // check si une cellule pas encore fixée n'a plus de possibilités
+        for y in 0..self.n2 {
+            for x in 0..self.n2 {
+                if self.board[y][x] == 0 && self.possibility_board[y][x].is_empty() {
+                    return Err(((x, y), (x, y)));
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
 impl std::fmt::Display for Sudoku {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.to_string())
+    }
+}
+
+impl PartialEq for Sudoku {
+    fn eq(&self, other: &Self) -> bool {
+        if self.n != other.n {
+            return false;
+        }
+
+        for y in 0..self.n2 {
+            for x in 0..self.n2 {
+                if self.board[y][x] != other.board[y][x] {
+                    return false;
+                }
+            }
+        }
+
+        for y in 0..self.n2 {
+            for x in 0..self.n2 {
+                if !self.possibility_board[y][x].eq(&other.possibility_board[y][x]) {
+                    return false;
+                }
+            }
+        }
+        true
     }
 }

@@ -4,19 +4,19 @@ use sudoku::simple_sudoku::Sudoku;
 mod tests;
 
 fn main() {
-    let mut sudoku = Sudoku::parse_file("test.txt");
+    let mut sudoku = Sudoku::parse_file("test.txt").unwrap();
     println!("{}", sudoku);
     sudoku.display_possibilities();
-    if !sudoku.is_valid() {
-        println!("Sudoku isn't valid !");
+    if let Err(((x1, y1), (x2, y2))) = sudoku.is_valid() {
+        println!("Sudoku isn't valid ! \n the cells ({},{}) and ({},{}) contains the same value\nThere must be an error in a rule", x1, y1, x2, y2);
         return;
     }
     let difficulty = sudoku.rule_solve();
     println!("{}", sudoku);
     println!("difficulty : {}", difficulty);
-    if sudoku.is_valid() {
-        println!("Sudoku is valid");
+    if let Err(((x1, y1), (x2, y2))) = sudoku.is_valid() {
+        println!("Sudoku isn't valid ! \n the cells ({},{}) and ({},{}) contains the same value\nThere must be an error in a rule", x1, y1, x2, y2);
     } else {
-        println!("AAAAAAAAAAAAAAA \nSudoku isn't valid ! \nThere must be an error in a rule ! \nAAAAAAAAAAAAAAA");
+        println!("Sudoku is valid");
     }
 }
