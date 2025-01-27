@@ -103,6 +103,38 @@ impl Sudoku {
         cells
     }
 
+    pub fn get_cell_groups(n: usize, x: usize, y: usize) -> Vec<Vec<(usize, usize)>> {
+        let mut groups: Vec<Vec<(usize, usize)>> = Vec::new();
+    
+        // line and culumn
+        let mut line: Vec<(usize, usize)> = Vec::new();
+        let mut col: Vec<(usize, usize)> = Vec::new();
+    
+        for i in 0..n * n {
+            line.push((x, i));
+            col.push((i,y));
+        }
+    
+        // square
+        let mut square: Vec<(usize, usize)> = Vec::new();
+        let x0 = x - x % n;
+        let y0 = y - y % n;
+    
+        for i in 0..n {
+            for j in 0..n {
+                square.push((x0 + i, y0 + j));
+            }
+        }
+    
+        groups.push(line);
+        groups.push(col);
+        groups.push(square);
+    
+    
+        groups
+    }
+        
+
     // CREATION
 
     pub fn new(n: usize) -> Self {
