@@ -31,8 +31,10 @@ impl Sudoku {
     pub fn fix_value(&mut self, x: usize, y: usize, value: usize) {
         self.board[y][x] = value;
         self.possibility_board[y][x].clear();
-        for (x, y) in Sudoku::get_cell_group(self.n, x, y) {
-            self.possibility_board[y][x].remove(&value);
+        for group in Sudoku::get_cell_groups(self.n, x, y) {
+            for (x, y) in group {
+                self.possibility_board[y][x].remove(&value);
+            }
         }
     }
 
@@ -75,65 +77,35 @@ impl Sudoku {
             .collect()
     }
 
-    pub fn get_cell_group(n: usize, x: usize, y: usize) -> Vec<(usize, usize)> {
-        let mut cells: Vec<(usize, usize)> = Vec::new();
-        // lines and columns
-        for i in 0..n * n {
-            if i != y {
-                cells.push((x, i));
-            }
-            if i != x {
-                cells.push((i, y));
-            }
-        }
-
-        // squares
-        let x0 = x - x % n;
-        let y0 = y - y % n;
-        for i in 0..n {
-            if y0 + i == y {
-                continue;
-            }
-            for j in 0..n {
-                if x0 + j != x {
-                    cells.push((x0 + j, y0 + i));
-                }
-            }
-        }
-        cells
-    }
-
     pub fn get_cell_groups(n: usize, x: usize, y: usize) -> Vec<Vec<(usize, usize)>> {
         let mut groups: Vec<Vec<(usize, usize)>> = Vec::new();
-    
+
         // line and culumn
         let mut line: Vec<(usize, usize)> = Vec::new();
         let mut col: Vec<(usize, usize)> = Vec::new();
-    
+
         for i in 0..n * n {
             line.push((x, i));
-            col.push((i,y));
+            col.push((i, y));
         }
-    
+
         // square
         let mut square: Vec<(usize, usize)> = Vec::new();
         let x0 = x - x % n;
         let y0 = y - y % n;
-    
+
         for i in 0..n {
             for j in 0..n {
                 square.push((x0 + i, y0 + j));
             }
         }
-    
+
         groups.push(line);
         groups.push(col);
         groups.push(square);
-    
-    
+
         groups
     }
-        
 
     // CREATION
 
@@ -177,8 +149,10 @@ impl Sudoku {
                     continue;
                 }
                 possibility_board[y][x].clear();
-                for (x, y) in Sudoku::get_cell_group(n, x, y) {
-                    possibility_board[y][x].remove(&value);
+                for group in Sudoku::get_cell_groups(n, x, y) {
+                    for (x, y) in group {
+                        possibility_board[y][x].remove(&value);
+                    }
                 }
             }
         }
@@ -476,7 +450,10 @@ impl Sudoku {
         }
 
         let possible_values = self.possibility_board[y][x].clone();
-        let cell_group = Sudoku::get_cell_group(self.n, x, y);
+        let cell_group: Vec<(usize, usize)> = Sudoku::get_cell_groups(self.n, x, y)
+            .into_iter()
+            .flatten()
+            .collect();
         self.possibility_board[y][x].clear();
         for value in possible_values.clone().into_iter() {
             self.board[y][x] = value;
