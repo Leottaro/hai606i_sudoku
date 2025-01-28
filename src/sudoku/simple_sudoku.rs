@@ -392,6 +392,77 @@ impl Sudoku {
         modified
     }
 
+    //regle 11
+    fn pointing_pairs(&mut self) -> bool {
+        for y in 0..self.n2{
+            for x in 0..self.n2{
+                let group = Sudoku::get_cell_groups(self.n, x ,y);
+                let line_poss: HashSet<usize> = group[0].iter().flat_map(|&(x,y)| self.possibility_board[y][x].clone()).collect();
+
+                let line_nosquare_poss: HashSet<usize> = group[0].iter()
+                .filter(|&&(x,y)| !group[2].contains(&(x,y)))
+                .flat_map(|&(x,y)| self.possibility_board[y][x].clone()).collect();
+
+                let col_poss: HashSet<usize> = group[1].iter().flat_map(|&(x,y)| self.possibility_board[y][x].clone()).collect();
+
+                let col_nosquare_poss: HashSet<usize> = group[1].iter()
+                .filter(|&&(x,y)| !group[2].contains(&(x,y)))
+                .flat_map(|&(x,y)| self.possibility_board[y][x].clone()).collect();
+
+                let square_poss: HashSet<usize> = group[2].iter().flat_map(|&(x,y)| self.possibility_board[y][x].clone()).collect();
+
+                let square_noline_poss: HashSet<usize> = group[2].iter()
+                .filter(|&&(x,y)| !group[0].contains(&(x,y)))
+                .flat_map(|&(x,y)| self.possibility_board[y][x].clone()).collect();
+
+                let square_nocol_poss: HashSet<usize> = group[2].iter()
+                .filter(|&&(x,y)| !group[1].contains(&(x,y)))
+                .flat_map(|&(x,y)| self.possibility_board[y][x].clone()).collect();
+
+                for i in 1..=self.n2{
+                    if line_poss.contains(&i) && square_poss.contains(&i){
+                        if line_nosquare_poss.contains(&i) && !square_noline_poss.contains(&i){
+                            for &(x1,y1) in group[0].iter(){
+                                if !group[2].contains(&(x1,y1)){
+                                    self.possibility_board[y1][x1].remove(&i);
+                                }
+                            }
+                            return true;
+                        }
+                        if !line_nosquare_poss.contains(&i) && square_noline_poss.contains(&i){
+                            for &(x1,y1) in group[2].iter(){
+                                if !group[0].contains(&(x1,y1)){
+                                    self.possibility_board[y1][x1].remove(&i);
+                                }
+                            }
+                            return true;
+                        }
+                    }
+                    if col_poss.contains(&i) && square_poss.contains(&i){
+                        if col_nosquare_poss.contains(&i) && !square_nocol_poss.contains(&i){
+                            for &(x1,y1) in group[1].iter(){
+                                if !group[2].contains(&(x1,y1)){
+                                    self.possibility_board[y1][x1].remove(&i);
+                                }
+                            }
+                            return true;
+                        }
+                        if !col_nosquare_poss.contains(&i) && square_nocol_poss.contains(&i){
+                            for &(x1,y1) in group[2].iter(){
+                                if !group[1].contains(&(x1,y1)){
+                                    self.possibility_board[y1][x1].remove(&i);
+                                }
+                            }
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        false
+    }
+
     // rule 13
     pub fn x_wing(&mut self) -> bool {
         let mut modified = false;
@@ -478,6 +549,7 @@ impl Sudoku {
             (Sudoku::obvious_pairs, 6),
             (Sudoku::obvious_triples, 7),
             (Sudoku::hidden_singles, 8),
+            (Sudoku::pointing_pairs, 11),
             (Sudoku::x_wing, 13),
         ];
 
@@ -502,7 +574,6 @@ impl Sudoku {
                     println!("Sudoku isn't valid ! \n the cells ({},{}) and ({},{}) contains the same value\nThere must be an error in a rule", x1, y1, x2, y2);
                     return 0;
                 }
-                break;
             }
             // if no rules can be applied, then stop
             if !modified {
