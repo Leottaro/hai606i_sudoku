@@ -4,7 +4,7 @@ use sudoku::simple_sudoku::Sudoku;
 mod tests;
 
 fn main() {
-    let mut sudoku = Sudoku::parse_file("sudoku-rule-11.txt").unwrap();
+    let mut sudoku = Sudoku::parse_file("sudoku-rule-9.txt").unwrap();
     println!("{}", sudoku);
     sudoku.display_possibilities();
     if let Err(((x1, y1), (x2, y2))) = sudoku.is_valid() {

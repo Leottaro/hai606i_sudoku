@@ -1,6 +1,6 @@
 use std::{
     cmp::max,
-    collections::{HashMap, HashSet},
+    collections::{btree_set::Intersection, HashMap, HashSet},
     env::current_dir,
 };
 
@@ -355,101 +355,118 @@ impl Sudoku {
     }
 
     // règle 9
-    fn intersection<T: PartialEq + Clone>(vec1: &Vec<T>, vec2: &Vec<T>) -> Vec<T> {
-        let mut result = vec1.clone();
-        result.retain(|item| vec2.contains(item));
-        result
-    }
     fn hidden_pairs(&mut self) -> bool {
-        let mut modified = false;
         for group in Sudoku::get_groups(self.n).into_iter() {
-            for case in group.clone() {
-                for other_case in group.clone() {
-                    if case == other_case {
-                        continue;
-                    }
-                    let intersection = Sudoku::intersection(
-                        &self.possibility_board[case.1][case.0]
-                            .iter()
-                            .map(|&x| x)
-                            .collect(),
-                        &self.possibility_board[other_case.1][other_case.0]
-                            .iter()
-                            .map(|&x| x)
-                            .collect(),
-                    );
-                    if intersection.len() == 2 {
-                        self.possibility_board[case.1][case.0] =
-                            intersection.iter().cloned().collect();
-                        self.possibility_board[other_case.1][other_case.0] =
-                            intersection.iter().cloned().collect();
-                        modified = true;
-                        //println!("hidden_pairs a été utilisée pour x:{} y:{} et x:{} y:{} avec pour valeurs {:?}", case.0, case.1, other_case.0, other_case.1, intersection);
+            for value1 in 1..self.n2 {
+                for value2 in (value1 + 1)..=self.n2 {
+                    let occurences_value1: Vec<&(usize, usize)> = group
+                        .iter()
+                        .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value1))
+                        .collect();
+                    let occurences_value2: Vec<&(usize, usize)> = group
+                        .iter()
+                        .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value2))
+                        .collect();
+                    if occurences_value1.len() == 2 && occurences_value1 == occurences_value2 {
+                        println!("occurences_values : {:?}", occurences_value1);
+
+                        let mut modified = false;
+                        for &(x, y) in occurences_value1.into_iter() {
+                            for value in 1..=self.n2 {
+                                if value != value1
+                                    && value != value2
+                                    && self.possibility_board[y][x].remove(&value)
+                                {
+                                    println!("valeur {} supprimée de x: {}, y: {}", value, x, y);
+                                    modified = true;
+                                }
+                            }
+                        }
+                        if modified {
+                            return true;
+                        }
                     }
                 }
             }
         }
-        modified
+        return false;
     }
 
     //regle 11
     fn pointing_pairs(&mut self) -> bool {
-        for y in 0..self.n2{
-            for x in 0..self.n2{
-                let group = Sudoku::get_cell_groups(self.n, x ,y);
-                let line_poss: HashSet<usize> = group[0].iter().flat_map(|&(x,y)| self.possibility_board[y][x].clone()).collect();
+        for y in 0..self.n2 {
+            for x in 0..self.n2 {
+                let group = Sudoku::get_cell_groups(self.n, x, y);
+                let line_poss: HashSet<usize> = group[0]
+                    .iter()
+                    .flat_map(|&(x, y)| self.possibility_board[y][x].clone())
+                    .collect();
 
-                let line_nosquare_poss: HashSet<usize> = group[0].iter()
-                .filter(|&&(x,y)| !group[2].contains(&(x,y)))
-                .flat_map(|&(x,y)| self.possibility_board[y][x].clone()).collect();
+                let line_nosquare_poss: HashSet<usize> = group[0]
+                    .iter()
+                    .filter(|&&(x, y)| !group[2].contains(&(x, y)))
+                    .flat_map(|&(x, y)| self.possibility_board[y][x].clone())
+                    .collect();
 
-                let col_poss: HashSet<usize> = group[1].iter().flat_map(|&(x,y)| self.possibility_board[y][x].clone()).collect();
+                let col_poss: HashSet<usize> = group[1]
+                    .iter()
+                    .flat_map(|&(x, y)| self.possibility_board[y][x].clone())
+                    .collect();
 
-                let col_nosquare_poss: HashSet<usize> = group[1].iter()
-                .filter(|&&(x,y)| !group[2].contains(&(x,y)))
-                .flat_map(|&(x,y)| self.possibility_board[y][x].clone()).collect();
+                let col_nosquare_poss: HashSet<usize> = group[1]
+                    .iter()
+                    .filter(|&&(x, y)| !group[2].contains(&(x, y)))
+                    .flat_map(|&(x, y)| self.possibility_board[y][x].clone())
+                    .collect();
 
-                let square_poss: HashSet<usize> = group[2].iter().flat_map(|&(x,y)| self.possibility_board[y][x].clone()).collect();
+                let square_poss: HashSet<usize> = group[2]
+                    .iter()
+                    .flat_map(|&(x, y)| self.possibility_board[y][x].clone())
+                    .collect();
 
-                let square_noline_poss: HashSet<usize> = group[2].iter()
-                .filter(|&&(x,y)| !group[0].contains(&(x,y)))
-                .flat_map(|&(x,y)| self.possibility_board[y][x].clone()).collect();
+                let square_noline_poss: HashSet<usize> = group[2]
+                    .iter()
+                    .filter(|&&(x, y)| !group[0].contains(&(x, y)))
+                    .flat_map(|&(x, y)| self.possibility_board[y][x].clone())
+                    .collect();
 
-                let square_nocol_poss: HashSet<usize> = group[2].iter()
-                .filter(|&&(x,y)| !group[1].contains(&(x,y)))
-                .flat_map(|&(x,y)| self.possibility_board[y][x].clone()).collect();
+                let square_nocol_poss: HashSet<usize> = group[2]
+                    .iter()
+                    .filter(|&&(x, y)| !group[1].contains(&(x, y)))
+                    .flat_map(|&(x, y)| self.possibility_board[y][x].clone())
+                    .collect();
 
-                for i in 1..=self.n2{
-                    if line_poss.contains(&i) && square_poss.contains(&i){
-                        if line_nosquare_poss.contains(&i) && !square_noline_poss.contains(&i){
-                            for &(x1,y1) in group[0].iter(){
-                                if !group[2].contains(&(x1,y1)){
+                for i in 1..=self.n2 {
+                    if line_poss.contains(&i) && square_poss.contains(&i) {
+                        if line_nosquare_poss.contains(&i) && !square_noline_poss.contains(&i) {
+                            for &(x1, y1) in group[0].iter() {
+                                if !group[2].contains(&(x1, y1)) {
                                     self.possibility_board[y1][x1].remove(&i);
                                 }
                             }
                             return true;
                         }
-                        if !line_nosquare_poss.contains(&i) && square_noline_poss.contains(&i){
-                            for &(x1,y1) in group[2].iter(){
-                                if !group[0].contains(&(x1,y1)){
+                        if !line_nosquare_poss.contains(&i) && square_noline_poss.contains(&i) {
+                            for &(x1, y1) in group[2].iter() {
+                                if !group[0].contains(&(x1, y1)) {
                                     self.possibility_board[y1][x1].remove(&i);
                                 }
                             }
                             return true;
                         }
                     }
-                    if col_poss.contains(&i) && square_poss.contains(&i){
-                        if col_nosquare_poss.contains(&i) && !square_nocol_poss.contains(&i){
-                            for &(x1,y1) in group[1].iter(){
-                                if !group[2].contains(&(x1,y1)){
+                    if col_poss.contains(&i) && square_poss.contains(&i) {
+                        if col_nosquare_poss.contains(&i) && !square_nocol_poss.contains(&i) {
+                            for &(x1, y1) in group[1].iter() {
+                                if !group[2].contains(&(x1, y1)) {
                                     self.possibility_board[y1][x1].remove(&i);
                                 }
                             }
                             return true;
                         }
-                        if !col_nosquare_poss.contains(&i) && square_nocol_poss.contains(&i){
-                            for &(x1,y1) in group[2].iter(){
-                                if !group[1].contains(&(x1,y1)){
+                        if !col_nosquare_poss.contains(&i) && square_nocol_poss.contains(&i) {
+                            for &(x1, y1) in group[2].iter() {
+                                if !group[1].contains(&(x1, y1)) {
                                     self.possibility_board[y1][x1].remove(&i);
                                 }
                             }
@@ -544,13 +561,14 @@ impl Sudoku {
     // tente d'exécuter chaque règles jusqu'à ce qu'aucune ne puisse être appliquée ou que le sudoku soit fini
     pub fn rule_solve(&mut self) -> usize {
         let rules: Vec<(fn(&mut Sudoku) -> bool, usize)> = vec![
-            (Sudoku::last_free_cells, 1),
-            (Sudoku::last_possible_number, 3),
-            (Sudoku::obvious_pairs, 6),
-            (Sudoku::obvious_triples, 7),
-            (Sudoku::hidden_singles, 8),
-            (Sudoku::pointing_pairs, 11),
-            (Sudoku::x_wing, 13),
+            // (Sudoku::last_free_cells, 1),
+            // (Sudoku::last_possible_number, 3),
+            // (Sudoku::obvious_pairs, 6),
+            // (Sudoku::obvious_triples, 7),
+            // (Sudoku::hidden_singles, 8),
+            (Sudoku::hidden_pairs, 9),
+            // (Sudoku::pointing_pairs, 11),
+            // (Sudoku::x_wing, 13),
         ];
 
         let mut difficulty: usize = 0;
