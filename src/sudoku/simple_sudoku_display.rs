@@ -39,6 +39,9 @@ impl<'a> SudokuDisplay<'a> {
     }
 
     async fn draw_sudoku(&self) {
+        let regular = load_ttf_font("./res/font/regular.ttf")
+        .await
+        .unwrap();
         for i in 0..self.sudoku.get_n2() {
             let i = i as f32;
             // row
@@ -50,7 +53,6 @@ impl<'a> SudokuDisplay<'a> {
                 1.0,
                 Color::from_hex(0xc0c5d3),
             );
-
             // col
             draw_line(
                 i * self.pixel_per_cell,
@@ -85,6 +87,7 @@ impl<'a> SudokuDisplay<'a> {
                     (x as f32 + 0.25) * self.pixel_per_cell,
                     (y as f32 + 1.0 - 0.25) * self.pixel_per_cell,
                     TextParams {
+                        font: Some(&regular),
                         font_size: self.pixel_per_cell as u16,
                         color: Color::from_hex(0x000000),
                         ..Default::default()
