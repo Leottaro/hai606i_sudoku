@@ -181,7 +181,6 @@ impl Sudoku {
 
     // règle 1
     fn last_free_cells(&mut self) -> bool {
-        let mut modified = false;
         for group in Sudoku::get_groups(self.n).into_iter() {
             let mut value = 0;
             let g: Vec<usize> = group.iter().map(|&(x, y)| self.board[y][x]).collect();
@@ -193,33 +192,31 @@ impl Sudoku {
                 }
                 for (x, y) in group {
                     if self.board[y][x] == 0 {
-                        modified = true;
                         self.fix_value(x, y, value);
+                        return true;
                     }
                 }
             }
         }
-        modified
+        false
     }
 
-    // règle 3 OU 4
+    // règle 3 OU 5
     fn last_possible_number(&mut self) -> bool {
-        let mut modified = false;
         for y in 0..self.n2 {
             for x in 0..self.n2 {
                 if self.possibility_board[y][x].len() == 1 {
                     let value = self.possibility_board[y][x].iter().next().unwrap();
-                    modified = true;
                     self.fix_value(x, y, *value);
+                    return true;
                 }
             }
         }
-        modified
+        false
     }
 
     // rule 6
     fn obvious_pairs(&mut self) -> bool {
-        let mut modified = false;
         for group in Sudoku::get_groups(self.n).into_iter() {
             let pairs: Vec<&(usize, usize)> = group
                 .iter()
@@ -256,7 +253,6 @@ impl Sudoku {
             {
                 continue;
             }
-            modified = true;
 
             for &(x, y) in group.iter() {
                 if obvious_pairs.contains(&(x, y)) {
@@ -266,13 +262,13 @@ impl Sudoku {
                     self.possibility_board[y][x].remove(value);
                 }
             }
+            return true;
         }
-        modified
+        false
     }
 
     // rule 7
     fn obvious_triples(&mut self) -> bool {
-        let mut modified = false;
         for group in Sudoku::get_groups(self.n).into_iter() {
             let triples: Vec<&(usize, usize)> = group
                 .iter()
@@ -319,7 +315,6 @@ impl Sudoku {
             {
                 continue;
             }
-            modified = true;
 
             for &(x, y) in group.iter() {
                 if obvious_triples.contains(&(x, y)) {
@@ -329,14 +324,14 @@ impl Sudoku {
                     self.possibility_board[y][x].remove(value);
                 }
             }
+            return true;
         }
-        modified
+        false
     }
 
     // règle 8
     fn hidden_singles(&mut self) -> bool {
         let groups = Sudoku::get_groups(self.n);
-        let mut modified = false;
         for group in groups.into_iter() {
             for value in 1..=self.n2 {
                 let cells_with_value: Vec<&(usize, usize)> = group
@@ -345,13 +340,12 @@ impl Sudoku {
                     .collect();
                 if cells_with_value.len() == 1 {
                     let &&(x, y) = cells_with_value.first().unwrap();
-                    modified = true;
                     self.fix_value(x, y, value);
+                    return true;
                 }
             }
         }
-
-        modified
+        false
     }
 
     // règle 9
@@ -389,7 +383,7 @@ impl Sudoku {
                 }
             }
         }
-        return false;
+        false
     }
 
     //regle 11
@@ -476,13 +470,11 @@ impl Sudoku {
                 }
             }
         }
-
         false
     }
 
     // rule 13
     pub fn x_wing(&mut self) -> bool {
-        let mut modified = false;
         for value in 1..self.n2 {
             for i1 in 0..(self.n2 - 1) {
                 for i2 in (i1 + 1)..self.n2 {
@@ -531,7 +523,7 @@ impl Sudoku {
                             if self.possibility_board[y][x1].remove(&value)
                                 || self.possibility_board[y][x2].remove(&value)
                             {
-                                modified = true;
+                                return true;
                             }
                         }
                     }
@@ -548,27 +540,27 @@ impl Sudoku {
                             if self.possibility_board[y1][x].remove(&value)
                                 || self.possibility_board[y2][x].remove(&value)
                             {
-                                modified = true;
+                                return true;
                             }
                         }
                     }
                 }
             }
         }
-        modified
+        false
     }
 
     // tente d'exécuter chaque règles jusqu'à ce qu'aucune ne puisse être appliquée ou que le sudoku soit fini
     pub fn rule_solve(&mut self) -> usize {
         let rules: Vec<(fn(&mut Sudoku) -> bool, usize)> = vec![
-            // (Sudoku::last_free_cells, 1),
-            // (Sudoku::last_possible_number, 3),
-            // (Sudoku::obvious_pairs, 6),
-            // (Sudoku::obvious_triples, 7),
-            // (Sudoku::hidden_singles, 8),
+            (Sudoku::last_free_cells, 1),
+            (Sudoku::last_possible_number, 3),
+            (Sudoku::obvious_pairs, 6),
+            (Sudoku::obvious_triples, 7),
+            (Sudoku::hidden_singles, 8),
             (Sudoku::hidden_pairs, 9),
-            // (Sudoku::pointing_pairs, 11),
-            // (Sudoku::x_wing, 13),
+            (Sudoku::pointing_pairs, 11),
+            (Sudoku::x_wing, 13),
         ];
 
         let mut difficulty: usize = 0;
