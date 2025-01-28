@@ -1,22 +1,26 @@
 mod sudoku;
-use sudoku::simple_sudoku::Sudoku;
+use macroquad::prelude::*;
+use sudoku::{simple_sudoku::Sudoku, simple_sudoku_display::SudokuDisplay};
 
 mod tests;
 
-fn main() {
+fn window_conf() -> Conf {
+    Conf {
+        window_title: "Sudoku".to_owned(),
+        window_width: 900,
+        window_height: 900,
+        ..Default::default()
+    }
+}
+
+#[macroquad::main(window_conf)]
+async fn main() {
     let mut sudoku = Sudoku::parse_file("test.txt").unwrap();
     println!("{}", sudoku);
-    sudoku.display_possibilities();
-    if let Err(((x1, y1), (x2, y2))) = sudoku.is_valid() {
-        println!("Sudoku isn't valid ! \n the cells ({},{}) and ({},{}) contains the same value\nThere must be an error in a rule", x1, y1, x2, y2);
-        return;
-    }
-    let difficulty = sudoku.rule_solve();
-    println!("{}", sudoku);
-    println!("difficulty : {}", difficulty);
-    if let Err(((x1, y1), (x2, y2))) = sudoku.is_valid() {
-        println!("Sudoku isn't valid ! \n the cells ({},{}) and ({},{}) contains the same value\nThere must be an error in a rule", x1, y1, x2, y2);
-    } else {
-        println!("Sudoku is valid");
+    let mut sudoku_display = SudokuDisplay::new(&mut sudoku);
+
+    loop {
+        sudoku_display.run().await;
+        next_frame().await
     }
 }
