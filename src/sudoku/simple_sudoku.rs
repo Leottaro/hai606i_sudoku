@@ -392,6 +392,84 @@ impl Sudoku {
         modified
     }
 
+    // rule 13
+    pub fn x_wing(&mut self) -> bool {
+        let mut modified = false;
+        for value in 1..self.n2 {
+            for i1 in 0..(self.n2 - 1) {
+                for i2 in (i1 + 1)..self.n2 {
+                    // i1 and i2 represents rows or columns
+
+                    // collect the indexes of the cells that contains the value in the lines (x_position) or the column (y_position) i1 and i2
+                    let mut x_positions: Vec<usize> = Vec::new();
+                    let mut invalidate_x = false;
+
+                    let mut y_positions: Vec<usize> = Vec::new();
+                    let mut invalidate_y = false;
+
+                    for j in 0..self.n2 {
+                        // if this value is on the same cell in lines i1 and i2
+                        if !invalidate_x {
+                            let cell1 = self.possibility_board[i1][j].contains(&value);
+                            let cell2 = self.possibility_board[i2][j].contains(&value);
+                            if cell1 ^ cell2 {
+                                invalidate_x = true;
+                            } else if cell1 && cell2 {
+                                x_positions.push(j);
+                            }
+                        }
+
+                        // if this value is on the same cell in columns i1 and i2
+                        if !invalidate_y {
+                            let cell1 = self.possibility_board[j][i1].contains(&value);
+                            let cell2 = self.possibility_board[j][i2].contains(&value);
+                            if cell1 ^ cell2 {
+                                invalidate_y = true;
+                            } else if cell1 && cell2 {
+                                y_positions.push(j);
+                            }
+                        }
+                    }
+
+                    // if there are 2 cells with the same value in the same 2 lines
+                    // eliminate this value from the other cells in these columns
+                    if !invalidate_x && x_positions.len() == 2 {
+                        let (x1, x2) = (x_positions[0], x_positions[1]);
+                        for y in 0..self.n2 {
+                            if y == i1 || y == i2 {
+                                continue;
+                            }
+
+                            if self.possibility_board[y][x1].remove(&value)
+                                || self.possibility_board[y][x2].remove(&value)
+                            {
+                                modified = true;
+                            }
+                        }
+                    }
+
+                    // if there are 2 cells with the same value in the same 2 columns
+                    // eliminate this value from the other cells in these lines
+                    if !invalidate_y && y_positions.len() == 2 {
+                        let (y1, y2) = (y_positions[0], y_positions[1]);
+                        for x in 0..self.n2 {
+                            if x == i1 || x == i2 {
+                                continue;
+                            }
+
+                            if self.possibility_board[y1][x].remove(&value)
+                                || self.possibility_board[y2][x].remove(&value)
+                            {
+                                modified = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        modified
+    }
+
     // tente d'exécuter chaque règles jusqu'à ce qu'aucune ne puisse être appliquée ou que le sudoku soit fini
     pub fn rule_solve(&mut self) -> usize {
         let rules: Vec<(fn(&mut Sudoku) -> bool, usize)> = vec![
@@ -400,6 +478,7 @@ impl Sudoku {
             (Sudoku::obvious_pairs, 6),
             (Sudoku::obvious_triples, 7),
             (Sudoku::hidden_singles, 8),
+            (Sudoku::x_wing, 13),
         ];
 
         let mut difficulty: usize = 0;
