@@ -381,8 +381,64 @@ impl Sudoku {
 
     // règle 6: http://www.taupierbw.be/SudokuCoach/SC_HiddenTriples.shtml
     fn hidden_triples(&mut self, debug: bool) -> bool {
-        if debug {
-            println!("hidden_triples isn't implemented yet");
+        for group in Sudoku::get_groups(self.n).into_iter() {
+            for value1 in 1..self.n2 {
+                for value2 in (value1 + 1)..=self.n2 {
+                    for value3 in (value2 + 1)..=self.n2 {
+                        let occurences_value1: HashSet<&(usize, usize)> = group
+                            .iter()
+                            .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value1))
+                            .collect();
+                        let occurences_value2: HashSet<&(usize, usize)> = group
+                            .iter()
+                            .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value2))
+                            .collect();
+                        let occurences_value3: HashSet<&(usize, usize)> = group
+                            .iter()
+                            .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value3))
+                            .collect();
+                        let common_occurences = occurences_value1
+                            .union(&occurences_value2)
+                            .cloned()
+                            .collect::<HashSet<&(usize, usize)>>()
+                            .union(&occurences_value3)
+                            .cloned()
+                            .collect::<HashSet<&(usize, usize)>>();
+
+                        if !occurences_value1.is_empty()
+                            && !occurences_value2.is_empty()
+                            && !occurences_value3.is_empty()
+                            && common_occurences.len() == 3
+                        {
+                            println!("occurence1 {}: {:?}", value1, occurences_value1);
+                            println!("occurence2 {}: {:?}", value2, occurences_value2);
+                            println!("occurence3 {}: {:?}", value3, occurences_value3);
+                            println!("{:?}", common_occurences);
+                            let mut modified = false;
+                            for &(x, y) in common_occurences.into_iter() {
+                                for value in 1..=self.n2 {
+                                    if value != value1
+                                        && value != value2
+                                        && value != value3
+                                        && self.possibility_board[y][x].remove(&value)
+                                    {
+                                        modified = true;
+                                        if debug {
+                                            println!(
+                                                "possibilitée {} supprimée de x: {}, y: {}",
+                                                value, x, y
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                            if modified {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
         }
         false
     }
@@ -999,25 +1055,24 @@ impl Sudoku {
             if y != 0 && y % self.n == 0 {
                 println!(
                     "{}┼{}┼{}",
-                    "─".repeat(self.n2 * self.n + self.n * 2),
-                    "─".repeat(self.n2 * self.n + self.n * 2),
-                    "─".repeat(self.n2 * self.n + self.n * 2),
+                    "─".repeat(self.n2 * self.n + self.n * 4),
+                    "─".repeat(self.n2 * self.n + self.n * 4),
+                    "─".repeat(self.n2 * self.n + self.n * 4),
                 );
             }
             for x in 0..self.n2 {
                 if x != 0 && x % self.n == 0 {
                     print!("│");
                 }
-                print!(
-                    " {}{}{} ",
-                    " ".repeat((self.n2 + 1 - self.possibility_board[y][x].len()) / 2),
-                    self.possibility_board[y][x]
-                        .iter()
-                        .map(usize::to_string)
-                        .collect::<Vec<String>>()
-                        .join(""),
-                    " ".repeat((self.n2 - self.possibility_board[y][x].len()) / 2)
-                )
+                print!(" {{");
+                for value in 1..=self.n2 {
+                    if self.possibility_board[y][x].contains(&value) {
+                        print!("{}", value);
+                    } else {
+                        print!(" ");
+                    }
+                }
+                print!("}} ");
             }
             println!();
         }
