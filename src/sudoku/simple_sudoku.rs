@@ -1,6 +1,6 @@
 use std::{
     cmp::max,
-    collections::{btree_set::Intersection, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     env::current_dir,
 };
 
@@ -175,34 +175,12 @@ impl Sudoku {
     }
 
     // RULES SOLVING
-    // CHECK https://sudoku.com·/sudoku-rules/
+    // CHECK https://www.taupierbw.be/SudokuCoach
     // THE RULES ARE LISTED BY INCREASING DIFFICULTY
-    // A RULE RETURN TRUE IF IT FIXED SOME CELLS
+    // A RULE RETURN TRUE IF IT CHANGED SOMETHING
 
-    // règle 1
-    fn last_free_cells(&mut self) -> bool {
-        for group in Sudoku::get_groups(self.n).into_iter() {
-            let mut value = 0;
-            let g: Vec<usize> = group.iter().map(|&(x, y)| self.board[y][x]).collect();
-            if g.iter().filter(|&n| *n == 0).count() == 1 {
-                for i in 1..=self.n2 {
-                    if !g.contains(&i) {
-                        value = i;
-                    }
-                }
-                for (x, y) in group {
-                    if self.board[y][x] == 0 {
-                        self.fix_value(x, y, value);
-                        return true;
-                    }
-                }
-            }
-        }
-        false
-    }
-
-    // règle 3 OU 5
-    fn last_possible_number(&mut self) -> bool {
+    // règle 1: http://www.taupierbw.be/SudokuCoach/SC_Singles.shtml
+    fn naked_singles(&mut self) -> bool {
         for y in 0..self.n2 {
             for x in 0..self.n2 {
                 if self.possibility_board[y][x].len() == 1 {
@@ -215,8 +193,27 @@ impl Sudoku {
         false
     }
 
-    // rule 6
-    fn obvious_pairs(&mut self) -> bool {
+    // règle 2: http://www.taupierbw.be/SudokuCoach/SC_Singles.shtml
+    fn hidden_singles(&mut self) -> bool {
+        let groups = Sudoku::get_groups(self.n);
+        for group in groups.into_iter() {
+            for value in 1..=self.n2 {
+                let cells_with_value: Vec<&(usize, usize)> = group
+                    .iter()
+                    .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
+                    .collect();
+                if cells_with_value.len() == 1 {
+                    let &&(x, y) = cells_with_value.first().unwrap();
+                    self.fix_value(x, y, value);
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    // règle 3: http://www.taupierbw.be/SudokuCoach/SC_NakedPairs.shtml
+    fn naked_pairs(&mut self) -> bool {
         for group in Sudoku::get_groups(self.n).into_iter() {
             let pairs: Vec<&(usize, usize)> = group
                 .iter()
@@ -267,8 +264,8 @@ impl Sudoku {
         false
     }
 
-    // rule 7
-    fn obvious_triples(&mut self) -> bool {
+    // règle 4: http://www.taupierbw.be/SudokuCoach/SC_NakedTriples.shtml
+    fn naked_triples(&mut self) -> bool {
         for group in Sudoku::get_groups(self.n).into_iter() {
             let triples: Vec<&(usize, usize)> = group
                 .iter()
@@ -329,26 +326,7 @@ impl Sudoku {
         false
     }
 
-    // règle 8
-    fn hidden_singles(&mut self) -> bool {
-        let groups = Sudoku::get_groups(self.n);
-        for group in groups.into_iter() {
-            for value in 1..=self.n2 {
-                let cells_with_value: Vec<&(usize, usize)> = group
-                    .iter()
-                    .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
-                    .collect();
-                if cells_with_value.len() == 1 {
-                    let &&(x, y) = cells_with_value.first().unwrap();
-                    self.fix_value(x, y, value);
-                    return true;
-                }
-            }
-        }
-        false
-    }
-
-    // règle 9
+    // règle 5: http://www.taupierbw.be/SudokuCoach/SC_HiddenPairs.shtml
     fn hidden_pairs(&mut self) -> bool {
         for group in Sudoku::get_groups(self.n).into_iter() {
             for value1 in 1..self.n2 {
@@ -386,8 +364,23 @@ impl Sudoku {
         false
     }
 
-    //regle 11
-    fn pointing_pairs(&mut self) -> bool {
+    // règle 6: http://www.taupierbw.be/SudokuCoach/SC_HiddenTriples.shtml
+    fn hidden_triples(&mut self) -> bool {
+        false
+    }
+
+    // règle 7: http://www.taupierbw.be/SudokuCoach/SC_NakedQuads.shtml
+    fn naked_quads(&mut self) -> bool {
+        false
+    }
+
+    // règle 8: http://www.taupierbw.be/SudokuCoach/SC_HiddenQuads.shtml
+    fn hidden_quads(&mut self) -> bool {
+        false
+    }
+
+    // règle 9: http://www.taupierbw.be/SudokuCoach/SC_PointingPair.shtml
+    fn pointing_pair(&mut self) -> bool {
         for y in 0..self.n2 {
             for x in 0..self.n2 {
                 let group = Sudoku::get_cell_groups(self.n, x, y);
@@ -473,8 +466,18 @@ impl Sudoku {
         false
     }
 
-    // rule 13
-    pub fn x_wing(&mut self) -> bool {
+    // règle 10: http://www.taupierbw.be/SudokuCoach/SC_PointingTriple.shtml
+    fn pointing_triple(&mut self) -> bool {
+        false
+    }
+
+    // règle 11: http://www.taupierbw.be/SudokuCoach/SC_BoxReduction.shtml
+    fn box_reduction(&mut self) -> bool {
+        false
+    }
+
+    // règle 12: http://www.taupierbw.be/SudokuCoach/SC_XWing.shtml
+    fn x_wing(&mut self) -> bool {
         for value in 1..self.n2 {
             for i1 in 0..(self.n2 - 1) {
                 for i2 in (i1 + 1)..self.n2 {
@@ -550,17 +553,153 @@ impl Sudoku {
         false
     }
 
+    // règle 13: http://www.taupierbw.be/SudokuCoach/SC_FinnedXWing.shtml
+    fn finned_x_wing(&mut self) -> bool {
+        false
+    }
+
+    // règle 14: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedXWing.shtml
+    fn sashimi_finned_x_wing(&mut self) -> bool {
+        false
+    }
+
+    // règle 15: http://www.taupierbw.be/SudokuCoach/SC_FrankenXWing.shtml
+    fn franken_x_wing(&mut self) -> bool {
+        false
+    }
+
+    // règle 16: http://www.taupierbw.be/SudokuCoach/SC_Skyscraper.shtml
+    fn skyscraper(&mut self) -> bool {
+        false
+    }
+
+    // règle 17: http://www.taupierbw.be/SudokuCoach/SC_YWing.shtml
+    fn y_wing(&mut self) -> bool {
+        false
+    }
+
+    // règle 18: http://www.taupierbw.be/SudokuCoach/SC_WWing.shtml
+    fn w_wing(&mut self) -> bool {
+        false
+    }
+
+    // règle 19: http://www.taupierbw.be/SudokuCoach/SC_Swordfish.shtml
+    fn swordfish(&mut self) -> bool {
+        false
+    }
+
+    // règle 20: http://www.taupierbw.be/SudokuCoach/SC_FinnedSwordfish.shtml
+    fn finned_swordfish(&mut self) -> bool {
+        false
+    }
+
+    // règle 21: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedSwordfish.shtml
+    fn sashimi_finned_swordfish(&mut self) -> bool {
+        false
+    }
+
+    // règle 22: http://www.taupierbw.be/SudokuCoach/SC_XYZWing.shtml
+    fn xyz_wing(&mut self) -> bool {
+        false
+    }
+
+    // règle 23: http://www.taupierbw.be/SudokuCoach/SC_BUG.shtml
+    fn bi_value_universal_grave(&mut self) -> bool {
+        false
+    }
+
+    // règle 24: http://www.taupierbw.be/SudokuCoach/SC_XYChain.shtml
+    fn xy_chain(&mut self) -> bool {
+        false
+    }
+
+    // règle 25: http://www.taupierbw.be/SudokuCoach/SC_Jellyfish.shtml
+    fn jellyfish(&mut self) -> bool {
+        false
+    }
+
+    // règle 26: http://www.taupierbw.be/SudokuCoach/SC_FinnedJellyfish.shtml
+    fn finned_jellyfish(&mut self) -> bool {
+        false
+    }
+
+    // règle 27: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedJellyfish.shtml
+    fn sashimi_finned_jellyfish(&mut self) -> bool {
+        false
+    }
+
+    // règle 28: http://www.taupierbw.be/SudokuCoach/SC_WXYZWing.shtml
+    fn wxyz_wing(&mut self) -> bool {
+        false
+    }
+
+    // règle 29: http://www.taupierbw.be/SudokuCoach/SC_APE.shtml
+    fn subset_exclusion(&mut self) -> bool {
+        false
+    }
+
+    // règle 30: http://www.taupierbw.be/SudokuCoach/SC_EmptyRectangle.shtml
+    fn empty_rectangle(&mut self) -> bool {
+        false
+    }
+
+    // règle 31: http://www.taupierbw.be/SudokuCoach/SC_ALSchain.shtml
+    fn almost_locked_set_forcing_chain(&mut self) -> bool {
+        false
+    }
+
+    // règle 32: http://www.taupierbw.be/SudokuCoach/SC_DeathBlossom.shtml
+    fn death_blossom(&mut self) -> bool {
+        false
+    }
+
+    // règle 33: http://www.taupierbw.be/SudokuCoach/SC_PatternOverlay.shtml
+    fn pattern_overlay(&mut self) -> bool {
+        false
+    }
+
+    // règle 34: http://www.taupierbw.be/SudokuCoach/SC_BowmanBingo.shtml
+    fn bowmans_bingo(&mut self) -> bool {
+        false
+    }
+
     // tente d'exécuter chaque règles jusqu'à ce qu'aucune ne puisse être appliquée ou que le sudoku soit fini
     pub fn rule_solve(&mut self) -> usize {
         let rules: Vec<(fn(&mut Sudoku) -> bool, usize)> = vec![
-            (Sudoku::last_free_cells, 1),
-            (Sudoku::last_possible_number, 3),
-            (Sudoku::obvious_pairs, 6),
-            (Sudoku::obvious_triples, 7),
-            (Sudoku::hidden_singles, 8),
-            (Sudoku::hidden_pairs, 9),
-            (Sudoku::pointing_pairs, 11),
-            (Sudoku::x_wing, 13),
+            (Sudoku::naked_singles, 1),
+            (Sudoku::hidden_singles, 2),
+            (Sudoku::naked_pairs, 3),
+            (Sudoku::naked_triples, 4),
+            (Sudoku::hidden_pairs, 5),
+            (Sudoku::hidden_triples, 6),
+            (Sudoku::naked_quads, 7),
+            (Sudoku::hidden_quads, 8),
+            (Sudoku::pointing_pair, 9),
+            (Sudoku::pointing_triple, 10),
+            (Sudoku::box_reduction, 11),
+            (Sudoku::x_wing, 12),
+            (Sudoku::finned_x_wing, 13),
+            (Sudoku::sashimi_finned_x_wing, 14),
+            (Sudoku::franken_x_wing, 15),
+            (Sudoku::skyscraper, 16),
+            (Sudoku::y_wing, 17),
+            (Sudoku::w_wing, 18),
+            (Sudoku::swordfish, 19),
+            (Sudoku::finned_swordfish, 20),
+            (Sudoku::sashimi_finned_swordfish, 21),
+            (Sudoku::xyz_wing, 22),
+            (Sudoku::bi_value_universal_grave, 23),
+            (Sudoku::xy_chain, 24),
+            (Sudoku::jellyfish, 25),
+            (Sudoku::finned_jellyfish, 26),
+            (Sudoku::sashimi_finned_jellyfish, 27),
+            (Sudoku::wxyz_wing, 28),
+            (Sudoku::subset_exclusion, 29),
+            (Sudoku::empty_rectangle, 30),
+            (Sudoku::almost_locked_set_forcing_chain, 31),
+            (Sudoku::death_blossom, 32),
+            (Sudoku::pattern_overlay, 33),
+            (Sudoku::bowmans_bingo, 34),
         ];
 
         let mut difficulty: usize = 0;
