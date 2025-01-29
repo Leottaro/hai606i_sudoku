@@ -487,8 +487,71 @@ impl Sudoku {
 
     // règle 8: http://www.taupierbw.be/SudokuCoach/SC_HiddenQuads.shtml
     fn hidden_quads(&mut self, debug: bool) -> bool {
-        if debug {
-            println!("hidden_quads isn't implemented yet");
+        for group in Sudoku::get_groups(self.n).into_iter() {
+            for value1 in 1..self.n2 {
+                for value2 in (value1 + 1)..=self.n2 {
+                    for value3 in (value2 + 1)..=self.n2 {
+                        for value4 in (value3 + 1)..=self.n2 {
+                            let occurences_value1: HashSet<&(usize, usize)> = group
+                                .iter()
+                                .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value1))
+                                .collect();
+                            let occurences_value2: HashSet<&(usize, usize)> = group
+                                .iter()
+                                .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value2))
+                                .collect();
+                            let occurences_value3: HashSet<&(usize, usize)> = group
+                                .iter()
+                                .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value3))
+                                .collect();
+                            let occurences_value4: HashSet<&(usize, usize)> = group
+                                .iter()
+                                .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value4))
+                                .collect();
+                            let common_occurences = occurences_value1
+                                .union(&occurences_value2)
+                                .cloned()
+                                .collect::<HashSet<&(usize, usize)>>()
+                                .union(&occurences_value3)
+                                .cloned()
+                                .collect::<HashSet<&(usize, usize)>>()
+                                .union(&occurences_value4)
+                                .cloned()
+                                .collect::<HashSet<&(usize, usize)>>();
+
+                            if !occurences_value1.is_empty()
+                                && !occurences_value2.is_empty()
+                                && !occurences_value3.is_empty()
+                                && !occurences_value4.is_empty()
+                                && common_occurences.len() == 4
+                            {
+                                let mut modified = false;
+                                for &(x, y) in common_occurences.into_iter() {
+                                    for value in 1..=self.n2 {
+                                        if value != value1
+                                            && value != value2
+                                            && value != value3
+                                            && value != value4
+                                            && self.possibility_board[y][x].remove(&value)
+                                        {
+                                            modified = true;
+                                            if debug {
+                                                println!(
+                                                    "possibilitée {} supprimée de x: {}, y: {}",
+                                                    value, x, y
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
+                                if modified {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         false
     }
