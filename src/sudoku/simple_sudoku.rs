@@ -40,27 +40,35 @@ impl Sudoku {
 
     // GLOBAL FUNCTIONS
 
-    pub fn get_groups(n: usize) -> Vec<Vec<Vec<(usize, usize)>>> {
-        let n2 = n * n;
-        // lines and columns
-        let mut lines: Vec<Vec<(usize, usize)>> = Vec::new();
-        let mut cols: Vec<Vec<(usize, usize)>> = Vec::new();
-        for y in 0..n2 {
-            let mut line: Vec<(usize, usize)> = Vec::new();
-            let mut col: Vec<(usize, usize)> = Vec::new();
-            for x in 0..n2 {
+    pub fn get_lines(n: usize) -> Vec<Vec<(usize, usize)>> {
+        let mut lines = Vec::new();
+        for y in 0..n * n {
+            let mut line = Vec::new();
+            for x in 0..n * n {
                 line.push((x, y));
-                col.push((y, x));
             }
             lines.push(line);
-            cols.push(col);
         }
+        lines
+    }
 
-        // squares
-        let mut squares: Vec<Vec<(usize, usize)>> = Vec::new();
-        for y0 in (0..n2).step_by(n) {
-            for x0 in (0..n2).step_by(n) {
-                let mut square: Vec<(usize, usize)> = Vec::new();
+    pub fn get_cols(n: usize) -> Vec<Vec<(usize, usize)>> {
+        let mut lines = Vec::new();
+        for x in 0..n * n {
+            let mut line = Vec::new();
+            for y in 0..n * n {
+                line.push((x, y));
+            }
+            lines.push(line);
+        }
+        lines
+    }
+
+    pub fn get_squares(n: usize) -> Vec<Vec<(usize, usize)>> {
+        let mut squares = Vec::new();
+        for y0 in (0..n * n).step_by(n) {
+            for x0 in (0..n * n).step_by(n) {
+                let mut square = Vec::new();
                 for j in 0..n {
                     for i in 0..n {
                         square.push((x0 + i, y0 + j));
@@ -69,38 +77,51 @@ impl Sudoku {
                 squares.push(square);
             }
         }
-
-        vec![lines, cols, squares]
+        squares
     }
 
-    pub fn get_cell_groups(n: usize, x: usize, y: usize) -> Vec<Vec<(usize, usize)>> {
-        let mut groups: Vec<Vec<(usize, usize)>> = Vec::new();
+    pub fn get_groups(n: usize) -> Vec<Vec<(usize, usize)>> {
+        let mut groups = Vec::new();
+        groups.extend(Sudoku::get_lines(n));
+        groups.extend(Sudoku::get_cols(n));
+        groups.extend(Sudoku::get_squares(n));
+        groups
+    }
 
-        // line and culumn
-        let mut line: Vec<(usize, usize)> = Vec::new();
-        let mut col: Vec<(usize, usize)> = Vec::new();
-
-        for i in 0..n * n {
-            line.push((x, i));
-            col.push((i, y));
+    pub fn get_cell_line(n: usize, y: usize) -> Vec<(usize, usize)> {
+        let mut line = Vec::new();
+        for x in 0..n * n {
+            line.push((x, y));
         }
+        line
+    }
 
-        // square
-        let mut square: Vec<(usize, usize)> = Vec::new();
+    pub fn get_cell_col(n: usize, x: usize) -> Vec<(usize, usize)> {
+        let mut line = Vec::new();
+        for y in 0..n * n {
+            line.push((x, y));
+        }
+        line
+    }
+
+    pub fn get_cell_square(n: usize, x: usize, y: usize) -> Vec<(usize, usize)> {
+        let mut square = Vec::new();
         let x0 = x - x % n;
         let y0 = y - y % n;
-
         for i in 0..n {
             for j in 0..n {
                 square.push((x0 + i, y0 + j));
             }
         }
+        square
+    }
 
-        groups.push(line);
-        groups.push(col);
-        groups.push(square);
-
-        groups
+    pub fn get_cell_groups(n: usize, x: usize, y: usize) -> Vec<Vec<(usize, usize)>> {
+        vec![
+            Sudoku::get_cell_line(n, y),
+            Sudoku::get_cell_col(n, x),
+            Sudoku::get_cell_square(n, x, y),
+        ]
     }
 
     // CREATION
@@ -194,7 +215,7 @@ impl Sudoku {
 
     // règle 2: http://www.taupierbw.be/SudokuCoach/SC_Singles.shtml
     fn hidden_singles(&mut self, debug: bool) -> bool {
-        for group in Sudoku::get_groups(self.n).into_iter().flatten() {
+        for group in Sudoku::get_groups(self.n) {
             for value in 1..=self.n2 {
                 let cells_with_value: Vec<&(usize, usize)> = group
                     .iter()
@@ -216,7 +237,7 @@ impl Sudoku {
     // règle 3: http://www.taupierbw.be/SudokuCoach/SC_NakedPairs.shtml
     fn naked_pairs(&mut self, debug: bool) -> bool {
         let mut modified = false;
-        for group in Sudoku::get_groups(self.n).into_iter().flatten() {
+        for group in Sudoku::get_groups(self.n) {
             let pairs: Vec<&(usize, usize)> = group
                 .iter()
                 .filter(|&&(x, y)| self.possibility_board[y][x].len() == 2)
@@ -256,7 +277,7 @@ impl Sudoku {
     // règle 4: http://www.taupierbw.be/SudokuCoach/SC_NakedTriples.shtml
     fn naked_triples(&mut self, debug: bool) -> bool {
         let mut modified = false;
-        for group in Sudoku::get_groups(self.n).into_iter().flatten() {
+        for group in Sudoku::get_groups(self.n) {
             let pairs_or_triples: Vec<&(usize, usize)> = group
                 .iter()
                 .filter(|&&(x, y)| {
@@ -311,7 +332,7 @@ impl Sudoku {
 
     // règle 5: http://www.taupierbw.be/SudokuCoach/SC_HiddenPairs.shtml
     fn hidden_pairs(&mut self, debug: bool) -> bool {
-        for group in Sudoku::get_groups(self.n).into_iter().flatten() {
+        for group in Sudoku::get_groups(self.n) {
             for value1 in 1..self.n2 {
                 for value2 in (value1 + 1)..=self.n2 {
                     let occurences_value1: Vec<&(usize, usize)> = group
@@ -352,7 +373,7 @@ impl Sudoku {
 
     // règle 6: http://www.taupierbw.be/SudokuCoach/SC_HiddenTriples.shtml
     fn hidden_triples(&mut self, debug: bool) -> bool {
-        for group in Sudoku::get_groups(self.n).into_iter().flatten() {
+        for group in Sudoku::get_groups(self.n) {
             for value1 in 1..self.n2 {
                 for value2 in (value1 + 1)..=self.n2 {
                     for value3 in (value2 + 1)..=self.n2 {
@@ -413,7 +434,7 @@ impl Sudoku {
     // règle 7: http://www.taupierbw.be/SudokuCoach/SC_NakedQuads.shtml
     fn naked_quads(&mut self, debug: bool) -> bool {
         let mut modified = false;
-        for group in Sudoku::get_groups(self.n).into_iter().flatten() {
+        for group in Sudoku::get_groups(self.n) {
             let pairs_or_triples_or_quads: Vec<&(usize, usize)> = group
                 .iter()
                 .filter(|&&(x, y)| {
@@ -482,7 +503,7 @@ impl Sudoku {
 
     // règle 8: http://www.taupierbw.be/SudokuCoach/SC_HiddenQuads.shtml
     fn hidden_quads(&mut self, debug: bool) -> bool {
-        for group in Sudoku::get_groups(self.n).into_iter().flatten() {
+        for group in Sudoku::get_groups(self.n) {
             for value1 in 1..self.n2 {
                 for value2 in (value1 + 1)..=self.n2 {
                     for value3 in (value2 + 1)..=self.n2 {
@@ -553,7 +574,7 @@ impl Sudoku {
 
     // règle 9: http://www.taupierbw.be/SudokuCoach/SC_PointingPair.shtml
     fn pointing_pair(&mut self, debug: bool) -> bool {
-        for square in Sudoku::get_groups(self.n).into_iter().nth(2).unwrap() {
+        for square in Sudoku::get_squares(self.n) {
             for value in 1..=self.n2 {
                 let occurences: Vec<&(usize, usize)> = square
                     .iter()
@@ -602,7 +623,7 @@ impl Sudoku {
 
     // règle 10: http://www.taupierbw.be/SudokuCoach/SC_PointingTriple.shtml
     fn pointing_triple(&mut self, debug: bool) -> bool {
-        for square in Sudoku::get_groups(self.n).into_iter().nth(2).unwrap() {
+        for square in Sudoku::get_squares(self.n) {
             for value in 1..=self.n2 {
                 let occurences: Vec<&(usize, usize)> = square
                     .iter()
@@ -1156,7 +1177,7 @@ impl Sudoku {
 
     pub fn is_valid(&self) -> Result<(), ((usize, usize), (usize, usize))> {
         // check si un groupe contient 2 fois la même valeur
-        for group in Sudoku::get_groups(self.n).into_iter().flatten() {
+        for group in Sudoku::get_groups(self.n) {
             let mut already_seen_values: HashMap<usize, (usize, usize)> = HashMap::new();
             for (x, y) in group.into_iter() {
                 let cell_value = self.board[y][x];
