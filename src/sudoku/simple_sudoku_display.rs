@@ -1,9 +1,5 @@
 
 use macroquad::prelude::*;
-use macroquad::text::Font;
-use std::sync::Arc;
-use std::sync::Mutex;
-
 use super::simple_sudoku::Sudoku;
 
 pub struct SudokuDisplay<'a> {
@@ -26,6 +22,8 @@ impl<'a> SudokuDisplay<'a> {
         }
     }
 
+
+
     fn draw_cell(&self, x: usize, y: usize, color: Color) {
         draw_rectangle(
             x as f32 * self.pixel_per_cell,
@@ -36,15 +34,13 @@ impl<'a> SudokuDisplay<'a> {
         );
     }
 
-    async fn draw_sudoku(&self) {
-        const REGULAR: &[u8] = include_bytes!("../../res/font/regular.ttf");
+    async fn draw_sudoku(&self, font: Font) {
+        // const REGULAR: &[u8] = include_bytes!("../../res/font/regular.ttf");
 
         // let fonts = Font::load_from_bytes("regular", REGULAR).unwrap();
-        // let font = load_file("./res/font/regular.ttf")
-        //         .await
-        //         .unwrap();
         
-        let regular = load_ttf_font_from_bytes(REGULAR);
+        
+        // let regular = load_ttf_font_from_bytes(REGULAR).unwrap();
         for i in 0..self.sudoku.get_n2() {
             let i = i as f32;
             // row
@@ -86,25 +82,24 @@ impl<'a> SudokuDisplay<'a> {
                 if cell == 0 {
                     continue;
                 }
+                let font_size = self.pixel_per_cell as u16 * 2 / 3;
                 draw_text_ex(
                     &cell.to_string(),
-                    (x as f32 + 0.25) * self.pixel_per_cell,
-                    (y as f32 + 1.0 - 0.25) * self.pixel_per_cell,
+                    (x as f32) * self.pixel_per_cell,
+                    (y as f32 + 5.0/6.0) * self.pixel_per_cell,
                     TextParams {
-                        font: regular,
-                        font_size: self.pixel_per_cell as u16,
+                        font: Some(&font),
+                        font_size: font_size,
                         color: Color::from_hex(0x000000),
                         ..Default::default()
                     },
                 );
-                let coordx = x as f32 * self.pixel_per_cell;
-                let coordy = y as f32 * self.pixel_per_cell;
                 
             }
         }
     }
 
-    pub async fn run(&mut self) {
+    pub async fn run(&mut self, font: Font) {
         let (mouse_x, mouse_y) = mouse_position();
         let x = (mouse_x / 100.0).floor() as usize;
         let y = (mouse_y / 100.0).floor() as usize;
@@ -127,6 +122,6 @@ impl<'a> SudokuDisplay<'a> {
             self.draw_cell(x, y, Color::from_hex(0xc2ddf8));
         }
 
-        self.draw_sudoku().await;
+        self.draw_sudoku(font).await;
     }
 }
