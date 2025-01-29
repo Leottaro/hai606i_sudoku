@@ -386,10 +386,6 @@ impl Sudoku {
                             && !occurences_value3.is_empty()
                             && common_occurences.len() == 3
                         {
-                            println!("occurence1 {}: {:?}", value1, occurences_value1);
-                            println!("occurence2 {}: {:?}", value2, occurences_value2);
-                            println!("occurence3 {}: {:?}", value3, occurences_value3);
-                            println!("{:?}", common_occurences);
                             let mut modified = false;
                             for &(x, y) in common_occurences.into_iter() {
                                 for value in 1..=self.n2 {
@@ -421,8 +417,70 @@ impl Sudoku {
 
     // règle 7: http://www.taupierbw.be/SudokuCoach/SC_NakedQuads.shtml
     fn naked_quads(&mut self, debug: bool) -> bool {
-        if debug {
-            println!("naked_quads isn't implemented yet");
+        let mut modified = false;
+        for group in Sudoku::get_groups(self.n).into_iter() {
+            let pairs_or_triples_or_quads: Vec<&(usize, usize)> = group
+                .iter()
+                .filter(|&&(x, y)| {
+                    self.possibility_board[y][x].len() >= 2
+                        && self.possibility_board[y][x].len() <= 4
+                })
+                .collect();
+
+            for i in 0..pairs_or_triples_or_quads.len() {
+                for j in (i + 1)..pairs_or_triples_or_quads.len() {
+                    for k in (j + 1)..pairs_or_triples_or_quads.len() {
+                        for l in (k + 1)..pairs_or_triples_or_quads.len() {
+                            let &(x1, y1) = pairs_or_triples_or_quads[i];
+                            let &(x2, y2) = pairs_or_triples_or_quads[j];
+                            let &(x3, y3) = pairs_or_triples_or_quads[k];
+                            let &(x4, y4) = pairs_or_triples_or_quads[l];
+                            let common_possibilities: HashSet<usize> = self.possibility_board[y1]
+                                [x1]
+                                .union(&self.possibility_board[y2][x2])
+                                .cloned()
+                                .collect::<HashSet<usize>>()
+                                .union(&self.possibility_board[y3][x3])
+                                .cloned()
+                                .collect::<HashSet<usize>>()
+                                .union(&self.possibility_board[y4][x4])
+                                .cloned()
+                                .collect();
+                            if common_possibilities.len() == 4 {
+                                println!("(x1,y1) = {:?}", (x1, y1));
+                                println!("(x2,y2) = {:?}", (x2, y2));
+                                println!("(x3,y3) = {:?}", (x3, y3));
+                                println!("(x4,y4) = {:?}", (x4, y4));
+                                println!("common_possibilities = {:?}", common_possibilities);
+                                for &(x, y) in group.iter() {
+                                    if (x, y) == *pairs_or_triples_or_quads[i]
+                                        || (x, y) == *pairs_or_triples_or_quads[j]
+                                        || (x, y) == *pairs_or_triples_or_quads[k]
+                                        || (x, y) == *pairs_or_triples_or_quads[l]
+                                    {
+                                        continue;
+                                    }
+
+                                    for &value in common_possibilities.iter() {
+                                        if self.possibility_board[y][x].remove(&value) {
+                                            if debug {
+                                                println!(
+                                                    "possibilitée {} supprimée de x: {}, y: {}",
+                                                    value, x, y
+                                                );
+                                            }
+                                            modified = true;
+                                        }
+                                    }
+                                }
+                                if modified {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         false
     }
@@ -915,6 +973,7 @@ impl Sudoku {
                 if is_valid.is_err() {
                     return Err(is_valid.unwrap_err());
                 }
+                break;
             }
             // if no rules can be applied, then stop
             if !modified {
