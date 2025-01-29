@@ -62,7 +62,7 @@ mod tests {
             if !file_name.starts_with("sudoku-3") || !file_name.ends_with(".txt") {
                 continue;
             }
-            println!("\n\n\n\n\n{}:", file_name);
+            println!("\n\n\n\n\n");
             let sudoku_result = Sudoku::parse_file(&file_name);
             if let Err(error) = sudoku_result {
                 println!("Error while parsing file {}: \n{}", file_name, error);
@@ -72,7 +72,7 @@ mod tests {
             println!("{}: \n{}", file_name, sudoku);
             sudoku.display_possibilities();
 
-            let rule_solve = sudoku.rule_solve(false);
+            let rule_solve = sudoku.rule_solve(true);
             println!("{}", sudoku);
             sudoku.display_possibilities();
 

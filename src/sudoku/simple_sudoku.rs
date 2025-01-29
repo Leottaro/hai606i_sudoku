@@ -463,11 +463,6 @@ impl Sudoku {
                                 .cloned()
                                 .collect();
                             if common_possibilities.len() == 4 {
-                                println!("(x1,y1) = {:?}", (x1, y1));
-                                println!("(x2,y2) = {:?}", (x2, y2));
-                                println!("(x3,y3) = {:?}", (x3, y3));
-                                println!("(x4,y4) = {:?}", (x4, y4));
-                                println!("common_possibilities = {:?}", common_possibilities);
                                 for &(x, y) in group.iter() {
                                     if (x, y) == *pairs_or_triples_or_quads[i]
                                         || (x, y) == *pairs_or_triples_or_quads[j]
@@ -675,36 +670,63 @@ impl Sudoku {
     fn box_reduction(&mut self, debug: bool) -> bool {
         let mut modified = false;
         for lines in Sudoku::get_lines(self.n) {
-            for inverser in [false, true] {
-                for value in 1..=self.n2 {
-                    let mut occurences: Vec<(usize, usize)> = lines
-                        .iter()
-                        .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
-                        .map(|&(x, y)| if inverser { (y, x) } else { (x, y) })
-                        .collect();
-                    if occurences.len() != 2 && occurences.len() != 3 {
-                        continue;
+            for value in 1..=self.n2 {
+                let mut occurences: Vec<&(usize, usize)> = lines
+                    .iter()
+                    .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
+                    .collect();
+                if occurences.len() != 2 && occurences.len() != 3 {
+                    continue;
+                }
+                let &(x1, y1) = occurences.pop().unwrap();
+                if occurences.iter().all(|&(x, _)| x / self.n == x1 / self.n) {
+                    for (x, y) in Sudoku::get_cell_square(self.n, x1, y1) {
+                        if y == y1 {
+                            continue;
+                        }
+                        if self.possibility_board[y][x].remove(&value) {
+                            if debug {
+                                println!("possibilitée {} supprimée de x: {}, y: {}", value, x, y);
+                            }
+                            modified = true;
+                        }
                     }
-                    let (x1, y1) = occurences.pop().unwrap();
-                    if occurences.iter().all(|&(_,y)| y%self.n == y1%self.n){
-                        for (x,y) in Sudoku::get_cell_square(self.n, x1, y1) {
-                            if y == y1 {
-                                continue;
-                            }
-                            if self.possibility_board[y][x].remove(&value) {
-                                if debug {
-                                    println!("possibilitée {} supprimée de x: {}, y: {}", value, x, y);
-                                }
-                                modified = true;
-                            }
-                        }
-                        if modified {
-                            return true;
-                        }
+                    if modified {
+                        return true;
                     }
                 }
             }
         }
+
+        for cols in Sudoku::get_cols(self.n) {
+            for value in 1..=self.n2 {
+                let mut occurences: Vec<&(usize, usize)> = cols
+                    .iter()
+                    .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
+                    .collect();
+                if occurences.len() != 2 && occurences.len() != 3 {
+                    continue;
+                }
+                let &(x1, y1) = occurences.pop().unwrap();
+                if occurences.iter().all(|&(_, y)| y / self.n == y1 / self.n) {
+                    for (x, y) in Sudoku::get_cell_square(self.n, x1, y1) {
+                        if x == x1 {
+                            continue;
+                        }
+                        if self.possibility_board[y][x].remove(&value) {
+                            if debug {
+                                println!("possibilitée {} supprimée de x: {}, y: {}", value, x, y);
+                            }
+                            modified = true;
+                        }
+                    }
+                    if modified {
+                        return true;
+                    }
+                }
+            }
+        }
+
         false
     }
 
