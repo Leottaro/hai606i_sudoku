@@ -260,65 +260,56 @@ impl Sudoku {
 
     // règle 4: http://www.taupierbw.be/SudokuCoach/SC_NakedTriples.shtml
     fn naked_triples(&mut self, debug: bool) -> bool {
+        let mut modified = false;
         for group in Sudoku::get_groups(self.n).into_iter() {
-            let triples: Vec<&(usize, usize)> = group
+            let pairs_or_triples: Vec<&(usize, usize)> = group
                 .iter()
-                .filter(|&&(x, y)| self.possibility_board[y][x].len() == 2)
+                .filter(|&&(x, y)| {
+                    self.possibility_board[y][x].len() == 2
+                        || self.possibility_board[y][x].len() == 3
+                })
                 .collect();
 
-            let mut obvious_triples: HashSet<(usize, usize)> = HashSet::new();
-            let mut obvious_values: HashSet<usize> = HashSet::new();
-            for i in 0..triples.len() {
-                for j in (i + 1)..triples.len() {
-                    for k in (j + 1)..triples.len() {
-                        let &(x1, y1) = triples[i];
-                        let &(x2, y2) = triples[j];
-                        let &(x3, y3) = triples[k];
-                        let values: HashSet<usize> = self.possibility_board[y1][x1]
-                            .clone()
-                            .into_iter()
-                            .chain(self.possibility_board[y2][x2].clone().into_iter())
-                            .chain(self.possibility_board[y3][x3].clone().into_iter())
+            for i in 0..pairs_or_triples.len() {
+                for j in (i + 1)..pairs_or_triples.len() {
+                    for k in (j + 1)..pairs_or_triples.len() {
+                        let &(x1, y1) = pairs_or_triples[i];
+                        let &(x2, y2) = pairs_or_triples[j];
+                        let &(x3, y3) = pairs_or_triples[k];
+                        let common_possibilities: HashSet<usize> = self.possibility_board[y1][x1]
+                            .union(&self.possibility_board[y2][x2])
+                            .cloned()
+                            .collect::<HashSet<usize>>()
+                            .union(&self.possibility_board[y3][x3])
+                            .cloned()
                             .collect();
-                        if values.len() == 3 {
-                            for value in values.into_iter() {
-                                obvious_triples.insert((x1, y1));
-                                obvious_triples.insert((x2, y2));
-                                obvious_triples.insert((x3, y3));
-                                obvious_values.insert(value);
+                        if common_possibilities.len() == 3 {
+                            for &(x, y) in group.iter() {
+                                if (x, y) == *pairs_or_triples[i]
+                                    || (x, y) == *pairs_or_triples[j]
+                                    || (x, y) == *pairs_or_triples[k]
+                                {
+                                    continue;
+                                }
+                                for &value in common_possibilities.iter() {
+                                    if self.possibility_board[y][x].remove(&value) {
+                                        if debug {
+                                            println!(
+                                                "possibilitée {} supprimée de x: {}, y: {}",
+                                                value, x, y
+                                            );
+                                        }
+                                        modified = true;
+                                    }
+                                }
+                            }
+                            if modified {
+                                return true;
                             }
                         }
                     }
                 }
             }
-            let obvious_values_count: Vec<usize> = obvious_values
-                .iter()
-                .map(|value| {
-                    group
-                        .iter()
-                        .filter(|&&(x, y)| self.possibility_board[y][x].contains(value))
-                        .count()
-                })
-                .collect();
-
-            if obvious_triples.iter().count() < 3
-                || obvious_values_count.iter().all(|&count| count < 4)
-            {
-                continue;
-            }
-
-            for &(x, y) in group.iter() {
-                if obvious_triples.contains(&(x, y)) {
-                    continue;
-                }
-                for value in obvious_values.iter() {
-                    self.possibility_board[y][x].remove(value);
-                    if debug {
-                        println!("possibilitée {} supprimée de x: {}, y: {}", value, x, y);
-                    }
-                }
-            }
-            return true;
         }
         false
     }
