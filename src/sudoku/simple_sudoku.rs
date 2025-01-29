@@ -220,55 +220,40 @@ impl Sudoku {
 
     // règle 3: http://www.taupierbw.be/SudokuCoach/SC_NakedPairs.shtml
     fn naked_pairs(&mut self, debug: bool) -> bool {
+        let mut modified = false;
         for group in Sudoku::get_groups(self.n).into_iter() {
             let pairs: Vec<&(usize, usize)> = group
                 .iter()
                 .filter(|&&(x, y)| self.possibility_board[y][x].len() == 2)
                 .collect();
 
-            let mut obvious_pairs: HashSet<(usize, usize)> = HashSet::new();
-            let mut obvious_values: HashSet<usize> = HashSet::new();
             for i in 0..pairs.len() {
                 for j in (i + 1)..pairs.len() {
                     let &(x1, y1) = pairs[i];
                     let &(x2, y2) = pairs[j];
                     if self.possibility_board[y1][x1] == self.possibility_board[y2][x2] {
-                        for &value in self.possibility_board[y1][x1].iter() {
-                            obvious_pairs.insert((x1, y1));
-                            obvious_pairs.insert((x2, y2));
-                            obvious_values.insert(value);
+                        for &(x, y) in group.iter() {
+                            if (x, y) == *pairs[i] || (x, y) == *pairs[j] {
+                                continue;
+                            }
+                            for value in self.possibility_board[y1][x1].clone() {
+                                if self.possibility_board[y][x].remove(&value) {
+                                    if debug {
+                                        println!(
+                                            "possibilitée {} supprimée de x: {}, y: {}",
+                                            value, x, y
+                                        );
+                                    }
+                                    modified = true;
+                                }
+                            }
+                        }
+                        if modified {
+                            return true;
                         }
                     }
                 }
             }
-            let obvious_values_count: Vec<usize> = obvious_values
-                .iter()
-                .map(|value| {
-                    group
-                        .iter()
-                        .filter(|&&(x, y)| self.possibility_board[y][x].contains(value))
-                        .count()
-                })
-                .collect();
-
-            if obvious_pairs.iter().count() < 2
-                || obvious_values_count.iter().all(|&count| count < 3)
-            {
-                continue;
-            }
-
-            for &(x, y) in group.iter() {
-                if obvious_pairs.contains(&(x, y)) {
-                    continue;
-                }
-                for value in obvious_values.iter() {
-                    self.possibility_board[y][x].remove(value);
-                    if debug {
-                        println!("possibilitée {} supprimée de x: {}, y: {}", value, x, y);
-                    }
-                }
-            }
-            return true;
         }
         false
     }
