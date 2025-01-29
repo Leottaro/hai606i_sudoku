@@ -673,8 +673,37 @@ impl Sudoku {
 
     // règle 11: http://www.taupierbw.be/SudokuCoach/SC_BoxReduction.shtml
     fn box_reduction(&mut self, debug: bool) -> bool {
-        if debug {
-            println!("box_reduction isn't implemented yet");
+        let mut modified = false;
+        for lines in Sudoku::get_lines(self.n) {
+            for inverser in [false, true] {
+                for value in 1..=self.n2 {
+                    let mut occurences: Vec<(usize, usize)> = lines
+                        .iter()
+                        .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
+                        .map(|&(x, y)| if inverser { (y, x) } else { (x, y) })
+                        .collect();
+                    if occurences.len() != 2 && occurences.len() != 3 {
+                        continue;
+                    }
+                    let (x1, y1) = occurences.pop().unwrap();
+                    if occurences.iter().all(|&(_,y)| y%self.n == y1%self.n){
+                        for (x,y) in Sudoku::get_cell_square(self.n, x1, y1) {
+                            if y == y1 {
+                                continue;
+                            }
+                            if self.possibility_board[y][x].remove(&value) {
+                                if debug {
+                                    println!("possibilitée {} supprimée de x: {}, y: {}", value, x, y);
+                                }
+                                modified = true;
+                            }
+                        }
+                        if modified {
+                            return true;
+                        }
+                    }
+                }
+            }
         }
         false
     }
