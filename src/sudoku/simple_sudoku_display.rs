@@ -1,10 +1,8 @@
-use std::{
-    fs::{self, File},
-    io::Read,
-    path::Path,
-};
 
 use macroquad::prelude::*;
+use macroquad::text::Font;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use super::simple_sudoku::Sudoku;
 
@@ -39,9 +37,14 @@ impl<'a> SudokuDisplay<'a> {
     }
 
     async fn draw_sudoku(&self) {
-        let regular = load_ttf_font("./res/font/regular.ttf")
-        .await
-        .unwrap();
+        const REGULAR: &[u8] = include_bytes!("../../res/font/regular.ttf");
+
+        // let fonts = Font::load_from_bytes("regular", REGULAR).unwrap();
+        // let font = load_file("./res/font/regular.ttf")
+        //         .await
+        //         .unwrap();
+        
+        let regular = load_ttf_font_from_bytes(REGULAR);
         for i in 0..self.sudoku.get_n2() {
             let i = i as f32;
             // row
@@ -74,6 +77,7 @@ impl<'a> SudokuDisplay<'a> {
                     2.0,
                     Color::from_hex(0x000000),
                 );
+                
             }
         }
 
@@ -87,12 +91,15 @@ impl<'a> SudokuDisplay<'a> {
                     (x as f32 + 0.25) * self.pixel_per_cell,
                     (y as f32 + 1.0 - 0.25) * self.pixel_per_cell,
                     TextParams {
-                        font: Some(&regular),
+                        font: regular,
                         font_size: self.pixel_per_cell as u16,
                         color: Color::from_hex(0x000000),
                         ..Default::default()
                     },
                 );
+                let coordx = x as f32 * self.pixel_per_cell;
+                let coordy = y as f32 * self.pixel_per_cell;
+                
             }
         }
     }
