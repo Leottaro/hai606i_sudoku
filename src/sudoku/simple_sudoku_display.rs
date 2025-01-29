@@ -1,4 +1,3 @@
-
 use macroquad::prelude::*;
 use super::simple_sudoku::Sudoku;
 
@@ -7,27 +6,65 @@ pub struct SudokuDisplay<'a> {
     window_size: f32,
     pixel_per_cell: f32,
     selected_cell: Option<(usize, usize)>,
+    x_offset: f32,
+    y_offset: f32,
 }
 
 impl<'a> SudokuDisplay<'a> {
     pub fn new(sudoku: &'a mut Sudoku) -> Self {
         let window_size = 900.0;
         let pixel_per_cell = window_size / sudoku.get_n2() as f32;
+        let x_offset = 250.0;
+        let y_offset = 50.0;
 
         Self {
             sudoku,
             window_size,
             pixel_per_cell,
             selected_cell: None,
+            x_offset,
+            y_offset,
         }
     }
 
-
+    async fn draw_buttons(&self, font: Font){
+        for x in 0..self.sudoku.get_n(){
+            for y in 0..self.sudoku.get_n(){
+                let b_size = 150.0;
+                let b_padding = 10.0;
+                let b_x = self.x_offset + self.window_size + 150.0 + (x as f32) * (b_size + b_padding);
+                let b_y = self.y_offset + (y as f32) * (b_size + b_padding) + (self.window_size - (b_size + b_padding)*(self.sudoku.get_n() as f32))/2.0;
+                draw_rectangle(
+                    b_x,
+                    b_y,
+                    b_size,
+                    b_size,
+                    Color::from_hex(0xe4ebf2)
+                );
+                let font_size = b_size as u16 * 2 / 3;
+                let text = (y * self.sudoku.get_n() + x + 1).to_string();
+                let text_dimensions = measure_text(&text, Some(&font), font_size, 1.0);
+                let text_x = b_x + (b_size - text_dimensions.width) / 2.0;
+                let text_y = b_y + (b_size + text_dimensions.height) / 2.0;
+                draw_text_ex(
+                    &text,
+                    text_x,
+                    text_y,
+                    TextParams {
+                        font: Some(&font),
+                        font_size: font_size,
+                        color: Color::from_hex(0x000000),
+                        ..Default::default()
+                    },
+                );
+            }
+        }
+    }
 
     fn draw_cell(&self, x: usize, y: usize, color: Color) {
         draw_rectangle(
-            x as f32 * self.pixel_per_cell,
-            y as f32 * self.pixel_per_cell,
+            x as f32 * self.pixel_per_cell + self.x_offset,
+            y as f32 * self.pixel_per_cell + self.y_offset,
             self.pixel_per_cell,
             self.pixel_per_cell,
             color,
@@ -35,45 +72,40 @@ impl<'a> SudokuDisplay<'a> {
     }
 
     async fn draw_sudoku(&self, font: Font) {
-        // const REGULAR: &[u8] = include_bytes!("../../res/font/regular.ttf");
-
-        // let fonts = Font::load_from_bytes("regular", REGULAR).unwrap();
-        
-        
-        // let regular = load_ttf_font_from_bytes(REGULAR).unwrap();
-        for i in 0..self.sudoku.get_n2() {
+        let n = self.sudoku.get_n();
+        let n2 = self.sudoku.get_n2();
+        for i in 0..n2 {
             let i = i as f32;
             // row
             draw_line(
-                0.0,
-                i * self.pixel_per_cell,
-                self.window_size,
-                i * self.pixel_per_cell,
+                0.0 + self.x_offset,
+                i * self.pixel_per_cell + self.y_offset,
+                self.window_size + self.x_offset,
+                i * self.pixel_per_cell + self.y_offset,
                 1.0,
                 Color::from_hex(0xc0c5d3),
             );
             // col
             draw_line(
-                i * self.pixel_per_cell,
-                0.0,
-                i * self.pixel_per_cell,
-                self.window_size,
+                i * self.pixel_per_cell + self.x_offset,
+                0.0 + self.y_offset,
+                i * self.pixel_per_cell + self.x_offset,
+                self.window_size + self.y_offset,
                 1.0,
                 Color::from_hex(0xc0c5d3),
             );
         }
 
-        for y in 0..self.sudoku.get_n() {
-            for x in 0..self.sudoku.get_n() {
+        for y in 0..n {
+            for x in 0..n {
                 draw_rectangle_lines(
-                    (x * self.sudoku.get_n()) as f32 * self.pixel_per_cell,
-                    (y * self.sudoku.get_n()) as f32 * self.pixel_per_cell,
-                    self.sudoku.get_n() as f32 * self.pixel_per_cell,
-                    self.sudoku.get_n() as f32 * self.pixel_per_cell,
+                    (x * n) as f32 * self.pixel_per_cell + self.x_offset,
+                    (y * n) as f32 * self.pixel_per_cell + self.y_offset,
+                    n as f32 * self.pixel_per_cell,
+                    n as f32 * self.pixel_per_cell,
                     2.0,
                     Color::from_hex(0x000000),
                 );
-                
             }
         }
 
@@ -83,10 +115,14 @@ impl<'a> SudokuDisplay<'a> {
                     continue;
                 }
                 let font_size = self.pixel_per_cell as u16 * 2 / 3;
+                let text = cell.to_string();
+                let text_dimensions = measure_text(&text, Some(&font), font_size, 1.0);
+                let text_x = (x as f32 * self.pixel_per_cell) + (self.pixel_per_cell - text_dimensions.width) / 2.0;
+                let text_y = (y as f32 * self.pixel_per_cell) + (self.pixel_per_cell + text_dimensions.height) / 2.0;
                 draw_text_ex(
-                    &cell.to_string(),
-                    (x as f32) * self.pixel_per_cell,
-                    (y as f32 + 5.0/6.0) * self.pixel_per_cell,
+                    &text,
+                    text_x + self.x_offset,
+                    text_y + self.y_offset,
                     TextParams {
                         font: Some(&font),
                         font_size: font_size,
@@ -94,34 +130,79 @@ impl<'a> SudokuDisplay<'a> {
                         ..Default::default()
                     },
                 );
-                
+            }
+        }
+
+        let pb = self.sudoku.get_possibility_board();
+        for x in 0..n2{
+            for y in 0..n2{
+                if pb[y][x].len()==0{
+                    continue;
+                }
+                let font_size = self.pixel_per_cell as u16 * 2 / (3 * n as u16);
+                for i in 0..n{
+                    for j in 0..n{
+                        let number = i*n + j + 1;
+                        if !pb[y][x].contains(&number){
+                            continue;
+                        }
+                        let text = number.to_string();
+                        let text_dimensions = measure_text(&text, Some(&font), font_size, 1.0);
+                        let text_x = (x as f32 * self.pixel_per_cell) - (self.pixel_per_cell / n as f32) + ((j as f32 + 1.0) * self.pixel_per_cell / n as f32) + (self.pixel_per_cell / n as f32 - text_dimensions.width) / 2.0;
+                        let text_y = (y as f32 * self.pixel_per_cell) - (self.pixel_per_cell / n as f32)+ ((i as f32 + 1.0) * self.pixel_per_cell / n as f32) + (self.pixel_per_cell / n as f32 + text_dimensions.height) / 2.0;
+                        draw_text_ex(
+                            &text,
+                            text_x + self.x_offset,
+                            text_y + self.y_offset,
+                            TextParams {
+                                font: Some(&font),
+                                font_size: font_size,
+                                color: Color::from_hex(0x000000),
+                                ..Default::default()
+                            },
+                        );
+                    }
+                    
+                    
+                    
+                    
+                }
             }
         }
     }
 
     pub async fn run(&mut self, font: Font) {
-        let (mouse_x, mouse_y) = mouse_position();
-        let x = (mouse_x / 100.0).floor() as usize;
-        let y = (mouse_y / 100.0).floor() as usize;
+        let (mouse_x, mouse_y) = (mouse_position().0 - self.x_offset, mouse_position().1 - self.y_offset);
+        let x = (mouse_x / self.pixel_per_cell).floor() as usize;
+        let y = (mouse_y / self.pixel_per_cell).floor() as usize;
 
-        if is_mouse_button_pressed(MouseButton::Left) {
-            if self.selected_cell.is_some() && self.selected_cell.unwrap() == (x, y) {
-                self.selected_cell = None;
-            } else {
-                self.selected_cell = Some((x, y));
-            }
-        }
+        
 
         clear_background(Color::from_hex(0xffffff));
 
-        self.draw_cell(x, y, Color::from_hex(0xf1f5f9));
+        if (mouse_x as f32) < self.window_size && (mouse_x as f32) > 0.0 && (mouse_y as f32) < self.window_size && (mouse_y as f32) > 0.0{
+
+            if is_mouse_button_pressed(MouseButton::Left) {
+                if self.selected_cell.is_some() && self.selected_cell.unwrap() == (x, y) {
+                    self.selected_cell = None;
+                } else {
+                    self.selected_cell = Some((x, y));
+                }
+            }
+
+            self.draw_cell(x, y, Color::from_hex(0xf1f5f9));
+            
+        }
+
         if let Some((x, y)) = self.selected_cell {
-            for (x, y) in Sudoku::get_cell_groups(3, x, y).iter().flatten() {
+            for (x, y) in Sudoku::get_cell_groups(self.sudoku.get_n(), x, y).iter().flatten() {
                 self.draw_cell(*x, *y, Color::from_hex(0xe4ebf2));
             }
             self.draw_cell(x, y, Color::from_hex(0xc2ddf8));
         }
+        
 
-        self.draw_sudoku(font).await;
+        self.draw_sudoku(font.clone()).await;
+        self.draw_buttons(font.clone()).await;
     }
 }
