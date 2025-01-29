@@ -1,11 +1,13 @@
 #[cfg(test)]
 mod tests {
+    use std::fs::ReadDir;
+
     use crate::sudoku::simple_sudoku::Sudoku;
 
     #[test]
     fn test_parse_file() {
         let parsed_sudoku = {
-            let temp = Sudoku::parse_file("sudoku-rule-2.txt");
+            let temp = Sudoku::parse_file("sudoku-3-difficile-1.txt");
             assert!(temp.is_ok());
             temp.unwrap()
         };
@@ -18,11 +20,24 @@ mod tests {
             assert!(false);
         } else {
             let mut expected_sudoku = Sudoku::new(3);
-            expected_sudoku.fix_value(2, 3, 8);
-            expected_sudoku.fix_value(4, 6, 8);
-            expected_sudoku.fix_value(1, 7, 6);
-            expected_sudoku.fix_value(0, 8, 9);
-            expected_sudoku.fix_value(1, 8, 1);
+            expected_sudoku.fix_value(0, 0, 4);
+            expected_sudoku.fix_value(6, 0, 8);
+            expected_sudoku.fix_value(8, 0, 5);
+            expected_sudoku.fix_value(1, 1, 3);
+            expected_sudoku.fix_value(3, 2, 7);
+            expected_sudoku.fix_value(1, 3, 2);
+            expected_sudoku.fix_value(7, 3, 6);
+            expected_sudoku.fix_value(4, 4, 8);
+            expected_sudoku.fix_value(6, 4, 4);
+            expected_sudoku.fix_value(4, 5, 1);
+            expected_sudoku.fix_value(3, 6, 6);
+            expected_sudoku.fix_value(5, 6, 3);
+            expected_sudoku.fix_value(7, 6, 7);
+            expected_sudoku.fix_value(0, 7, 5);
+            expected_sudoku.fix_value(3, 7, 2);
+            expected_sudoku.fix_value(0, 8, 1);
+            expected_sudoku.fix_value(2, 8, 4);
+            expected_sudoku.fix_value(0, 0, 4);
             println!("expected_sudoku: \n{}", expected_sudoku);
 
             assert_eq!(parsed_sudoku, expected_sudoku);
@@ -31,22 +46,25 @@ mod tests {
 
     #[test]
     fn rule_solving() {
-        for rule in 1..=15 {
-            let file_name = format!("sudoku-rule-{}.txt", rule);
-            println!("\n\n\n\n\nRule: {}", rule);
+        let files: ReadDir = std::fs::read_dir("res/sudoku_samples").unwrap();
+        let file_names: Vec<String> = files
+            .map(|file| file.unwrap().path().into_os_string().into_string().unwrap())
+            .collect();
+        for file_name in file_names {
+            if !file_name.starts_with("sudoku-3") || !file_name.ends_with(".txt") {
+                continue;
+            }
+            println!("\n\n\n\n\n{}:", file_name);
             let sudoku_result = Sudoku::parse_file(&file_name);
             if let Err(error) = sudoku_result {
-                println!(
-                    "Error while parsing file sudoku-rule-{}.txt: \n{}",
-                    rule, error
-                );
+                println!("Error while parsing file {}: \n{}", file_name, error);
                 continue;
             }
             let mut sudoku = sudoku_result.unwrap();
             println!("{}: \n{}", file_name, sudoku);
             sudoku.display_possibilities();
 
-            let rule_solve = sudoku.rule_solve(false);
+            let rule_solve = sudoku.rule_solve(true);
             println!("{}", sudoku);
             sudoku.display_possibilities();
 
