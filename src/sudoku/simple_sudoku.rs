@@ -180,12 +180,15 @@ impl Sudoku {
     // A RULE RETURN TRUE IF IT CHANGED SOMETHING
 
     // règle 1: http://www.taupierbw.be/SudokuCoach/SC_Singles.shtml
-    fn naked_singles(&mut self) -> bool {
+    fn naked_singles(&mut self, debug: bool) -> bool {
         for y in 0..self.n2 {
             for x in 0..self.n2 {
                 if self.possibility_board[y][x].len() == 1 {
-                    let value = self.possibility_board[y][x].iter().next().unwrap();
-                    self.fix_value(x, y, *value);
+                    let &value = self.possibility_board[y][x].iter().next().unwrap();
+                    self.fix_value(x, y, value);
+                    if debug {
+                        println!("valeur {} fixée en x: {}, y: {}", value, x, y);
+                    }
                     return true;
                 }
             }
@@ -194,7 +197,7 @@ impl Sudoku {
     }
 
     // règle 2: http://www.taupierbw.be/SudokuCoach/SC_Singles.shtml
-    fn hidden_singles(&mut self) -> bool {
+    fn hidden_singles(&mut self, debug: bool) -> bool {
         let groups = Sudoku::get_groups(self.n);
         for group in groups.into_iter() {
             for value in 1..=self.n2 {
@@ -205,6 +208,9 @@ impl Sudoku {
                 if cells_with_value.len() == 1 {
                     let &&(x, y) = cells_with_value.first().unwrap();
                     self.fix_value(x, y, value);
+                    if debug {
+                        println!("valeur {} fixée en x: {}, y: {}", value, x, y);
+                    }
                     return true;
                 }
             }
@@ -213,7 +219,7 @@ impl Sudoku {
     }
 
     // règle 3: http://www.taupierbw.be/SudokuCoach/SC_NakedPairs.shtml
-    fn naked_pairs(&mut self) -> bool {
+    fn naked_pairs(&mut self, debug: bool) -> bool {
         for group in Sudoku::get_groups(self.n).into_iter() {
             let pairs: Vec<&(usize, usize)> = group
                 .iter()
@@ -257,6 +263,9 @@ impl Sudoku {
                 }
                 for value in obvious_values.iter() {
                     self.possibility_board[y][x].remove(value);
+                    if debug {
+                        println!("possibilitée {} supprimée de x: {}, y: {}", value, x, y);
+                    }
                 }
             }
             return true;
@@ -265,7 +274,7 @@ impl Sudoku {
     }
 
     // règle 4: http://www.taupierbw.be/SudokuCoach/SC_NakedTriples.shtml
-    fn naked_triples(&mut self) -> bool {
+    fn naked_triples(&mut self, debug: bool) -> bool {
         for group in Sudoku::get_groups(self.n).into_iter() {
             let triples: Vec<&(usize, usize)> = group
                 .iter()
@@ -319,6 +328,9 @@ impl Sudoku {
                 }
                 for value in obvious_values.iter() {
                     self.possibility_board[y][x].remove(value);
+                    if debug {
+                        println!("possibilitée {} supprimée de x: {}, y: {}", value, x, y);
+                    }
                 }
             }
             return true;
@@ -327,7 +339,7 @@ impl Sudoku {
     }
 
     // règle 5: http://www.taupierbw.be/SudokuCoach/SC_HiddenPairs.shtml
-    fn hidden_pairs(&mut self) -> bool {
+    fn hidden_pairs(&mut self, debug: bool) -> bool {
         for group in Sudoku::get_groups(self.n).into_iter() {
             for value1 in 1..self.n2 {
                 for value2 in (value1 + 1)..=self.n2 {
@@ -340,8 +352,6 @@ impl Sudoku {
                         .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value2))
                         .collect();
                     if occurences_value1.len() == 2 && occurences_value1 == occurences_value2 {
-                        println!("occurences_values : {:?}", occurences_value1);
-
                         let mut modified = false;
                         for &(x, y) in occurences_value1.into_iter() {
                             for value in 1..=self.n2 {
@@ -349,8 +359,13 @@ impl Sudoku {
                                     && value != value2
                                     && self.possibility_board[y][x].remove(&value)
                                 {
-                                    println!("valeur {} supprimée de x: {}, y: {}", value, x, y);
                                     modified = true;
+                                    if debug {
+                                        println!(
+                                            "possibilitée {} supprimée de x: {}, y: {}",
+                                            value, x, y
+                                        );
+                                    }
                                 }
                             }
                         }
@@ -365,22 +380,31 @@ impl Sudoku {
     }
 
     // règle 6: http://www.taupierbw.be/SudokuCoach/SC_HiddenTriples.shtml
-    fn hidden_triples(&mut self) -> bool {
+    fn hidden_triples(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("hidden_triples isn't implemented yet");
+        }
         false
     }
 
     // règle 7: http://www.taupierbw.be/SudokuCoach/SC_NakedQuads.shtml
-    fn naked_quads(&mut self) -> bool {
+    fn naked_quads(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("naked_quads isn't implemented yet");
+        }
         false
     }
 
     // règle 8: http://www.taupierbw.be/SudokuCoach/SC_HiddenQuads.shtml
-    fn hidden_quads(&mut self) -> bool {
+    fn hidden_quads(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("hidden_quads isn't implemented yet");
+        }
         false
     }
 
     // règle 9: http://www.taupierbw.be/SudokuCoach/SC_PointingPair.shtml
-    fn pointing_pair(&mut self) -> bool {
+    fn pointing_pair(&mut self, debug: bool) -> bool {
         for y in 0..self.n2 {
             for x in 0..self.n2 {
                 let group = Sudoku::get_cell_groups(self.n, x, y);
@@ -429,6 +453,12 @@ impl Sudoku {
                             for &(x1, y1) in group[0].iter() {
                                 if !group[2].contains(&(x1, y1)) {
                                     self.possibility_board[y1][x1].remove(&i);
+                                    if debug {
+                                        println!(
+                                            "possibilitée {} supprimée de x: {}, y: {}",
+                                            i, x, y
+                                        );
+                                    }
                                 }
                             }
                             return true;
@@ -437,6 +467,12 @@ impl Sudoku {
                             for &(x1, y1) in group[2].iter() {
                                 if !group[0].contains(&(x1, y1)) {
                                     self.possibility_board[y1][x1].remove(&i);
+                                    if debug {
+                                        println!(
+                                            "possibilitée {} supprimée de x: {}, y: {}",
+                                            i, x, y
+                                        );
+                                    }
                                 }
                             }
                             return true;
@@ -447,6 +483,12 @@ impl Sudoku {
                             for &(x1, y1) in group[1].iter() {
                                 if !group[2].contains(&(x1, y1)) {
                                     self.possibility_board[y1][x1].remove(&i);
+                                    if debug {
+                                        println!(
+                                            "possibilitée {} supprimée de x: {}, y: {}",
+                                            i, x, y
+                                        );
+                                    }
                                 }
                             }
                             return true;
@@ -455,6 +497,12 @@ impl Sudoku {
                             for &(x1, y1) in group[2].iter() {
                                 if !group[1].contains(&(x1, y1)) {
                                     self.possibility_board[y1][x1].remove(&i);
+                                    if debug {
+                                        println!(
+                                            "possibilitée {} supprimée de x: {}, y: {}",
+                                            i, x, y
+                                        );
+                                    }
                                 }
                             }
                             return true;
@@ -467,17 +515,23 @@ impl Sudoku {
     }
 
     // règle 10: http://www.taupierbw.be/SudokuCoach/SC_PointingTriple.shtml
-    fn pointing_triple(&mut self) -> bool {
+    fn pointing_triple(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("pointing_triple isn't implemented yet");
+        }
         false
     }
 
     // règle 11: http://www.taupierbw.be/SudokuCoach/SC_BoxReduction.shtml
-    fn box_reduction(&mut self) -> bool {
+    fn box_reduction(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("box_reduction isn't implemented yet");
+        }
         false
     }
 
     // règle 12: http://www.taupierbw.be/SudokuCoach/SC_XWing.shtml
-    fn x_wing(&mut self) -> bool {
+    fn x_wing(&mut self, debug: bool) -> bool {
         for value in 1..self.n2 {
             for i1 in 0..(self.n2 - 1) {
                 for i2 in (i1 + 1)..self.n2 {
@@ -514,6 +568,8 @@ impl Sudoku {
                         }
                     }
 
+                    let mut modified = false;
+
                     // if there are 2 cells with the same value in the same 2 lines
                     // eliminate this value from the other cells in these columns
                     if !invalidate_x && x_positions.len() == 2 {
@@ -523,9 +579,27 @@ impl Sudoku {
                                 continue;
                             }
 
-                            if self.possibility_board[y][x1].remove(&value)
-                                || self.possibility_board[y][x2].remove(&value)
-                            {
+                            if self.possibility_board[y][x1].remove(&value) {
+                                if debug {
+                                    println!(
+                                        "possibilitée {} supprimée de x: {}, y: {}",
+                                        value, x1, y
+                                    );
+                                }
+                                modified = true
+                            }
+
+                            if self.possibility_board[y][x2].remove(&value) {
+                                if debug {
+                                    println!(
+                                        "possibilitée {} supprimée de x: {}, y: {}",
+                                        value, x2, y
+                                    );
+                                }
+                                modified = true
+                            }
+
+                            if modified {
                                 return true;
                             }
                         }
@@ -540,9 +614,27 @@ impl Sudoku {
                                 continue;
                             }
 
-                            if self.possibility_board[y1][x].remove(&value)
-                                || self.possibility_board[y2][x].remove(&value)
-                            {
+                            if self.possibility_board[y1][x].remove(&value) {
+                                if debug {
+                                    println!(
+                                        "possibilitée {} supprimée de x: {}, y: {}",
+                                        value, x, y1
+                                    );
+                                }
+                                modified = true
+                            }
+
+                            if self.possibility_board[y2][x].remove(&value) {
+                                if debug {
+                                    println!(
+                                        "possibilitée {} supprimée de x: {}, y: {}",
+                                        value, x, y2
+                                    );
+                                }
+                                modified = true
+                            }
+
+                            if modified {
                                 return true;
                             }
                         }
@@ -554,118 +646,184 @@ impl Sudoku {
     }
 
     // règle 13: http://www.taupierbw.be/SudokuCoach/SC_FinnedXWing.shtml
-    fn finned_x_wing(&mut self) -> bool {
+    fn finned_x_wing(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("finned_x_wing isn't implemented yet");
+        }
         false
     }
 
     // règle 14: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedXWing.shtml
-    fn sashimi_finned_x_wing(&mut self) -> bool {
+    fn sashimi_finned_x_wing(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("sashimi_finned_x_wing isn't implemented yet");
+        }
         false
     }
 
     // règle 15: http://www.taupierbw.be/SudokuCoach/SC_FrankenXWing.shtml
-    fn franken_x_wing(&mut self) -> bool {
+    fn franken_x_wing(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("franken_x_wing isn't implemented yet");
+        }
         false
     }
 
     // règle 16: http://www.taupierbw.be/SudokuCoach/SC_Skyscraper.shtml
-    fn skyscraper(&mut self) -> bool {
+    fn skyscraper(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("skyscraper isn't implemented yet");
+        }
         false
     }
 
     // règle 17: http://www.taupierbw.be/SudokuCoach/SC_YWing.shtml
-    fn y_wing(&mut self) -> bool {
+    fn y_wing(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("y_wing isn't implemented yet");
+        }
         false
     }
 
     // règle 18: http://www.taupierbw.be/SudokuCoach/SC_WWing.shtml
-    fn w_wing(&mut self) -> bool {
+    fn w_wing(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("w_wing isn't implemented yet");
+        }
         false
     }
 
     // règle 19: http://www.taupierbw.be/SudokuCoach/SC_Swordfish.shtml
-    fn swordfish(&mut self) -> bool {
+    fn swordfish(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("swordfish isn't implemented yet");
+        }
         false
     }
 
     // règle 20: http://www.taupierbw.be/SudokuCoach/SC_FinnedSwordfish.shtml
-    fn finned_swordfish(&mut self) -> bool {
+    fn finned_swordfish(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("finned_swordfish isn't implemented yet");
+        }
         false
     }
 
     // règle 21: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedSwordfish.shtml
-    fn sashimi_finned_swordfish(&mut self) -> bool {
+    fn sashimi_finned_swordfish(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("sashimi_finned_swordfish isn't implemented yet");
+        }
         false
     }
 
     // règle 22: http://www.taupierbw.be/SudokuCoach/SC_XYZWing.shtml
-    fn xyz_wing(&mut self) -> bool {
+    fn xyz_wing(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("xyz_wing isn't implemented yet");
+        }
         false
     }
 
     // règle 23: http://www.taupierbw.be/SudokuCoach/SC_BUG.shtml
-    fn bi_value_universal_grave(&mut self) -> bool {
+    fn bi_value_universal_grave(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("bi_value_universal_grave isn't implemented yet");
+        }
         false
     }
 
     // règle 24: http://www.taupierbw.be/SudokuCoach/SC_XYChain.shtml
-    fn xy_chain(&mut self) -> bool {
+    fn xy_chain(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("xy_chain isn't implemented yet");
+        }
         false
     }
 
     // règle 25: http://www.taupierbw.be/SudokuCoach/SC_Jellyfish.shtml
-    fn jellyfish(&mut self) -> bool {
+    fn jellyfish(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("jellyfish isn't implemented yet");
+        }
         false
     }
 
     // règle 26: http://www.taupierbw.be/SudokuCoach/SC_FinnedJellyfish.shtml
-    fn finned_jellyfish(&mut self) -> bool {
+    fn finned_jellyfish(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("finned_jellyfish isn't implemented yet");
+        }
         false
     }
 
     // règle 27: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedJellyfish.shtml
-    fn sashimi_finned_jellyfish(&mut self) -> bool {
+    fn sashimi_finned_jellyfish(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("sashimi_finned_jellyfish isn't implemented yet");
+        }
         false
     }
 
     // règle 28: http://www.taupierbw.be/SudokuCoach/SC_WXYZWing.shtml
-    fn wxyz_wing(&mut self) -> bool {
+    fn wxyz_wing(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("wxyz_wing isn't implemented yet");
+        }
         false
     }
 
     // règle 29: http://www.taupierbw.be/SudokuCoach/SC_APE.shtml
-    fn subset_exclusion(&mut self) -> bool {
+    fn subset_exclusion(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("subset_exclusion isn't implemented yet");
+        }
         false
     }
 
     // règle 30: http://www.taupierbw.be/SudokuCoach/SC_EmptyRectangle.shtml
-    fn empty_rectangle(&mut self) -> bool {
+    fn empty_rectangle(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("empty_rectangle isn't implemented yet");
+        }
         false
     }
 
     // règle 31: http://www.taupierbw.be/SudokuCoach/SC_ALSchain.shtml
-    fn almost_locked_set_forcing_chain(&mut self) -> bool {
+    fn almost_locked_set_forcing_chain(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("almost_locked_set_forcing_chain isn't implemented yet");
+        }
         false
     }
 
     // règle 32: http://www.taupierbw.be/SudokuCoach/SC_DeathBlossom.shtml
-    fn death_blossom(&mut self) -> bool {
+    fn death_blossom(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("death_blossom isn't implemented yet");
+        }
         false
     }
 
     // règle 33: http://www.taupierbw.be/SudokuCoach/SC_PatternOverlay.shtml
-    fn pattern_overlay(&mut self) -> bool {
+    fn pattern_overlay(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("pattern_overlay isn't implemented yet");
+        }
         false
     }
 
     // règle 34: http://www.taupierbw.be/SudokuCoach/SC_BowmanBingo.shtml
-    fn bowmans_bingo(&mut self) -> bool {
+    fn bowmans_bingo(&mut self, debug: bool) -> bool {
+        if debug {
+            println!("bowmans_bingo isn't implemented yet");
+        }
         false
     }
 
     // tente d'exécuter chaque règles jusqu'à ce qu'aucune ne puisse être appliquée ou que le sudoku soit fini
-    pub fn rule_solve(&mut self) -> usize {
-        let rules: Vec<(fn(&mut Sudoku) -> bool, usize)> = vec![
+    pub fn rule_solve(&mut self, debug: bool) -> Result<usize, ((usize, usize), (usize, usize))> {
+        let rules: Vec<(fn(&mut Sudoku, bool) -> bool, usize)> = vec![
             (Sudoku::naked_singles, 1),
             (Sudoku::hidden_singles, 2),
             (Sudoku::naked_pairs, 3),
@@ -709,19 +867,21 @@ impl Sudoku {
             modified = false;
             for &(rule, diff) in rules.iter() {
                 // if the rule can't be applied, then pass to the next one
-                if !rule(self) {
+                if !rule(self, debug) {
                     continue;
                 }
 
-                println!("la rule {} a été appliquée", diff);
-                println!("{}", self);
-                self.display_possibilities();
+                if debug {
+                    println!("règle {} appliquée", diff);
+                    println!("{}", self);
+                    self.display_possibilities();
+                }
 
                 difficulty = max(difficulty, diff);
                 modified = true;
-                if let Err(((x1, y1), (x2, y2))) = self.is_valid() {
-                    println!("Sudoku isn't valid ! \n the cells ({},{}) and ({},{}) contains the same value\nThere must be an error in a rule", x1, y1, x2, y2);
-                    return 0;
+                let is_valid = self.is_valid();
+                if is_valid.is_err() {
+                    return Err(is_valid.unwrap_err());
                 }
             }
             // if no rules can be applied, then stop
@@ -729,7 +889,7 @@ impl Sudoku {
                 break;
             }
         }
-        difficulty
+        Ok(difficulty)
     }
 
     // BACKTRACK SOLVING
