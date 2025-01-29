@@ -40,7 +40,7 @@ impl Sudoku {
 
     // GLOBAL FUNCTIONS
 
-    pub fn get_groups(n: usize) -> Vec<Vec<(usize, usize)>> {
+    pub fn get_groups(n: usize) -> Vec<Vec<Vec<(usize, usize)>>> {
         let n2 = n * n;
         // lines and columns
         let mut lines: Vec<Vec<(usize, usize)>> = Vec::new();
@@ -70,11 +70,7 @@ impl Sudoku {
             }
         }
 
-        lines
-            .into_iter()
-            .chain(cols.into_iter())
-            .chain(squares.into_iter())
-            .collect()
+        vec![lines, cols, squares]
     }
 
     pub fn get_cell_groups(n: usize, x: usize, y: usize) -> Vec<Vec<(usize, usize)>> {
@@ -198,8 +194,7 @@ impl Sudoku {
 
     // règle 2: http://www.taupierbw.be/SudokuCoach/SC_Singles.shtml
     fn hidden_singles(&mut self, debug: bool) -> bool {
-        let groups = Sudoku::get_groups(self.n);
-        for group in groups.into_iter() {
+        for group in Sudoku::get_groups(self.n).into_iter().flatten() {
             for value in 1..=self.n2 {
                 let cells_with_value: Vec<&(usize, usize)> = group
                     .iter()
@@ -221,7 +216,7 @@ impl Sudoku {
     // règle 3: http://www.taupierbw.be/SudokuCoach/SC_NakedPairs.shtml
     fn naked_pairs(&mut self, debug: bool) -> bool {
         let mut modified = false;
-        for group in Sudoku::get_groups(self.n).into_iter() {
+        for group in Sudoku::get_groups(self.n).into_iter().flatten() {
             let pairs: Vec<&(usize, usize)> = group
                 .iter()
                 .filter(|&&(x, y)| self.possibility_board[y][x].len() == 2)
@@ -261,7 +256,7 @@ impl Sudoku {
     // règle 4: http://www.taupierbw.be/SudokuCoach/SC_NakedTriples.shtml
     fn naked_triples(&mut self, debug: bool) -> bool {
         let mut modified = false;
-        for group in Sudoku::get_groups(self.n).into_iter() {
+        for group in Sudoku::get_groups(self.n).into_iter().flatten() {
             let pairs_or_triples: Vec<&(usize, usize)> = group
                 .iter()
                 .filter(|&&(x, y)| {
@@ -316,7 +311,7 @@ impl Sudoku {
 
     // règle 5: http://www.taupierbw.be/SudokuCoach/SC_HiddenPairs.shtml
     fn hidden_pairs(&mut self, debug: bool) -> bool {
-        for group in Sudoku::get_groups(self.n).into_iter() {
+        for group in Sudoku::get_groups(self.n).into_iter().flatten() {
             for value1 in 1..self.n2 {
                 for value2 in (value1 + 1)..=self.n2 {
                     let occurences_value1: Vec<&(usize, usize)> = group
@@ -357,7 +352,7 @@ impl Sudoku {
 
     // règle 6: http://www.taupierbw.be/SudokuCoach/SC_HiddenTriples.shtml
     fn hidden_triples(&mut self, debug: bool) -> bool {
-        for group in Sudoku::get_groups(self.n).into_iter() {
+        for group in Sudoku::get_groups(self.n).into_iter().flatten() {
             for value1 in 1..self.n2 {
                 for value2 in (value1 + 1)..=self.n2 {
                     for value3 in (value2 + 1)..=self.n2 {
@@ -418,7 +413,7 @@ impl Sudoku {
     // règle 7: http://www.taupierbw.be/SudokuCoach/SC_NakedQuads.shtml
     fn naked_quads(&mut self, debug: bool) -> bool {
         let mut modified = false;
-        for group in Sudoku::get_groups(self.n).into_iter() {
+        for group in Sudoku::get_groups(self.n).into_iter().flatten() {
             let pairs_or_triples_or_quads: Vec<&(usize, usize)> = group
                 .iter()
                 .filter(|&&(x, y)| {
@@ -487,7 +482,7 @@ impl Sudoku {
 
     // règle 8: http://www.taupierbw.be/SudokuCoach/SC_HiddenQuads.shtml
     fn hidden_quads(&mut self, debug: bool) -> bool {
-        for group in Sudoku::get_groups(self.n).into_iter() {
+        for group in Sudoku::get_groups(self.n).into_iter().flatten() {
             for value1 in 1..self.n2 {
                 for value2 in (value1 + 1)..=self.n2 {
                     for value3 in (value2 + 1)..=self.n2 {
@@ -558,109 +553,47 @@ impl Sudoku {
 
     // règle 9: http://www.taupierbw.be/SudokuCoach/SC_PointingPair.shtml
     fn pointing_pair(&mut self, debug: bool) -> bool {
-        for y in 0..self.n2 {
-            for x in 0..self.n2 {
-                let group = Sudoku::get_cell_groups(self.n, x, y);
-                let line_poss: HashSet<usize> = group[0]
+        for square in Sudoku::get_groups(self.n).into_iter().nth(2).unwrap() {
+            for value in 1..=self.n2 {
+                let occurences: Vec<&(usize, usize)> = square
                     .iter()
-                    .flat_map(|&(x, y)| self.possibility_board[y][x].clone())
+                    .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
                     .collect();
-
-                let line_nosquare_poss: HashSet<usize> = group[0]
-                    .iter()
-                    .filter(|&&(x, y)| !group[2].contains(&(x, y)))
-                    .flat_map(|&(x, y)| self.possibility_board[y][x].clone())
-                    .collect();
-
-                let col_poss: HashSet<usize> = group[1]
-                    .iter()
-                    .flat_map(|&(x, y)| self.possibility_board[y][x].clone())
-                    .collect();
-
-                let col_nosquare_poss: HashSet<usize> = group[1]
-                    .iter()
-                    .filter(|&&(x, y)| !group[2].contains(&(x, y)))
-                    .flat_map(|&(x, y)| self.possibility_board[y][x].clone())
-                    .collect();
-
-                let square_poss: HashSet<usize> = group[2]
-                    .iter()
-                    .flat_map(|&(x, y)| self.possibility_board[y][x].clone())
-                    .collect();
-
-                let square_noline_poss: HashSet<usize> = group[2]
-                    .iter()
-                    .filter(|&&(x, y)| !group[0].contains(&(x, y)))
-                    .flat_map(|&(x, y)| self.possibility_board[y][x].clone())
-                    .collect();
-
-                let square_nocol_poss: HashSet<usize> = group[2]
-                    .iter()
-                    .filter(|&&(x, y)| !group[1].contains(&(x, y)))
-                    .flat_map(|&(x, y)| self.possibility_board[y][x].clone())
-                    .collect();
-
-                for i in 1..=self.n2 {
-                    if line_poss.contains(&i) && square_poss.contains(&i) {
-                        if line_nosquare_poss.contains(&i) && !square_noline_poss.contains(&i) {
-                            for &(x1, y1) in group[0].iter() {
-                                if !group[2].contains(&(x1, y1)) {
-                                    self.possibility_board[y1][x1].remove(&i);
-                                    if debug {
-                                        println!(
-                                            "possibilitée {} supprimée de x: {}, y: {}",
-                                            i, x, y
-                                        );
-                                    }
-                                }
-                            }
-                            return true;
+                if occurences.len() != 2 {
+                    continue;
+                }
+                let &(x1, y1) = occurences[0];
+                let &(x2, y2) = occurences[1];
+                let mut modified = false;
+                if x1 == x2 {
+                    for y in 0..self.n2 {
+                        if y == y1 || y == y2 {
+                            continue;
                         }
-                        if !line_nosquare_poss.contains(&i) && square_noline_poss.contains(&i) {
-                            for &(x1, y1) in group[2].iter() {
-                                if !group[0].contains(&(x1, y1)) {
-                                    self.possibility_board[y1][x1].remove(&i);
-                                    if debug {
-                                        println!(
-                                            "possibilitée {} supprimée de x: {}, y: {}",
-                                            i, x, y
-                                        );
-                                    }
-                                }
+                        if self.possibility_board[y][x1].remove(&value) {
+                            if debug {
+                                println!("possibilitée {} supprimée de x: {}, y: {}", value, x1, y);
                             }
-                            return true;
+                            modified = true;
                         }
                     }
-                    if col_poss.contains(&i) && square_poss.contains(&i) {
-                        if col_nosquare_poss.contains(&i) && !square_nocol_poss.contains(&i) {
-                            for &(x1, y1) in group[1].iter() {
-                                if !group[2].contains(&(x1, y1)) {
-                                    self.possibility_board[y1][x1].remove(&i);
-                                    if debug {
-                                        println!(
-                                            "possibilitée {} supprimée de x: {}, y: {}",
-                                            i, x, y
-                                        );
-                                    }
-                                }
-                            }
-                            return true;
+                } else if y1 == y2 {
+                    for x in 0..self.n2 {
+                        if x == x1 || x == x2 {
+                            continue;
                         }
-                        if !col_nosquare_poss.contains(&i) && square_nocol_poss.contains(&i) {
-                            for &(x1, y1) in group[2].iter() {
-                                if !group[1].contains(&(x1, y1)) {
-                                    self.possibility_board[y1][x1].remove(&i);
-                                    if debug {
-                                        println!(
-                                            "possibilitée {} supprimée de x: {}, y: {}",
-                                            i, x, y
-                                        );
-                                    }
-                                }
+                        if self.possibility_board[y1][x].remove(&value) {
+                            if debug {
+                                println!("possibilitée {} supprimée de x: {}, y: {}", value, x, y1);
                             }
-                            return true;
+                            modified = true;
                         }
                     }
+                } else {
+                    continue;
+                }
+                if modified {
+                    return true;
                 }
             }
         }
@@ -1181,7 +1114,7 @@ impl Sudoku {
 
     pub fn is_valid(&self) -> Result<(), ((usize, usize), (usize, usize))> {
         // check si un groupe contient 2 fois la même valeur
-        for group in Sudoku::get_groups(self.n).into_iter() {
+        for group in Sudoku::get_groups(self.n).into_iter().flatten() {
             let mut already_seen_values: HashMap<usize, (usize, usize)> = HashMap::new();
             for (x, y) in group.into_iter() {
                 let cell_value = self.board[y][x];
