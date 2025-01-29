@@ -482,10 +482,7 @@ impl Sudoku {
         ];
 
         let mut difficulty: usize = 0;
-        let mut modified;
-        loop {
             // try the rules and set the difficulty in consequence
-            modified = false;
             for &(rule, diff) in rules.iter() {
                 // if the rule can't be applied, then pass to the next one
                 if !rule(self) {
@@ -497,7 +494,6 @@ impl Sudoku {
                 self.display_possibilities();
 
                 difficulty = max(difficulty, diff);
-                modified = true;
                 if let Err(((x1, y1), (x2, y2))) = self.is_valid() {
                     println!("Sudoku isn't valid ! \n the cells ({},{}) and ({},{}) contains the same value\nThere must be an error in a rule", x1, y1, x2, y2);
                     return 0;
@@ -505,10 +501,7 @@ impl Sudoku {
                 break;
             }
             // if no rules can be applied, then stop
-            if !modified {
-                break;
-            }
-        }
+            
         difficulty
     }
 

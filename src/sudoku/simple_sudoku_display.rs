@@ -1,11 +1,14 @@
 use macroquad::prelude::*;
 use super::simple_sudoku::Sudoku;
+use std::collections::HashSet;
+
 
 pub struct SudokuDisplay<'a> {
     sudoku: &'a mut Sudoku,
     window_size: f32,
     pixel_per_cell: f32,
     selected_cell: Option<(usize, usize)>,
+    selected_buttons: HashSet<(usize, usize)>,
     x_offset: f32,
     y_offset: f32,
 }
@@ -22,24 +25,37 @@ impl<'a> SudokuDisplay<'a> {
             window_size,
             pixel_per_cell,
             selected_cell: None,
+            selected_buttons: HashSet::new(),
             x_offset,
             y_offset,
         }
     }
 
+    pub fn rule_solve(&mut self){
+        self.sudoku.rule_solve();
+    }
+
     async fn draw_buttons(&self, font: Font){
+        
+        let mut color: Color;
         for x in 0..self.sudoku.get_n(){
             for y in 0..self.sudoku.get_n(){
                 let b_size = 150.0;
                 let b_padding = 10.0;
                 let b_x = self.x_offset + self.window_size + 150.0 + (x as f32) * (b_size + b_padding);
-                let b_y = self.y_offset + (y as f32) * (b_size + b_padding) + (self.window_size - (b_size + b_padding)*(self.sudoku.get_n() as f32))/2.0;
+                let b_y = self.y_offset + (self.window_size - (b_size + b_padding)*(self.sudoku.get_n() as f32))/2.0 + (y as f32) * (b_size + b_padding);
+                if self.selected_buttons.contains(&(x,y)){
+                    color = Color::from_hex(0xc2ddf8);
+                }
+                else{
+                    color = Color::from_hex(0xe4ebf2);
+                }
                 draw_rectangle(
                     b_x,
                     b_y,
                     b_size,
                     b_size,
-                    Color::from_hex(0xe4ebf2)
+                    color
                 );
                 let font_size = b_size as u16 * 2 / 3;
                 let text = (y * self.sudoku.get_n() + x + 1).to_string();
@@ -179,6 +195,23 @@ impl<'a> SudokuDisplay<'a> {
         
 
         clear_background(Color::from_hex(0xffffff));
+
+        if is_mouse_button_pressed(MouseButton::Left) {
+            let b_size = 150.0;
+            let b_padding = 10.0;
+            let b_x = self.x_offset + self.window_size + 150.0;
+            let b_y = self.y_offset + (self.window_size - (b_size + b_padding)*(self.sudoku.get_n() as f32))/2.0;
+            if mouse_x + self.x_offset > b_x && mouse_x + self.x_offset < b_x + (b_size + b_padding) * (self.sudoku.get_n() as f32)
+            && mouse_y + self.y_offset > b_y && mouse_y + self.y_offset < b_y + (b_size + b_padding) * (self.sudoku.get_n() as f32){
+                let button = (((mouse_x + self.x_offset - b_x)/(b_size+b_padding) as f32).floor() as usize, ((mouse_y + self.y_offset - b_y)/(b_size+b_padding) as f32).floor() as usize);
+                if self.selected_buttons.contains(&button){
+                    self.selected_buttons.remove(&button);
+                }
+                else{
+                    self.selected_buttons.insert(button);
+                }
+            }
+        }
 
         if (mouse_x as f32) < self.window_size && (mouse_x as f32) > 0.0 && (mouse_y as f32) < self.window_size && (mouse_y as f32) > 0.0{
 
