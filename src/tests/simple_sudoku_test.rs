@@ -48,7 +48,15 @@ mod tests {
     fn rule_solving() {
         let files: ReadDir = std::fs::read_dir("res/sudoku_samples").unwrap();
         let file_names: Vec<String> = files
-            .map(|file| file.unwrap().path().into_os_string().into_string().unwrap())
+            .map(|file| {
+                file.unwrap()
+                    .path()
+                    .file_name()
+                    .unwrap()
+                    .to_os_string()
+                    .into_string()
+                    .unwrap()
+            })
             .collect();
         for file_name in file_names {
             if !file_name.starts_with("sudoku-3") || !file_name.ends_with(".txt") {
@@ -64,7 +72,7 @@ mod tests {
             println!("{}: \n{}", file_name, sudoku);
             sudoku.display_possibilities();
 
-            let rule_solve = sudoku.rule_solve(true);
+            let rule_solve = sudoku.rule_solve(false);
             println!("{}", sudoku);
             sudoku.display_possibilities();
 

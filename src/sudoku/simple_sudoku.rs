@@ -602,8 +602,50 @@ impl Sudoku {
 
     // règle 10: http://www.taupierbw.be/SudokuCoach/SC_PointingTriple.shtml
     fn pointing_triple(&mut self, debug: bool) -> bool {
-        if debug {
-            println!("pointing_triple isn't implemented yet");
+        for square in Sudoku::get_groups(self.n).into_iter().nth(2).unwrap() {
+            for value in 1..=self.n2 {
+                let occurences: Vec<&(usize, usize)> = square
+                    .iter()
+                    .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
+                    .collect();
+                if occurences.len() != 3 {
+                    continue;
+                }
+                let &(x1, y1) = occurences[0];
+                let &(x2, y2) = occurences[1];
+                let &(x3, y3) = occurences[2];
+                let mut modified = false;
+                if x1 == x2 && x2 == x3 {
+                    for y in 0..self.n2 {
+                        if y == y1 || y == y2 || y == y3 {
+                            continue;
+                        }
+                        if self.possibility_board[y][x1].remove(&value) {
+                            if debug {
+                                println!("possibilitée {} supprimée de x: {}, y: {}", value, x1, y);
+                            }
+                            modified = true;
+                        }
+                    }
+                } else if y1 == y2 && y2 == y3 {
+                    for x in 0..self.n2 {
+                        if x == x1 || x == x2 || x == x3 {
+                            continue;
+                        }
+                        if self.possibility_board[y1][x].remove(&value) {
+                            if debug {
+                                println!("possibilitée {} supprimée de x: {}, y: {}", value, x, y1);
+                            }
+                            modified = true;
+                        }
+                    }
+                } else {
+                    continue;
+                }
+                if modified {
+                    return true;
+                }
+            }
         }
         false
     }
