@@ -2,7 +2,7 @@
 mod tests {
     use std::fs::ReadDir;
 
-    use crate::sudoku::simple_sudoku::Sudoku;
+    use crate::simple_sudoku::Sudoku;
 
     #[test]
     fn test_parse_file() {

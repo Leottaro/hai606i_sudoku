@@ -1,16 +1,6 @@
-use super::simple_sudoku::Sudoku;
+use super::{Sudoku, SudokuDisplay};
 use macroquad::prelude::*;
 use std::collections::HashSet;
-
-pub struct SudokuDisplay<'a> {
-    sudoku: &'a mut Sudoku,
-    window_size: f32,
-    pixel_per_cell: f32,
-    selected_cell: Option<(usize, usize)>,
-    selected_buttons: HashSet<(usize, usize)>,
-    x_offset: f32,
-    y_offset: f32,
-}
 
 impl<'a> SudokuDisplay<'a> {
     pub fn new(sudoku: &'a mut Sudoku) -> Self {

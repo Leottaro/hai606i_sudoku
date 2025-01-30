@@ -1,7 +1,7 @@
-mod sudoku;
+mod simple_sudoku;
 use macroquad::prelude::*;
+use simple_sudoku::{Sudoku, SudokuDisplay};
 use std::{thread, time};
-use sudoku::{simple_sudoku::Sudoku, simple_sudoku_display::SudokuDisplay};
 
 mod tests;
 
