@@ -1,21 +1,44 @@
 mod sudoku;
-use sudoku::simple_sudoku::Sudoku;
+use macroquad::prelude::*;
+use std::{thread, time};
+use sudoku::{simple_sudoku::Sudoku, simple_sudoku_display::SudokuDisplay};
 
 mod tests;
 
-fn main() {
-    let mut sudoku = Sudoku::parse_file("sudoku-rule-9.txt").unwrap();
+fn window_conf() -> Conf {
+    Conf {
+        window_title: "Sudoku".to_owned(),
+        window_width: 1920,
+        window_height: 1080,
+        ..Default::default()
+    }
+}
+
+#[macroquad::main(window_conf)]
+async fn main() {
+    let mut sudoku = Sudoku::parse_file("sudoku-3-facile-1.txt").unwrap();
     println!("{}", sudoku);
     sudoku.display_possibilities();
-    if let Err(((x1, y1), (x2, y2))) = sudoku.is_valid() {
-        println!("Sudoku isn't valid ! \n the cells ({},{}) and ({},{}) contains the same value\nThere must be an error in a rule", x1, y1, x2, y2);
-        return;
-    }
+    let mut sudoku_display = SudokuDisplay::new(&mut sudoku);
 
-    let rule_solve = sudoku.rule_solve(true);
-    println!("{}", sudoku);
-    match rule_solve {
-		Ok(difficulty) => println!("Sudoku is valid, difficulty : {}", difficulty),
-		Err(((x1, y1), (x2, y2))) => println!("Sudoku isn't valid ! \n the cells ({},{}) and ({},{}) contains the same value\nThere must be an error in a rule", x1, y1, x2, y2),
-	}
+    let font = load_ttf_font("./res/font/RobotoMono-Thin.ttf")
+        .await
+        .unwrap();
+    let temps = time::Duration::from_millis(100);
+
+    loop {
+        match sudoku_display.rule_solve(false) {
+            Ok(0) => {
+                println!("Sudoku solved!");
+            }
+            Ok(_) => (),
+            Err(((x1, y1), (x2, y2))) => {
+                println!("Error: ({}, {}) and ({}, {})", x1, y1, x2, y2);
+            }
+        }
+
+        sudoku_display.run(font.clone()).await;
+        next_frame().await;
+        thread::sleep(temps);
+    }
 }

@@ -1061,35 +1061,27 @@ impl Sudoku {
         ];
 
         let mut difficulty: usize = 0;
-        let mut modified;
-        loop {
-            // try the rules and set the difficulty in consequence
-            modified = false;
-            for &(rule, diff) in rules.iter() {
-                // if the rule can't be applied, then pass to the next one
-                if !rule(self, debug) {
-                    continue;
-                }
-
-                if debug {
-                    println!("règle {} appliquée", diff);
-                    println!("{}", self);
-                    self.display_possibilities();
-                }
-
-                difficulty = max(difficulty, diff);
-                modified = true;
-                let is_valid = self.is_valid();
-                if is_valid.is_err() {
-                    return Err(is_valid.unwrap_err());
-                }
-                break;
+        // try the rules and set the difficulty in consequence
+        for &(rule, diff) in rules.iter() {
+            // if the rule can't be applied, then pass to the next one
+            if !rule(self, debug) {
+                continue;
             }
-            // if no rules can be applied, then stop
-            if !modified {
-                break;
+
+            if debug {
+                println!("règle {} appliquée", diff);
+                println!("{}", self);
+                self.display_possibilities();
             }
+
+            difficulty = max(difficulty, diff);
+            let is_valid = self.is_valid();
+            if is_valid.is_err() {
+                return Err(is_valid.unwrap_err());
+            }
+            break;
         }
+
         Ok(difficulty)
     }
 

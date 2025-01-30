@@ -59,6 +59,7 @@ mod tests {
             })
             .collect();
         for file_name in file_names {
+            println!("file_name: {}", file_name);
             if !file_name.starts_with("sudoku-3") || !file_name.ends_with(".txt") {
                 continue;
             }
