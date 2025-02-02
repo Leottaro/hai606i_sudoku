@@ -1,8 +1,8 @@
-mod simple_sudoku;
 use macroquad::prelude::*;
 use simple_sudoku::{Sudoku, SudokuDisplay};
 use std::{thread, time};
 
+mod simple_sudoku;
 mod tests;
 
 fn window_conf() -> Conf {
@@ -16,6 +16,7 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
+    debug!("Hello, world!");
     let mut sudoku = Sudoku::parse_file("sudoku-3-facile-1.txt").unwrap();
     println!("{}", sudoku);
     sudoku.display_possibilities();
@@ -27,7 +28,7 @@ async fn main() {
     let temps = time::Duration::from_millis(100);
 
     loop {
-        match sudoku_display.rule_solve(false) {
+        match sudoku_display.rule_solve() {
             Ok(0) => {
                 println!("Sudoku solved!");
             }

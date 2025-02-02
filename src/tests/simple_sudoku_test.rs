@@ -73,7 +73,7 @@ mod tests {
             println!("{}: \n{}", file_name, sudoku);
             sudoku.display_possibilities();
 
-            let rule_solve = sudoku.rule_solve(true);
+            let rule_solve = sudoku.rule_solve();
             println!("{}", sudoku);
             sudoku.display_possibilities();
 

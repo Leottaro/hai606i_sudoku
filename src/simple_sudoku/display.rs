@@ -20,8 +20,8 @@ impl<'a> SudokuDisplay<'a> {
         }
     }
 
-    pub fn rule_solve(&mut self, debug: bool) -> Result<usize, ((usize, usize), (usize, usize))> {
-        self.sudoku.rule_solve(debug)
+    pub fn rule_solve(&mut self) -> Result<usize, ((usize, usize), (usize, usize))> {
+        self.sudoku.rule_solve()
     }
 
     async fn draw_buttons(&self, font: Font) {

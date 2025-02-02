@@ -1,10 +1,11 @@
+use log::debug;
 use std::{
     cmp::max,
     collections::{HashMap, HashSet},
     env::current_dir,
 };
 
-use super::{Sudoku, SudokuRules};
+use super::Sudoku;
 
 #[allow(dead_code)] // no warning due to unused functions
 impl Sudoku {
@@ -186,8 +187,8 @@ impl Sudoku {
     }
 
     // RULE SOLVING
-    pub fn rule_solve(&mut self, debug: bool) -> Result<usize, ((usize, usize), (usize, usize))> {
-        let rules: Vec<(fn(&mut Sudoku, bool) -> bool, usize)> = vec![
+    pub fn rule_solve(&mut self) -> Result<usize, ((usize, usize), (usize, usize))> {
+        let rules: Vec<(fn(&mut Sudoku) -> bool, usize)> = vec![
             (Sudoku::naked_singles, 1),
             (Sudoku::hidden_singles, 2),
             (Sudoku::naked_pairs, 3),
@@ -228,15 +229,12 @@ impl Sudoku {
         // try the rules and set the difficulty in consequence
         for &(rule, diff) in rules.iter() {
             // if the rule can't be applied, then pass to the next one
-            if !rule(self, debug) {
+            if !rule(self) {
                 continue;
             }
-
-            if debug {
-                println!("règle {} appliquée", diff);
-                println!("{}", self);
-                self.display_possibilities();
-            }
+            debug!("règle {} appliquée", diff);
+            debug!("{}", self);
+            self.display_possibilities();
 
             difficulty = max(difficulty, diff);
             let is_valid = self.is_valid();
