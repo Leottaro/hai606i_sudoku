@@ -1,11 +1,11 @@
+use super::Sudoku;
+#[cfg(debug_assertions)]
 use log::debug;
 use std::{
     cmp::max,
     collections::{HashMap, HashSet},
     env::current_dir,
 };
-
-use super::Sudoku;
 
 #[allow(dead_code)] // no warning due to unused functions
 impl Sudoku {
@@ -232,9 +232,11 @@ impl Sudoku {
             if !rule(self) {
                 continue;
             }
-            debug!("règle {} appliquée", diff);
-            debug!("{}", self);
-            self.display_possibilities();
+            #[cfg(debug_assertions)]
+            {
+                debug!("règle {} appliquée", diff);
+                debug!("Sudoku actuel:\n{}", self);
+            } // self.display_possibilities();
 
             difficulty = max(difficulty, diff);
             let is_valid = self.is_valid();
@@ -409,6 +411,17 @@ impl Sudoku {
         }
 
         Ok(())
+    }
+
+    pub fn is_solved(&self) -> bool {
+        for y in 0..self.n2 {
+            for x in 0..self.n2 {
+                if self.board[y][x] == 0 {
+                    return false;
+                }
+            }
+        }
+        true
     }
 }
 

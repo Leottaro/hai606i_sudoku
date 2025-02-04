@@ -1,7 +1,16 @@
-use log::{debug, warn};
+use log::warn;
 use std::collections::HashSet;
 
 use super::Sudoku;
+
+macro_rules! debug_only {
+    ($($arg:tt)*) => {
+        #[cfg(debug_assertions)]
+        {
+            log::debug!($($arg)*);
+        }
+    };
+}
 
 impl Sudoku {
     // RULES SOLVING
@@ -16,7 +25,7 @@ impl Sudoku {
                 if self.possibility_board[y][x].len() == 1 {
                     let &value = self.possibility_board[y][x].iter().next().unwrap();
                     self.fix_value(x, y, value);
-                    debug!("valeur {} fixée en x: {}, y: {}", value, x, y);
+                    debug_only!("valeur {} fixée en x: {}, y: {}", value, x, y);
                     return true;
                 }
             }
@@ -35,7 +44,7 @@ impl Sudoku {
                 if cells_with_value.len() == 1 {
                     let &&(x, y) = cells_with_value.first().unwrap();
                     self.fix_value(x, y, value);
-                    debug!("valeur {} fixée en x: {}, y: {}", value, x, y);
+                    debug_only!("valeur {} fixée en x: {}, y: {}", value, x, y);
                     return true;
                 }
             }
@@ -63,7 +72,7 @@ impl Sudoku {
                             }
                             for value in self.possibility_board[y1][x1].clone() {
                                 if self.possibility_board[y][x].remove(&value) {
-                                    debug!(
+                                    debug_only!(
                                         "possibilitée {} supprimée de x: {}, y: {}",
                                         value, x, y
                                     );
@@ -117,7 +126,7 @@ impl Sudoku {
                                 for &value in common_possibilities.iter() {
                                     if self.possibility_board[y][x].remove(&value) {
                                         #[cfg(debug_assertions)]
-                                        debug!("possibilitée {value} supprimée de x: {x}, y: {y}",);
+                                        debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}",);
                                         modified = true;
                                     }
                                 }
@@ -156,7 +165,7 @@ impl Sudoku {
                                 {
                                     modified = true;
 
-                                    debug!(
+                                    debug_only!(
                                         "possibilitée {} supprimée de x: {}, y: {}",
                                         value, x, y
                                     );
@@ -213,7 +222,7 @@ impl Sudoku {
                                         && self.possibility_board[y][x].remove(&value)
                                     {
                                         modified = true;
-                                        debug!(
+                                        debug_only!(
                                             "possibilitée {} supprimée de x: {}, y: {}",
                                             value, x, y
                                         );
@@ -274,7 +283,7 @@ impl Sudoku {
 
                                     for &value in common_possibilities.iter() {
                                         if self.possibility_board[y][x].remove(&value) {
-                                            debug!(
+                                            debug_only!(
                                                 "possibilitée {} supprimée de x: {}, y: {}",
                                                 value, x, y
                                             );
@@ -345,7 +354,7 @@ impl Sudoku {
                                         {
                                             modified = true;
 
-                                            debug!(
+                                            debug_only!(
                                                 "possibilitée {} supprimée de x: {}, y: {}",
                                                 value, x, y
                                             );
@@ -384,7 +393,7 @@ impl Sudoku {
                             continue;
                         }
                         if self.possibility_board[y][x1].remove(&value) {
-                            debug!("possibilitée {} supprimée de x: {}, y: {}", value, x1, y);
+                            debug_only!("possibilitée {} supprimée de x: {}, y: {}", value, x1, y);
                             modified = true;
                         }
                     }
@@ -394,7 +403,7 @@ impl Sudoku {
                             continue;
                         }
                         if self.possibility_board[y1][x].remove(&value) {
-                            debug!("possibilitée {} supprimée de x: {}, y: {}", value, x, y1);
+                            debug_only!("possibilitée {} supprimée de x: {}, y: {}", value, x, y1);
                             modified = true;
                         }
                     }
@@ -430,7 +439,7 @@ impl Sudoku {
                             continue;
                         }
                         if self.possibility_board[y][x1].remove(&value) {
-                            debug!("possibilitée {} supprimée de x: {}, y: {}", value, x1, y);
+                            debug_only!("possibilitée {} supprimée de x: {}, y: {}", value, x1, y);
                             modified = true;
                         }
                     }
@@ -440,7 +449,7 @@ impl Sudoku {
                             continue;
                         }
                         if self.possibility_board[y1][x].remove(&value) {
-                            debug!("possibilitée {} supprimée de x: {}, y: {}", value, x, y1);
+                            debug_only!("possibilitée {} supprimée de x: {}, y: {}", value, x, y1);
                             modified = true;
                         }
                     }
@@ -474,7 +483,7 @@ impl Sudoku {
                             continue;
                         }
                         if self.possibility_board[y][x].remove(&value) {
-                            debug!("possibilitée {} supprimée de x: {}, y: {}", value, x, y);
+                            debug_only!("possibilitée {} supprimée de x: {}, y: {}", value, x, y);
                             modified = true;
                         }
                     }
@@ -501,7 +510,7 @@ impl Sudoku {
                             continue;
                         }
                         if self.possibility_board[y][x].remove(&value) {
-                            debug!("possibilitée {} supprimée de x: {}, y: {}", value, x, y);
+                            debug_only!("possibilitée {} supprimée de x: {}, y: {}", value, x, y);
                             modified = true;
                         }
                     }
@@ -565,12 +574,12 @@ impl Sudoku {
                             }
 
                             if self.possibility_board[y][x1].remove(&value) {
-                                debug!("possibilitée {} supprimée de x: {}, y: {}", value, x1, y);
+                                debug_only!("possibilitée {} supprimée de x: {}, y: {}", value, x1, y);
                                 modified = true
                             }
 
                             if self.possibility_board[y][x2].remove(&value) {
-                                debug!("possibilitée {} supprimée de x: {}, y: {}", value, x2, y);
+                                debug_only!("possibilitée {} supprimée de x: {}, y: {}", value, x2, y);
                                 modified = true
                             }
 
@@ -590,12 +599,12 @@ impl Sudoku {
                             }
 
                             if self.possibility_board[y1][x].remove(&value) {
-                                debug!("possibilitée {} supprimée de x: {}, y: {}", value, x, y1);
+                                debug_only!("possibilitée {} supprimée de x: {}, y: {}", value, x, y1);
                                 modified = true
                             }
 
                             if self.possibility_board[y2][x].remove(&value) {
-                                debug!("possibilitée {} supprimée de x: {}, y: {}", value, x, y2);
+                                debug_only!("possibilitée {} supprimée de x: {}, y: {}", value, x, y2);
                                 modified = true
                             }
 
