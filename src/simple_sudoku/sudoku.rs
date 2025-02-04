@@ -246,7 +246,7 @@ impl Sudoku {
             {
                 debug!("règle {} appliquée", diff);
                 debug!("Sudoku actuel:\n{}", self);
-            } // self.display_possibilities();
+            }
 
             difficulty = max(difficulty, diff);
             let is_valid = self.is_valid();
@@ -305,89 +305,75 @@ impl Sudoku {
 
     // DISPLAY
 
-    const BASE_64: [char; 64] = [
-        '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I',
-        'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a',
-        'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's',
-        't', 'u', 'v', 'w', 'x', 'y', 'z', 'α', 'β', 'δ',
+    const BASE_64: [char; 65] = [
+        '·', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
+        'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
+        's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'α', 'β', 'δ',
     ];
     pub fn to_string(&self) -> String {
-        if self.n > 8 {
-            return "Can't display a sudoku with n > 8".to_string();
-        }
         let mut lines: Vec<String> = Vec::new();
-        let n_dash = "─".repeat(2 * self.n + 1);
-
-        lines.push({
-            let mut first_line: Vec<String> = Vec::new();
-            for _ in 0..self.n {
-                first_line.push(n_dash.clone());
-            }
-            format!("┌{}┐", first_line.join("┬"))
-        });
-
-        for y in 0..self.n2 {
-            let mut line: Vec<String> = Vec::new();
-            for x in 0..self.n2 {
-                if x != 0 && x % self.n == 0 {
-                    line.push("│".to_string());
-                }
-                if self.board[y][x] == 0 {
-                    line.push("·".to_string());
-                } else {
-                    line.push(Sudoku::BASE_64[self.board[y][x] - 1].to_string());
-                };
-            }
-            lines.push(format!("│ {} │", line.join(" ")));
-
-            if y != self.n2 - 1 && (y + 1) % self.n == 0 {
-                let mut temp: Vec<String> = Vec::new();
-                for _ in 0..self.n {
-                    temp.push(n_dash.clone());
-                }
-                lines.push(format!("├{}┤", temp.join("┼")));
-            }
-        }
-
-        lines.push({
-            let mut last_line: Vec<String> = Vec::new();
-            for _ in 0..self.n {
-                last_line.push(n_dash.clone());
-            }
-            format!("└{}┘", last_line.join("┴"))
-        });
-
-        lines.join("\n")
-    }
-
-    pub fn display_possibilities(&self) {
-        println!("");
         for y in 0..self.n2 {
             if y != 0 && y % self.n == 0 {
-                println!(
-                    "{}┼{}┼{}",
-                    "─".repeat(self.n2 * self.n + self.n * 4),
-                    "─".repeat(self.n2 * self.n + self.n * 4),
-                    "─".repeat(self.n2 * self.n + self.n * 4),
-                );
+                let temp = "━".repeat(2 * self.n2 + 4 * self.n + 1);
+                lines.push(format!("━{}", vec![temp; self.n].join("╋")));
             }
+            let mut this_row_lines: Vec<String> = vec![" ".to_string(); self.n];
             for x in 0..self.n2 {
                 if x != 0 && x % self.n == 0 {
-                    print!("│");
-                }
-                print!(" {{");
-                for value in 1..=self.n2 {
-                    if self.possibility_board[y][x].contains(&value) {
-                        print!("{}", value);
-                    } else {
-                        print!(" ");
+                    for line in this_row_lines.iter_mut() {
+                        line.push_str(" ┃");
                     }
                 }
-                print!("}} ");
+                if self.board[y][x] != 0 {
+                    for (i, line) in this_row_lines.iter_mut().enumerate() {
+                        if i == self.n / 2 {
+                            line.push_str(&format!(
+                                " {}{}{}",
+                                " ".repeat(self.n + 1),
+                                Sudoku::BASE_64[self.board[y][x]],
+                                " ".repeat(self.n + 1)
+                            ));
+                        } else {
+                            line.push_str(&" ".repeat(2 * (self.n + 2)));
+                        }
+                    }
+                    continue;
+                }
+
+                this_row_lines.get_mut(0).unwrap().push_str(" ⎧");
+                for line in this_row_lines.iter_mut().skip(1).take(self.n - 2) {
+                    line.push_str(" ⎪");
+                }
+                this_row_lines.get_mut(self.n - 1).unwrap().push_str(" ⎩");
+
+                for i in 0..self.n {
+                    for j in 0..self.n {
+                        let value = i * self.n + j + 1;
+                        let displayed_char = if self.possibility_board[y][x].contains(&value) {
+                            Sudoku::BASE_64[value]
+                        } else {
+                            '·'
+                        };
+                        this_row_lines
+                            .get_mut(i)
+                            .unwrap()
+                            .push_str(&format!(" {displayed_char}"));
+                    }
+                }
+
+                this_row_lines.get_mut(0).unwrap().push_str(" ⎫");
+                for line in this_row_lines.iter_mut().skip(1).take(self.n - 2) {
+                    line.push_str(" ⎪");
+                }
+                this_row_lines.get_mut(self.n - 1).unwrap().push_str(" ⎭");
             }
-            println!();
+
+            for line in this_row_lines.into_iter() {
+                lines.push(line);
+            }
         }
-        println!("\n\n");
+        lines.join("\n")
     }
 
     // UTILITY

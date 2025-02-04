@@ -70,8 +70,7 @@ mod tests {
                 continue;
             }
             let mut sudoku = sudoku_result.unwrap();
-            println!("{}: \n{}", file_name, sudoku);
-            sudoku.display_possibilities();
+            println!("{}: \n{}", file_name, sudoku,);
 
             let mut rule_solve: Result<usize, ((usize, usize), (usize, usize))> =
                 sudoku.rule_solve(None);
@@ -79,7 +78,6 @@ mod tests {
                 rule_solve = sudoku.rule_solve(None);
             }
             println!("{}", sudoku);
-            sudoku.display_possibilities();
 
             match rule_solve {
                 Ok(difficulty) => println!("Sudoku is valid, difficulty : {}", difficulty),
