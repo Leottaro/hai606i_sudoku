@@ -630,7 +630,79 @@ impl Sudoku {
 
     // règle 16: http://www.taupierbw.be/SudokuCoach/SC_Skyscraper.shtml
     pub(super) fn skyscraper(&mut self) -> bool {
-        warn!("skyscraper isn't implemented yet");
+        let mut modified = false;
+        for value in 1..=self.n2 {
+            for i1 in 0..(self.n2 - 1) {
+                for i2 in (i1 + 1)..self.n2 {
+                    // i1 and i2 represents rows or columns
+                    let mut picked_cells: Vec<((usize, usize), (usize, usize))> = Vec::new();
+
+                    let row1_positions: Vec<usize> = (0..self.n2)
+                        .into_iter()
+                        .filter(|x| self.possibility_board[i1][*x].contains(&value))
+                        .collect();
+                    let row2_positions: Vec<usize> = (0..self.n2)
+                        .into_iter()
+                        .filter(|x| self.possibility_board[i2][*x].contains(&value))
+                        .collect();
+                    if row1_positions.len() == 2 && row2_positions.len() == 2 {
+                        let x11 = row1_positions[0];
+                        let x12 = row1_positions[1];
+                        let x21 = row2_positions[0];
+                        let x22 = row2_positions[1];
+                        if x11 == x21 || x12 == x22 {
+                            let (x1, x2) = if x11 == x21 { (x12, x22) } else { (x11, x21) };
+                            picked_cells.push(((x1, i1), (x2, i2)));
+                        }
+                    }
+
+                    let col1_positions: Vec<usize> = (0..self.n2)
+                        .into_iter()
+                        .filter(|y| self.possibility_board[*y][i1].contains(&value))
+                        .collect();
+                    let col2_positions: Vec<usize> = (0..self.n2)
+                        .into_iter()
+                        .filter(|y| self.possibility_board[*y][i2].contains(&value))
+                        .collect();
+                    if col1_positions.len() == 2 && col2_positions.len() == 2 {
+                        let y11 = col1_positions[0];
+                        let y12 = col1_positions[1];
+                        let y21 = col2_positions[0];
+                        let y22 = col2_positions[1];
+                        if y11 == y21 || y12 == y22 {
+                            let (y1, y2) = if y11 == y21 { (y12, y22) } else { (y11, y21) };
+                            picked_cells.push(((i1, y1), (i2, y2)));
+                        }
+                    }
+
+                    for ((x1, y1), (x2, y2)) in picked_cells {
+                        let cell_group1: HashSet<(usize, usize)> =
+                            Sudoku::get_cell_groups(self.n, x1, y1)
+                                .into_iter()
+                                .flatten()
+                                .collect();
+                        let cell_group2: HashSet<(usize, usize)> =
+                            Sudoku::get_cell_groups(self.n, x2, y2)
+                                .into_iter()
+                                .flatten()
+                                .collect();
+                        let common_cells: HashSet<&(usize, usize)> =
+                            cell_group1.intersection(&cell_group2).collect();
+
+                        for &(x, y) in common_cells {
+                            if self.possibility_board[y][x].remove(&value) {
+                                debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}");
+                                modified = true;
+                            }
+                        }
+
+                        if modified {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
         false
     }
 
