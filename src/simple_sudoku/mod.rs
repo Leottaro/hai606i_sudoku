@@ -20,4 +20,6 @@ pub struct SudokuDisplay<'a> {
     selected_buttons: HashSet<(usize, usize)>,
     x_offset: f32,
     y_offset: f32,
+    bx_offset: f32,
+    solving: bool,
 }

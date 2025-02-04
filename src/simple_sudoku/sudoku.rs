@@ -249,6 +249,68 @@ impl Sudoku {
         Ok(difficulty)
     }
 
+    pub fn solve_once(&mut self) -> Result<usize, ((usize, usize), (usize, usize))> {
+        let rules: Vec<(fn(&mut Sudoku) -> bool, usize)> = vec![
+            (Sudoku::naked_singles, 1),
+            (Sudoku::hidden_singles, 2),
+            (Sudoku::naked_pairs, 3),
+            (Sudoku::naked_triples, 4),
+            (Sudoku::hidden_pairs, 5),
+            (Sudoku::hidden_triples, 6),
+            (Sudoku::naked_quads, 7),
+            (Sudoku::hidden_quads, 8),
+            (Sudoku::pointing_pair, 9),
+            (Sudoku::pointing_triple, 10),
+            (Sudoku::box_reduction, 11),
+            (Sudoku::x_wing, 12),
+            (Sudoku::finned_x_wing, 13),
+            (Sudoku::sashimi_finned_x_wing, 14),
+            (Sudoku::franken_x_wing, 15),
+            (Sudoku::skyscraper, 16),
+            (Sudoku::y_wing, 17),
+            (Sudoku::w_wing, 18),
+            (Sudoku::swordfish, 19),
+            (Sudoku::finned_swordfish, 20),
+            (Sudoku::sashimi_finned_swordfish, 21),
+            (Sudoku::xyz_wing, 22),
+            (Sudoku::bi_value_universal_grave, 23),
+            (Sudoku::xy_chain, 24),
+            (Sudoku::jellyfish, 25),
+            (Sudoku::finned_jellyfish, 26),
+            (Sudoku::sashimi_finned_jellyfish, 27),
+            (Sudoku::wxyz_wing, 28),
+            (Sudoku::subset_exclusion, 29),
+            (Sudoku::empty_rectangle, 30),
+            (Sudoku::almost_locked_set_forcing_chain, 31),
+            (Sudoku::death_blossom, 32),
+            (Sudoku::pattern_overlay, 33),
+            (Sudoku::bowmans_bingo, 34),
+        ];
+
+        let mut difficulty: usize = 0;
+        // try the rules and set the difficulty in consequence
+        for &(rule, diff) in rules.iter() {
+            // if the rule can't be applied, then pass to the next one
+            if !rule(self) {
+                continue;
+            }
+            #[cfg(debug_assertions)]
+            {
+                debug!("règle {} appliquée", diff);
+                debug!("Sudoku actuel:\n{}", self);
+            } // self.display_possibilities();
+
+            difficulty = max(difficulty, diff);
+            let is_valid = self.is_valid();
+            if is_valid.is_err() {
+                return Err(is_valid.unwrap_err());
+            }
+            break;
+        }
+
+        Ok(difficulty)
+    }
+
     // BACKTRACK SOLVING
 
     pub fn backtrack_solve(&mut self, mut x: usize, mut y: usize) -> bool {

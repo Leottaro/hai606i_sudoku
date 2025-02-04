@@ -1,7 +1,7 @@
 use env_logger::Env;
 use macroquad::prelude::*;
 use simple_sudoku::{Sudoku, SudokuDisplay};
-use std::{thread, time};
+// use std::{thread, time};
 
 mod simple_sudoku;
 mod tests;
@@ -28,21 +28,21 @@ async fn main() {
     let font = load_ttf_font("./res/font/RobotoMono-Thin.ttf")
         .await
         .unwrap();
-    let temps = time::Duration::from_millis(100);
+    // let temps = time::Duration::from_millis(100);
 
     loop {
-        match sudoku_display.rule_solve() {
-            Ok(0) => {
-                println!("Sudoku solved!");
-            }
-            Ok(_) => (),
-            Err(((x1, y1), (x2, y2))) => {
-                println!("Error: ({}, {}) and ({}, {})", x1, y1, x2, y2);
-            }
-        }
+        // match sudoku_display.rule_solve() {
+        //     Ok(0) => {
+        //         println!("Sudoku solved!");
+        //     }
+        //     Ok(_) => (),
+        //     Err(((x1, y1), (x2, y2))) => {
+        //         println!("Error: ({}, {}) and ({}, {})", x1, y1, x2, y2);
+        //     }
+        // }
 
         sudoku_display.run(font.clone()).await;
         next_frame().await;
-        thread::sleep(temps);
+        // thread::sleep(temps);
     }
 }
