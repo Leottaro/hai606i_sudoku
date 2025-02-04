@@ -73,7 +73,11 @@ mod tests {
             println!("{}: \n{}", file_name, sudoku);
             sudoku.display_possibilities();
 
-            let rule_solve = sudoku.rule_solve();
+            let mut rule_solve: Result<usize, ((usize, usize), (usize, usize))> =
+                sudoku.rule_solve(None);
+            while rule_solve != Ok(0) && !sudoku.is_solved() {
+                rule_solve = sudoku.rule_solve(None);
+            }
             println!("{}", sudoku);
             sudoku.display_possibilities();
 

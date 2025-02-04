@@ -20,7 +20,7 @@ async fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
     #[cfg(debug_assertions)]
     debug!("Debug activé");
-    let mut sudoku = Sudoku::parse_file("sudoku-3-facile-1.txt").unwrap();
+    let mut sudoku = Sudoku::parse_file("sudoku-3-difficile-1.txt").unwrap();
     println!("{}", sudoku);
     // sudoku.display_possibilities();
     let mut sudoku_display = SudokuDisplay::new(&mut sudoku);
@@ -31,7 +31,7 @@ async fn main() {
     let temps = time::Duration::from_millis(100);
 
     loop {
-        match sudoku_display.rule_solve() {
+        match sudoku_display.rule_solve(None) {
             Ok(0) => {
                 println!("Sudoku solved!");
             }

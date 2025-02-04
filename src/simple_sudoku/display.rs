@@ -1,6 +1,6 @@
 use super::{Sudoku, SudokuDisplay};
 use macroquad::prelude::*;
-use std::collections::HashSet;
+use std::{collections::HashSet, ops::Range};
 
 impl<'a> SudokuDisplay<'a> {
     pub fn new(sudoku: &'a mut Sudoku) -> Self {
@@ -20,8 +20,11 @@ impl<'a> SudokuDisplay<'a> {
         }
     }
 
-    pub fn rule_solve(&mut self) -> Result<usize, ((usize, usize), (usize, usize))> {
-        self.sudoku.rule_solve()
+    pub fn rule_solve(
+        &mut self,
+        specific_rules: Option<Range<usize>>,
+    ) -> Result<usize, ((usize, usize), (usize, usize))> {
+        self.sudoku.rule_solve(specific_rules)
     }
 
     async fn draw_buttons(&self, font: Font) {

@@ -5,6 +5,7 @@ use std::{
     cmp::max,
     collections::{HashMap, HashSet},
     env::current_dir,
+    ops::Range,
 };
 
 #[allow(dead_code)] // no warning due to unused functions
@@ -35,38 +36,38 @@ impl Sudoku {
 
     // GLOBAL FUNCTIONS
 
-    pub fn get_lines(n: usize) -> Vec<Vec<(usize, usize)>> {
+    pub fn get_lines(n: usize) -> Vec<HashSet<(usize, usize)>> {
         let mut lines = Vec::new();
         for y in 0..n * n {
-            let mut line = Vec::new();
+            let mut line = HashSet::new();
             for x in 0..n * n {
-                line.push((x, y));
+                line.insert((x, y));
             }
             lines.push(line);
         }
         lines
     }
 
-    pub fn get_cols(n: usize) -> Vec<Vec<(usize, usize)>> {
+    pub fn get_cols(n: usize) -> Vec<HashSet<(usize, usize)>> {
         let mut lines = Vec::new();
         for x in 0..n * n {
-            let mut line = Vec::new();
+            let mut line = HashSet::new();
             for y in 0..n * n {
-                line.push((x, y));
+                line.insert((x, y));
             }
             lines.push(line);
         }
         lines
     }
 
-    pub fn get_squares(n: usize) -> Vec<Vec<(usize, usize)>> {
+    pub fn get_squares(n: usize) -> Vec<HashSet<(usize, usize)>> {
         let mut squares = Vec::new();
         for y0 in (0..n * n).step_by(n) {
             for x0 in (0..n * n).step_by(n) {
-                let mut square = Vec::new();
+                let mut square = HashSet::new();
                 for j in 0..n {
                     for i in 0..n {
-                        square.push((x0 + i, y0 + j));
+                        square.insert((x0 + i, y0 + j));
                     }
                 }
                 squares.push(square);
@@ -75,7 +76,7 @@ impl Sudoku {
         squares
     }
 
-    pub fn get_groups(n: usize) -> Vec<Vec<(usize, usize)>> {
+    pub fn get_groups(n: usize) -> Vec<HashSet<(usize, usize)>> {
         let mut groups = Vec::new();
         groups.extend(Sudoku::get_lines(n));
         groups.extend(Sudoku::get_cols(n));
@@ -83,35 +84,35 @@ impl Sudoku {
         groups
     }
 
-    pub fn get_cell_line(n: usize, y: usize) -> Vec<(usize, usize)> {
-        let mut line = Vec::new();
+    pub fn get_cell_line(n: usize, y: usize) -> HashSet<(usize, usize)> {
+        let mut line = HashSet::new();
         for x in 0..n * n {
-            line.push((x, y));
+            line.insert((x, y));
         }
         line
     }
 
-    pub fn get_cell_col(n: usize, x: usize) -> Vec<(usize, usize)> {
-        let mut line = Vec::new();
+    pub fn get_cell_col(n: usize, x: usize) -> HashSet<(usize, usize)> {
+        let mut line = HashSet::new();
         for y in 0..n * n {
-            line.push((x, y));
+            line.insert((x, y));
         }
         line
     }
 
-    pub fn get_cell_square(n: usize, x: usize, y: usize) -> Vec<(usize, usize)> {
-        let mut square = Vec::new();
+    pub fn get_cell_square(n: usize, x: usize, y: usize) -> HashSet<(usize, usize)> {
+        let mut square = HashSet::new();
         let x0 = x - x % n;
         let y0 = y - y % n;
         for i in 0..n {
             for j in 0..n {
-                square.push((x0 + i, y0 + j));
+                square.insert((x0 + i, y0 + j));
             }
         }
         square
     }
 
-    pub fn get_cell_groups(n: usize, x: usize, y: usize) -> Vec<Vec<(usize, usize)>> {
+    pub fn get_cell_groups(n: usize, x: usize, y: usize) -> Vec<HashSet<(usize, usize)>> {
         vec![
             Sudoku::get_cell_line(n, y),
             Sudoku::get_cell_col(n, x),
@@ -187,8 +188,11 @@ impl Sudoku {
     }
 
     // RULE SOLVING
-    pub fn rule_solve(&mut self) -> Result<usize, ((usize, usize), (usize, usize))> {
-        let rules: Vec<(fn(&mut Sudoku) -> bool, usize)> = vec![
+    pub fn rule_solve(
+        &mut self,
+        specific_rules: Option<Range<usize>>,
+    ) -> Result<usize, ((usize, usize), (usize, usize))> {
+        let mut rules: Vec<(fn(&mut Sudoku) -> bool, usize)> = vec![
             (Sudoku::naked_singles, 1),
             (Sudoku::hidden_singles, 2),
             (Sudoku::naked_pairs, 3),
@@ -224,6 +228,12 @@ impl Sudoku {
             (Sudoku::pattern_overlay, 33),
             (Sudoku::bowmans_bingo, 34),
         ];
+        if specific_rules.is_some() {
+            rules = rules
+                .into_iter()
+                .filter(|(_rule, id)| specific_rules.as_ref().unwrap().contains(id))
+                .collect()
+        }
 
         let mut difficulty: usize = 0;
         // try the rules and set the difficulty in consequence
@@ -416,7 +426,7 @@ impl Sudoku {
     pub fn is_solved(&self) -> bool {
         for y in 0..self.n2 {
             for x in 0..self.n2 {
-                if self.board[y][x] == 0 {
+                if self.board[y][x] == 0 || !self.possibility_board[y][x].is_empty() {
                     return false;
                 }
             }
