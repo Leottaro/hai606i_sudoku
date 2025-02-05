@@ -953,7 +953,86 @@ impl Sudoku {
 
     // règle 18: http://www.taupierbw.be/SudokuCoach/SC_WWing.shtml
     pub(super) fn w_wing(&mut self) -> bool {
-        warn!("w_wing isn't implemented yet");
+        let mut modified = false;
+        for y in 0..self.n2 {
+            for x in 0..self.n2 {
+                if self.possibility_board[y][x].len() != 2 {
+                    continue;
+                }
+                let cell_groups: Vec<(usize, usize)> = Sudoku::get_cell_groups(self.n, x, y)
+                    .into_iter()
+                    .flatten()
+                    .collect();
+
+                let possible_values: Vec<(usize, usize)> = {
+                    let possible_values: Vec<usize> =
+                        self.possibility_board[y][x].clone().into_iter().collect();
+                    vec![
+                        (possible_values[0], possible_values[1]),
+                        (possible_values[1], possible_values[0]),
+                    ]
+                };
+
+                for (value1, value2) in possible_values {
+                    for &(x1, y1) in cell_groups.iter() {
+                        if !self.possibility_board[y1][x1].contains(&value1) {
+                            continue;
+                        }
+
+                        for group in Sudoku::get_cell_groups(self.n, x1, y1) {
+                            if group.contains(&(x, y)) {
+                                continue;
+                            }
+                            let strong_link: Vec<(usize, usize)> = group
+                                .into_iter()
+                                .filter(|&(x2, y2)| {
+                                    (x2 != x1 || y2 != y1)
+                                        && self.possibility_board[y2][x2].contains(&value1)
+                                })
+                                .collect();
+                            if strong_link.len() != 1 {
+                                continue;
+                            }
+                            let (x2, y2) = strong_link.into_iter().next().unwrap();
+
+                            let mut picked_cells: Vec<(usize, usize)> = Vec::new();
+
+                            for group in Sudoku::get_cell_groups(self.n, x2, y2) {
+                                if group.contains(&(x1, y1)) {
+                                    continue;
+                                }
+
+                                for (x3, y3) in group {
+                                    if (x3 == x || y3 == y)
+                                        || (x3 == x2 && y3 == y2)
+                                        || self.possibility_board[y3][x3]
+                                            != self.possibility_board[y][x]
+                                    {
+                                        continue;
+                                    }
+                                    println!("x:{x} y:{y}\nvalue1:{value1}\nx1:{x1} y1:{y1}\nx2:{x2} y2:{y2}\nx3:{x3} y3:{y3}");
+                                    picked_cells.push((x, y3));
+                                    picked_cells.push((x3, y));
+                                }
+                            }
+
+                            for (x3, y3) in picked_cells {
+                                if self.possibility_board[y3][x3].remove(&value2) {
+                                    debug_only!(
+                                        "possibilitée {value2} supprimée de x: {x3}, y: {y3}"
+                                    );
+                                    modified = true;
+                                }
+                            }
+
+                            if modified {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
         false
     }
 

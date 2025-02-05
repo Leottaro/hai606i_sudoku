@@ -27,6 +27,14 @@ impl<'a> SudokuDisplay<'a> {
         self.sudoku.rule_solve(specific_rules)
     }
 
+    pub fn is_valid(&self) -> Result<(), ((usize, usize), (usize, usize))> {
+        self.sudoku.is_valid()
+    }
+
+    pub fn is_solved(&self) -> bool {
+        self.sudoku.is_solved()
+    }
+
     async fn draw_buttons(&self, font: Font) {
         let mut color: Color;
         for x in 0..self.sudoku.get_n() {
