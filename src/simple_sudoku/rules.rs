@@ -458,9 +458,9 @@ impl Sudoku {
     // règle 11: http://www.taupierbw.be/SudokuCoach/SC_BoxReduction.shtml
     pub(super) fn box_reduction(&mut self) -> bool {
         let mut modified = false;
-        for lines in Sudoku::get_lines(self.n) {
+        for rows in Sudoku::get_rows(self.n) {
             for value in 1..=self.n2 {
-                let mut occurences: Vec<&(usize, usize)> = lines
+                let mut occurences: Vec<&(usize, usize)> = rows
                     .iter()
                     .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
                     .collect();
@@ -710,7 +710,82 @@ impl Sudoku {
 
     // règle 14: http://www.taupierbw.be/SudokuCoach/SC_FrankenXWing.shtml
     pub(super) fn franken_x_wing(&mut self) -> bool {
-        warn!("franken_x_wing isn't implemented yet");
+        let mut modified = false;
+        for value in 1..=self.n2 {
+            for line in vec![Sudoku::get_rows(self.n), Sudoku::get_cols(self.n)].concat() {
+                let occurences: Vec<&(usize, usize)> = line
+                    .iter()
+                    .filter(|(x, y)| self.possibility_board[*y][*x].contains(&value))
+                    .collect();
+                if occurences.len() != 2
+                    || occurences[0].0 / self.n != occurences[1].0 / self.n
+                    || occurences[0].1 / self.n != occurences[1].1 / self.n
+                {
+                    continue;
+                }
+                let (&(x1, y1), &(x2, y2)) = (occurences[0], occurences[1]);
+
+                for square in Sudoku::get_squares(self.n) {
+                    if !line.is_disjoint(&square) {
+                        continue;
+                    }
+
+                    let (mut yellow_cells1, mut yellow_cells2): (
+                        HashSet<(usize, usize)>,
+                        HashSet<(usize, usize)>,
+                    ) = if y1 == y2 {
+                        (
+                            Sudoku::get_cell_col(self.n, x1),
+                            Sudoku::get_cell_col(self.n, x2),
+                        )
+                    } else {
+                        (
+                            Sudoku::get_cell_row(self.n, y1),
+                            Sudoku::get_cell_row(self.n, y2),
+                        )
+                    };
+                    yellow_cells1.remove(&(x1, y1));
+                    yellow_cells2.remove(&(x2, y2));
+
+                    let red_cells_1_value_count = yellow_cells1
+                        .intersection(&square)
+                        .filter(|(x, y)| self.possibility_board[*y][*x].contains(&value))
+                        .count();
+                    let red_cells_2_value_count = yellow_cells2
+                        .intersection(&square)
+                        .filter(|(x, y)| self.possibility_board[*y][*x].contains(&value))
+                        .count();
+
+                    let square_cells_value_count = square
+                        .iter()
+                        .filter(|(x, y)| self.possibility_board[*y][*x].contains(&value))
+                        .count();
+
+                    if red_cells_1_value_count == 0
+                        || red_cells_2_value_count == 0
+                        || square_cells_value_count
+                            != red_cells_1_value_count + red_cells_2_value_count
+                    {
+                        continue;
+                    }
+
+                    for &(x, y) in yellow_cells1
+                        .difference(&square)
+                        .into_iter()
+                        .chain(yellow_cells2.difference(&square).into_iter())
+                    {
+                        if self.possibility_board[y][x].remove(&value) {
+                            debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}");
+                            modified = true;
+                        }
+                    }
+
+                    if modified {
+                        return true;
+                    }
+                }
+            }
+        }
         false
     }
 

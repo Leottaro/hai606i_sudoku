@@ -36,7 +36,7 @@ impl Sudoku {
 
     // GLOBAL FUNCTIONS
 
-    pub fn get_lines(n: usize) -> Vec<HashSet<(usize, usize)>> {
+    pub fn get_rows(n: usize) -> Vec<HashSet<(usize, usize)>> {
         let mut lines = Vec::new();
         for y in 0..n * n {
             let mut line = HashSet::new();
@@ -78,13 +78,13 @@ impl Sudoku {
 
     pub fn get_groups(n: usize) -> Vec<HashSet<(usize, usize)>> {
         let mut groups = Vec::new();
-        groups.extend(Sudoku::get_lines(n));
+        groups.extend(Sudoku::get_rows(n));
         groups.extend(Sudoku::get_cols(n));
         groups.extend(Sudoku::get_squares(n));
         groups
     }
 
-    pub fn get_cell_line(n: usize, y: usize) -> HashSet<(usize, usize)> {
+    pub fn get_cell_row(n: usize, y: usize) -> HashSet<(usize, usize)> {
         let mut line = HashSet::new();
         for x in 0..n * n {
             line.insert((x, y));
@@ -114,7 +114,7 @@ impl Sudoku {
 
     pub fn get_cell_groups(n: usize, x: usize, y: usize) -> Vec<HashSet<(usize, usize)>> {
         vec![
-            Sudoku::get_cell_line(n, y),
+            Sudoku::get_cell_row(n, y),
             Sudoku::get_cell_col(n, x),
             Sudoku::get_cell_square(n, x, y),
         ]
