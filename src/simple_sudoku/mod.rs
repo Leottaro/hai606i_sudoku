@@ -21,5 +21,6 @@ pub struct SudokuDisplay<'a> {
     x_offset: f32,
     y_offset: f32,
     bx_offset: f32,
+    solvex_offset: f32,
     solving: bool,
 }

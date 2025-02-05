@@ -6,9 +6,10 @@ impl<'a> SudokuDisplay<'a> {
     pub fn new(sudoku: &'a mut Sudoku) -> Self {
         let window_size = 900.0;
         let pixel_per_cell = window_size / sudoku.get_n2() as f32;
-        let x_offset = 250.0;
+        let x_offset = 350.0;
         let y_offset = 50.0;
-        let bx_offset = 150.0;
+        let bx_offset = 50.0;
+        let solvex_offset = 50.0;
         let solving = false;
 
         Self {
@@ -20,12 +21,83 @@ impl<'a> SudokuDisplay<'a> {
             x_offset,
             y_offset,
             bx_offset,
+            solvex_offset,
             solving,
         }
     }
 
     pub fn solve_once(&mut self){
-        self.sudoku.solve_once();
+        if self.sudoku.solve_once().unwrap()>2 as usize{
+            self.solve_once();
+        }
+    }
+
+    async fn draw_solve(&mut self, font: Font){
+        let mut color: Color;
+        let solve_sizex = 150.0;
+        let solve_sizey = 100.0;
+        let solve_ypadding = 10.0;
+        let solve1_x = self.x_offset - self.solvex_offset - solve_sizex;
+        let solve1_y = self.y_offset + (self.window_size - (solve_sizey)*2.0 - solve_ypadding)/2.0;
+        color = Color::from_hex(0xe4ebf2);
+
+        draw_rectangle(
+            solve1_x,
+            solve1_y,
+            solve_sizex,
+            solve_sizey,
+            color
+        );
+
+        if self.solving{
+            color = Color::from_hex(0xc2ddf8);
+        }
+
+        let solve2_x = self.x_offset - self.solvex_offset - solve_sizex;
+        let solve2_y = self.y_offset + (self.window_size - (solve_sizey)*2.0 - solve_ypadding)/2.0 + solve_sizey + solve_ypadding;
+
+        draw_rectangle(
+            solve2_x,
+            solve2_y,
+            solve_sizex,
+            solve_sizey,
+            color
+        );
+
+        let font_size = solve_sizey as u16 * 2 / 8;
+        let text1 = "solve once";
+        let text1_dimensions = measure_text(&text1, Some(&font), font_size, 1.0);
+        let text1_x = solve1_x + (solve_sizex - text1_dimensions.width) / 2.0;
+        let text1_y = solve1_y + (solve_sizey + text1_dimensions.height) / 2.0;
+
+        draw_text_ex(
+            &text1,
+            text1_x,
+            text1_y,
+            TextParams {
+                font: Some(&font),
+                font_size: font_size,
+                color: Color::from_hex(0x000000),
+                ..Default::default()
+            },
+        );
+
+        let text2 = "solve";
+        let text2_dimensions = measure_text(&text2, Some(&font), font_size, 1.0);
+        let text2_x = solve2_x + (solve_sizex - text2_dimensions.width) / 2.0;
+        let text2_y = solve2_y + (solve_sizey + text2_dimensions.height) / 2.0;
+
+        draw_text_ex(
+            &text2,
+            text2_x,
+            text2_y,
+            TextParams {
+                font: Some(&font),
+                font_size: font_size,
+                color: Color::from_hex(0x000000),
+                ..Default::default()
+            },
+        );
     }
 
     async fn draw_buttons(&self, font: Font){
@@ -189,7 +261,9 @@ impl<'a> SudokuDisplay<'a> {
 
         clear_background(Color::from_hex(0xffffff));
 
+        //si on clique
         if is_mouse_button_pressed(MouseButton::Left) {
+            //regarde le bouton selectionne
             let b_size = 150.0;
             let b_padding = 10.0;
             let b_x = self.x_offset + self.window_size + self.bx_offset;
@@ -204,8 +278,34 @@ impl<'a> SudokuDisplay<'a> {
                     self.selected_buttons.insert(button);
                 }
             }
+
+            let solve_sizex = 150.0;
+            let solve_sizey = 100.0;
+            let solve_ypadding = 10.0;
+
+            let solve1_x = self.x_offset - self.solvex_offset - solve_sizex;
+            let solve1_y = self.y_offset + (self.window_size - (solve_sizey)*2.0 - solve_ypadding)/2.0;
+
+            let solve2_x = self.x_offset - self.solvex_offset - solve_sizex;
+            let solve2_y = self.y_offset + (self.window_size - (solve_sizey)*2.0 - solve_ypadding)/2.0 + solve_sizey + solve_ypadding;
+            
+            if mouse_x + self.x_offset > solve1_x && mouse_y + self.y_offset > solve1_y
+            && mouse_x + self.x_offset < solve1_x + solve_sizex && mouse_y + self.y_offset < solve1_y + solve_sizey{
+                self.solve_once();
+            }
+
+            if mouse_x + self.x_offset > solve2_x && mouse_y + self.y_offset > solve2_y
+            && mouse_x + self.x_offset < solve2_x + solve_sizex && mouse_y + self.y_offset < solve2_y + solve_sizey{
+                if self.solving{
+                    self.solving = false;
+                }
+                else{
+                    self.solving = true;
+                }
+            }
         }
 
+        //si on clique dans le sudoku
         if (mouse_x as f32) < self.window_size && (mouse_x as f32) > 0.0 && (mouse_y as f32) < self.window_size && (mouse_y as f32) > 0.0{
 
             if is_mouse_button_pressed(MouseButton::Left) {
@@ -214,11 +314,22 @@ impl<'a> SudokuDisplay<'a> {
                 } else {
                     self.selected_cell = Some((x, y));
                 }
-                self.solve_once();
+                self.selected_buttons.clear();
+
+                if self.selected_cell.is_some() && self.selected_cell.unwrap() == (x, y){
+                    let pb: &HashSet<usize> = &self.sudoku.get_possibility_board()[y][x];
+                    for n in pb{
+                        for i in 0..self.sudoku.get_n(){
+                            for j in 0..self.sudoku.get_n(){
+                                if self.sudoku.get_n()*j + i + 1 == *n{
+                                    self.selected_buttons.insert((i,j));
+                                }
+                            }
+                        }
+                    }
+                }
             }
-            
             self.draw_cell(x, y, Color::from_hex(0xf1f5f9));
-            
         }
 
         if let Some((x, y)) = self.selected_cell {
@@ -231,5 +342,6 @@ impl<'a> SudokuDisplay<'a> {
 
         self.draw_sudoku(font.clone()).await;
         self.draw_buttons(font.clone()).await;
+        self.draw_solve(font.clone()).await;
     }
 }
