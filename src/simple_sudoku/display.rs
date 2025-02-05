@@ -36,9 +36,9 @@ impl<'a> SudokuDisplay<'a> {
 
     async fn draw_solve(&mut self, font: Font){
         let mut color: Color;
-        let solve_sizex = 150.0;
-        let solve_sizey = 100.0;
-        let solve_ypadding = 10.0;
+        let solve_sizex = 150.0 * self.scale_factor;
+        let solve_sizey = 100.0 * self.scale_factor;
+        let solve_ypadding = 10.0 * self.scale_factor;
         let solve1_x = self.x_offset - self.solvex_offset - solve_sizex;
         let solve1_y = self.y_offset + (self.grid_size - (solve_sizey)*2.0 - solve_ypadding)/2.0;
         color = Color::from_hex(0xe4ebf2);
@@ -262,10 +262,15 @@ impl<'a> SudokuDisplay<'a> {
         self.x_offset = 250.0 * self.scale_factor;
         self.y_offset = 0.0 * self.scale_factor;
         self.bx_offset = 50.0 * self.scale_factor;
+        self.solvex_offset = 50.0 * self.scale_factor;
     }
 
     pub async fn run(&mut self, font: Font) {
         self.update_scale();
+
+        let solve_sizex = 150.0 * self.scale_factor;
+        let solve_sizey = 100.0 * self.scale_factor;
+        let solve_ypadding = 10.0 * self.scale_factor;
         let b_size = self.pixel_per_cell * 3.0 / 2.0;
         let b_padding = 10.0;
 
@@ -302,10 +307,6 @@ impl<'a> SudokuDisplay<'a> {
                     self.selected_buttons.insert(button);
                 }
             }
-
-            let solve_sizex = 150.0;
-            let solve_sizey = 100.0;
-            let solve_ypadding = 10.0;
 
             let solve1_x = self.x_offset - self.solvex_offset - solve_sizex;
             let solve1_y = self.y_offset + (self.grid_size - (solve_sizey)*2.0 - solve_ypadding)/2.0;
