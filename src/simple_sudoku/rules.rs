@@ -612,7 +612,99 @@ impl Sudoku {
 
     // règle 13: http://www.taupierbw.be/SudokuCoach/SC_FinnedXWing.shtml
     pub(super) fn finned_x_wing(&mut self) -> bool {
-        warn!("finned_x_wing isn't implemented yet");
+        let mut modified = false;
+        for value in 1..self.n2 {
+            for i1 in 0..(self.n2 - 1) {
+                for i2 in (i1 + 1)..self.n2 {
+                    let mut picked_cells: Vec<((usize, usize), (usize, usize))> = Vec::new();
+
+                    let row1_positions: HashSet<usize> = (0..self.n2)
+                        .into_iter()
+                        .filter(|x| self.possibility_board[i1][*x].contains(&value))
+                        .collect();
+                    let row2_positions: HashSet<usize> = (0..self.n2)
+                        .into_iter()
+                        .filter(|x| self.possibility_board[i2][*x].contains(&value))
+                        .collect();
+
+                    let (smaller_row, larger_row, is_row2_larger) =
+                        if row1_positions.len() < row2_positions.len() {
+                            (&row1_positions, &row2_positions, true)
+                        } else {
+                            (&row2_positions, &row1_positions, false)
+                        };
+
+                    if smaller_row.len() == 2
+                        && larger_row.len() == 3
+                        && smaller_row.is_subset(larger_row)
+                    {
+                        let fin = larger_row.difference(smaller_row).next().unwrap();
+                        let fin_i = if is_row2_larger { i2 } else { i1 };
+
+                        let smaller_vec: Vec<usize> = smaller_row.iter().cloned().collect();
+                        let (x1, x2) = (smaller_vec[0], smaller_vec[1]);
+                        if fin / self.n == x1 / self.n {
+                            picked_cells.push(((x1, fin_i), (*fin, fin_i)));
+                        } else if fin / self.n == x2 / self.n {
+                            picked_cells.push(((x2, fin_i), (*fin, fin_i)));
+                        }
+                    }
+
+                    let col1_positions: HashSet<usize> = (0..self.n2)
+                        .into_iter()
+                        .filter(|y| self.possibility_board[*y][i1].contains(&value))
+                        .collect();
+                    let col2_positions: HashSet<usize> = (0..self.n2)
+                        .into_iter()
+                        .filter(|y| self.possibility_board[*y][i2].contains(&value))
+                        .collect();
+
+                    let (smaller_col, larger_col, is_col2_larger) =
+                        if col1_positions.len() < col2_positions.len() {
+                            (&col1_positions, &col2_positions, true)
+                        } else {
+                            (&col2_positions, &col1_positions, false)
+                        };
+
+                    if smaller_col.len() == 2
+                        && larger_col.len() == 3
+                        && smaller_col.is_subset(larger_col)
+                    {
+                        let fin = larger_col.difference(smaller_col).next().unwrap();
+                        let fin_i = if is_col2_larger { i2 } else { i1 };
+
+                        let smaller_vec: Vec<usize> = smaller_col.iter().cloned().collect();
+                        let (y1, y2) = (smaller_vec[0], smaller_vec[1]);
+                        if fin / self.n == y1 / self.n {
+                            picked_cells.push(((fin_i, y1), (fin_i, *fin)));
+                        } else if fin / self.n == y2 / self.n {
+                            picked_cells.push(((fin_i, y2), (fin_i, *fin)));
+                        }
+                    }
+
+                    for ((x1, y1), (fin_x, fin_y)) in picked_cells {
+                        println!("x1:{x1} y2:{y1} fin_x:{fin_x} fin_y:{fin_y}");
+                        let removed_cells: Vec<(usize, usize)> =
+                            Sudoku::get_cell_square(self.n, fin_x, fin_y)
+                                .into_iter()
+                                .filter(|(x, y)| {
+                                    (y1 == fin_y && *x == x1 && *y != y1)
+                                        || (x1 == fin_x && *x != x1 && *y == y1)
+                                })
+                                .collect();
+                        for (x, y) in removed_cells {
+                            if self.possibility_board[y][x].remove(&value) {
+                                debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}");
+                                modified = true;
+                            }
+                        }
+                        if modified {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
         false
     }
 
