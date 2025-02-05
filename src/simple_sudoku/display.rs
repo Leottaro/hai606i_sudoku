@@ -16,7 +16,7 @@ impl<'a> SudokuDisplay<'a> {
         let mode = "play".to_string();
         let solving = false;
         let player_pboard: Vec<Vec<HashSet<usize>>> = vec![vec![HashSet::new();sudoku.get_n2()]; sudoku.get_n2()];
-        let used_pboard = player_pboard.clone();
+        let note = false;
 
         Self {
             sudoku,
@@ -34,7 +34,7 @@ impl<'a> SudokuDisplay<'a> {
             mode,
             solving,
             player_pboard,
-            used_pboard,
+            note,
         }
     }
 
@@ -298,17 +298,20 @@ impl<'a> SudokuDisplay<'a> {
             }
         }
 
-        // let pb = self.sudoku.get_possibility_board();
+        let mut pb = self.sudoku.get_possibility_board();
+        if self.mode == "play".to_string(){
+            pb = self.player_pboard.clone();
+        }
         for x in 0..n2 {
             for y in 0..n2 {
-                if self.used_pboard[y][x].len() == 0 {
+                if pb[y][x].len() == 0 {
                     continue;
                 }
                 let font_size = self.pixel_per_cell as u16 * 2 / (3 * n as u16);
                 for i in 0..n {
                     for j in 0..n {
                         let number = i * n + j + 1;
-                        if !self.used_pboard[y][x].contains(&number) {
+                        if !pb[y][x].contains(&number) {
                             continue;
                         }
                         let text = number.to_string();
@@ -373,26 +376,51 @@ impl<'a> SudokuDisplay<'a> {
 
         //si on clique
         if is_mouse_button_pressed(MouseButton::Left) {
-            let b_x = self.x_offset + self.grid_size + self.bx_offset;
-            let b_y = self.y_offset
-                + (self.grid_size - (b_size + b_padding) * (self.sudoku.get_n() as f32)) / 2.0;
-            if mouse_x + self.x_offset > b_x
-                && mouse_x + self.x_offset
-                    < b_x + (b_size + b_padding) * (self.sudoku.get_n() as f32)
-                && mouse_y + self.y_offset > b_y
-                && mouse_y + self.y_offset
-                    < b_y + (b_size + b_padding) * (self.sudoku.get_n() as f32)
-            {
-                let button = (
-                    ((mouse_x + self.x_offset - b_x) / (b_size + b_padding) as f32).floor()
-                        as usize,
-                    ((mouse_y + self.y_offset - b_y) / (b_size + b_padding) as f32).floor()
-                        as usize,
-                );
-                if self.selected_buttons.contains(&button) {
-                    self.selected_buttons.remove(&button);
-                } else {
-                    self.selected_buttons.insert(button);
+            if self.selected_cell.is_some(){
+                let selected_x = self.selected_cell.unwrap().0;
+                let selected_y = self.selected_cell.unwrap().1;
+                let b_x = self.x_offset + self.grid_size + self.bx_offset;
+                let b_y = self.y_offset
+                    + (self.grid_size - (b_size + b_padding) * (self.sudoku.get_n() as f32)) / 2.0;
+                if mouse_x + self.x_offset > b_x
+                    && mouse_x + self.x_offset < b_x + (b_size + b_padding) * (self.sudoku.get_n() as f32)
+                    && mouse_y + self.y_offset > b_y
+                    && mouse_y + self.y_offset < b_y + (b_size + b_padding) * (self.sudoku.get_n() as f32)
+                    && self.mode == "play".to_string()
+                {
+                    let button = (
+                        ((mouse_x + self.x_offset - b_x) / (b_size + b_padding) as f32).floor()
+                            as usize,
+                        ((mouse_y + self.y_offset - b_y) / (b_size + b_padding) as f32).floor()
+                            as usize,
+                    );
+
+                    let value = button.0 + button.1*self.sudoku.get_n() + 1;
+                    
+                    if self.note && self.sudoku.get_board()[selected_y][selected_x]==0{
+                        
+                        if self.selected_buttons.contains(&button) {
+                            self.selected_buttons.remove(&button);
+                            self.player_pboard[selected_y][selected_x].remove(&value);
+                        } else {
+                            self.selected_buttons.insert(button);
+                            self.player_pboard[selected_y][selected_x].insert(value);
+                        }
+                    }
+                    else if !self.note{
+                        if self.sudoku.get_board()[selected_y][selected_x]!=value{
+                            self.sudoku.set_value(selected_x, selected_y, value);
+                            for group in Sudoku::get_cell_groups(self.sudoku.get_n(), selected_x, selected_y) {
+                                for (i, j) in group {
+                                    self.player_pboard[j][i].remove(&value);
+                                }
+                            }
+                        }
+                        else{
+                            self.sudoku.set_value(selected_x, selected_y, 0);
+                        }
+                        self.player_pboard[selected_y][selected_x].clear();
+                    }
                 }
             }
 
@@ -411,10 +439,13 @@ impl<'a> SudokuDisplay<'a> {
             && mouse_x + self.x_offset < solve2_x + solve_sizex && mouse_y + self.y_offset < solve2_y + solve_sizey{
                 if self.solving{
                     self.solving = false;
+                    self.note = false;
                 }
                 else{
                     self.solving = true;
+                    self.note = true;
                 }
+                
             }
 
             let choose1_x = self.x_offset + (self.grid_size - choose_sizex*2.0 - choose_xpadding)/2.0;
@@ -426,13 +457,11 @@ impl<'a> SudokuDisplay<'a> {
             if mouse_x + self.x_offset > choose1_x && mouse_y + self.y_offset > choose1_y
             && mouse_x + self.x_offset < choose1_x + choose_sizex && mouse_y + self.y_offset < choose1_y + choose_sizey{
                 self.mode = "play".to_string();
-                self.used_pboard = self.player_pboard.clone();
             }
 
             if mouse_x + self.x_offset > choose2_x && mouse_y + self.y_offset > choose2_y
             && mouse_x + self.x_offset < choose2_x + choose_sizex && mouse_y + self.y_offset < choose2_y + choose_sizey{
                 self.mode = "analyse".to_string();
-                self.used_pboard = self.sudoku.get_possibility_board().clone();
             }
         }
 
@@ -448,7 +477,11 @@ impl<'a> SudokuDisplay<'a> {
                 self.selected_buttons.clear();
 
                 if self.selected_cell.is_some() && self.selected_cell.unwrap() == (x, y){
-                    let pb: &HashSet<usize> = &self.used_pboard[y][x];
+                    let mut pb: &HashSet<usize> = &self.sudoku.get_possibility_board()[y][x];
+                    if self.mode == "play".to_string(){
+                        pb = &self.player_pboard[y][x];
+                    }
+                    
                     for n in pb{
                         for i in 0..self.sudoku.get_n(){
                             for j in 0..self.sudoku.get_n(){

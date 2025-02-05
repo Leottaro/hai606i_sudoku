@@ -24,7 +24,7 @@ impl Sudoku {
             for x in 0..self.n2 {
                 if self.possibility_board[y][x].len() == 1 {
                     let &value = self.possibility_board[y][x].iter().next().unwrap();
-                    self.fix_value(x, y, value);
+                    self.set_value(x, y, value);
                     debug_only!("valeur {} fixée en x: {}, y: {}", value, x, y);
                     return true;
                 }
@@ -43,7 +43,7 @@ impl Sudoku {
                     .collect();
                 if cells_with_value.len() == 1 {
                     let &&(x, y) = cells_with_value.first().unwrap();
-                    self.fix_value(x, y, value);
+                    self.set_value(x, y, value);
                     debug_only!("valeur {} fixée en x: {}, y: {}", value, x, y);
                     return true;
                 }

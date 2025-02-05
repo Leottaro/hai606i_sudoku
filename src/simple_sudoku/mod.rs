@@ -28,5 +28,5 @@ pub struct SudokuDisplay<'a> {
     mode: String,
     solving: bool,
     player_pboard: Vec<Vec<HashSet<usize>>>,
-    used_pboard: Vec<Vec<HashSet<usize>>>,
+    note: bool,
 }

@@ -23,7 +23,7 @@ impl Sudoku {
         self.possibility_board.clone()
     }
 
-    pub fn fix_value(&mut self, x: usize, y: usize, value: usize) {
+    pub fn set_value(&mut self, x: usize, y: usize, value: usize) {
         self.board[y][x] = value;
         self.possibility_board[y][x].clear();
         for group in Sudoku::get_cell_groups(self.n, x, y) {
