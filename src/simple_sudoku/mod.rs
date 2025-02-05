@@ -14,6 +14,7 @@ pub struct Sudoku {
 
 pub struct SudokuDisplay<'a> {
     sudoku: &'a mut Sudoku,
+    max_scale: f32,
     scale_factor: f32,
     grid_size: f32,
     pixel_per_cell: f32,
@@ -23,5 +24,9 @@ pub struct SudokuDisplay<'a> {
     y_offset: f32,
     bx_offset: f32,
     solvex_offset: f32,
+    choosey_offset: f32,
+    mode: String,
     solving: bool,
+    player_pboard: Vec<Vec<HashSet<usize>>>,
+    used_pboard: Vec<Vec<HashSet<usize>>>,
 }

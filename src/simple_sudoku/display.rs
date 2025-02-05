@@ -4,17 +4,23 @@ use std::collections::HashSet;
 
 impl<'a> SudokuDisplay<'a> {
     pub fn new(sudoku: &'a mut Sudoku) -> Self {
-        let scale_factor = 0.8;
+        let max_scale = screen_height();
+        let scale_factor = 1.0;
         let grid_size = 900.0 * scale_factor;
-        let pixel_per_cell = (grid_size / sudoku.get_n2() as f32) * scale_factor;
+        let pixel_per_cell = grid_size / sudoku.get_n2() as f32;
         let x_offset = 250.0 * scale_factor;
-        let y_offset = 50.0 * scale_factor;
+        let y_offset = 150.0 * scale_factor;
         let bx_offset = 150.0 * scale_factor;
         let solvex_offset = 50.0 * scale_factor;
+        let choosey_offset = (y_offset - 100.0) / 2.0;
+        let mode = "play".to_string();
         let solving = false;
+        let player_pboard: Vec<Vec<HashSet<usize>>> = vec![vec![HashSet::new();sudoku.get_n2()]; sudoku.get_n2()];
+        let used_pboard = player_pboard.clone();
 
         Self {
             sudoku,
+            max_scale,
             scale_factor,
             grid_size,
             pixel_per_cell,
@@ -24,7 +30,11 @@ impl<'a> SudokuDisplay<'a> {
             y_offset,
             bx_offset,
             solvex_offset,
+            choosey_offset,
+            mode,
             solving,
+            player_pboard,
+            used_pboard,
         }
     }
 
@@ -34,13 +44,86 @@ impl<'a> SudokuDisplay<'a> {
         }
     }
 
+    async fn draw_chooser(&mut self, font: Font){
+        let mut color: Color;
+        let choose_sizex = 150.0 * self.scale_factor;
+        let choose_sizey = 100.0 * self.scale_factor;
+        let choose_xpadding = 10.0 * self.scale_factor;
+        let choose1_x = self.x_offset + (self.grid_size - choose_sizex*2.0 - choose_xpadding)/2.0;
+        let choose1_y = self.y_offset - self.choosey_offset - choose_sizey;
+
+        color = Color::from_hex(0xe4ebf2);
+        if self.mode=="play".to_string(){
+            color = Color::from_hex(0xc2ddf8);
+        }
+
+        draw_rectangle(
+            choose1_x,
+            choose1_y,
+            choose_sizex,
+            choose_sizey,
+            color
+        );
+
+        let choose2_x = self.x_offset + (self.grid_size - choose_sizex*2.0 - choose_xpadding)/2.0 + choose_sizex + choose_xpadding;
+        let choose2_y = self.y_offset - self.choosey_offset - choose_sizey;
+
+        color = Color::from_hex(0xe4ebf2);
+        if self.mode=="analyse".to_string(){
+            color = Color::from_hex(0xc2ddf8);
+        }
+
+        draw_rectangle(
+            choose2_x,
+            choose2_y,
+            choose_sizex,
+            choose_sizey,
+            color
+        );
+
+        let font_size = choose_sizey as u16 * 2 / 8;
+        let text1 = "Play";
+        let text1_dimensions = measure_text(&text1, Some(&font), font_size, 1.0);
+        let text1_x = choose1_x + (choose_sizex - text1_dimensions.width) / 2.0;
+        let text1_y = choose1_y + (choose_sizey + text1_dimensions.height) / 2.0;
+
+        draw_text_ex(
+            &text1,
+            text1_x,
+            text1_y,
+            TextParams {
+                font: Some(&font),
+                font_size: font_size,
+                color: Color::from_hex(0x000000),
+                ..Default::default()
+            },
+        );
+
+        let text2 = "Analyse";
+        let text2_dimensions = measure_text(&text2, Some(&font), font_size, 1.0);
+        let text2_x = choose2_x + (choose_sizex - text2_dimensions.width) / 2.0;
+        let text2_y = choose2_y + (choose_sizey + text2_dimensions.height) / 2.0;
+
+        draw_text_ex(
+            &text2,
+            text2_x,
+            text2_y,
+            TextParams {
+                font: Some(&font),
+                font_size: font_size,
+                color: Color::from_hex(0x000000),
+                ..Default::default()
+            },
+        );
+    }
+
     async fn draw_solve(&mut self, font: Font){
         let mut color: Color;
         let solve_sizex = 150.0 * self.scale_factor;
         let solve_sizey = 100.0 * self.scale_factor;
         let solve_ypadding = 10.0 * self.scale_factor;
         let solve1_x = self.x_offset - self.solvex_offset - solve_sizex;
-        let solve1_y = self.y_offset + (self.grid_size - (solve_sizey)*2.0 - solve_ypadding)/2.0;
+        let solve1_y = self.y_offset + (self.grid_size - solve_sizey*2.0 - solve_ypadding)/2.0;
         color = Color::from_hex(0xe4ebf2);
 
         draw_rectangle(
@@ -215,17 +298,17 @@ impl<'a> SudokuDisplay<'a> {
             }
         }
 
-        let pb = self.sudoku.get_possibility_board();
+        // let pb = self.sudoku.get_possibility_board();
         for x in 0..n2 {
             for y in 0..n2 {
-                if pb[y][x].len() == 0 {
+                if self.used_pboard[y][x].len() == 0 {
                     continue;
                 }
                 let font_size = self.pixel_per_cell as u16 * 2 / (3 * n as u16);
                 for i in 0..n {
                     for j in 0..n {
                         let number = i * n + j + 1;
-                        if !pb[y][x].contains(&number) {
+                        if !self.used_pboard[y][x].contains(&number) {
                             continue;
                         }
                         let text = number.to_string();
@@ -256,11 +339,11 @@ impl<'a> SudokuDisplay<'a> {
     }
 
     pub fn update_scale(&mut self) {
-        self.scale_factor = screen_height() / self.grid_size;
-        self.grid_size = screen_height();
-        self.pixel_per_cell = (self.grid_size / self.sudoku.get_n2() as f32) * self.scale_factor;
+        self.scale_factor = screen_height() / self.max_scale;
+        self.grid_size = 900.0 * self.scale_factor;
+        self.pixel_per_cell = self.grid_size / self.sudoku.get_n2() as f32;
         self.x_offset = 250.0 * self.scale_factor;
-        self.y_offset = 0.0 * self.scale_factor;
+        self.y_offset = 150.0 * self.scale_factor;
         self.bx_offset = 50.0 * self.scale_factor;
         self.solvex_offset = 50.0 * self.scale_factor;
     }
@@ -271,6 +354,11 @@ impl<'a> SudokuDisplay<'a> {
         let solve_sizex = 150.0 * self.scale_factor;
         let solve_sizey = 100.0 * self.scale_factor;
         let solve_ypadding = 10.0 * self.scale_factor;
+
+        let choose_sizex = 150.0 * self.scale_factor;
+        let choose_sizey = 100.0 * self.scale_factor;
+        let choose_xpadding = 10.0 * self.scale_factor;
+
         let b_size = self.pixel_per_cell * 3.0 / 2.0;
         let b_padding = 10.0;
 
@@ -328,6 +416,24 @@ impl<'a> SudokuDisplay<'a> {
                     self.solving = true;
                 }
             }
+
+            let choose1_x = self.x_offset + (self.grid_size - choose_sizex*2.0 - choose_xpadding)/2.0;
+            let choose1_y = self.y_offset - self.choosey_offset - choose_sizey;
+
+            let choose2_x = self.x_offset + (self.grid_size - choose_sizex*2.0 - choose_xpadding)/2.0 + choose_sizex + choose_xpadding;
+            let choose2_y = self.y_offset - self.choosey_offset - choose_sizey;
+            
+            if mouse_x + self.x_offset > choose1_x && mouse_y + self.y_offset > choose1_y
+            && mouse_x + self.x_offset < choose1_x + choose_sizex && mouse_y + self.y_offset < choose1_y + choose_sizey{
+                self.mode = "play".to_string();
+                self.used_pboard = self.player_pboard.clone();
+            }
+
+            if mouse_x + self.x_offset > choose2_x && mouse_y + self.y_offset > choose2_y
+            && mouse_x + self.x_offset < choose2_x + choose_sizex && mouse_y + self.y_offset < choose2_y + choose_sizey{
+                self.mode = "analyse".to_string();
+                self.used_pboard = self.sudoku.get_possibility_board().clone();
+            }
         }
 
         //si on clique dans le sudoku
@@ -342,7 +448,7 @@ impl<'a> SudokuDisplay<'a> {
                 self.selected_buttons.clear();
 
                 if self.selected_cell.is_some() && self.selected_cell.unwrap() == (x, y){
-                    let pb: &HashSet<usize> = &self.sudoku.get_possibility_board()[y][x];
+                    let pb: &HashSet<usize> = &self.used_pboard[y][x];
                     for n in pb{
                         for i in 0..self.sudoku.get_n(){
                             for j in 0..self.sudoku.get_n(){
@@ -370,5 +476,6 @@ impl<'a> SudokuDisplay<'a> {
         self.draw_sudoku(font.clone()).await;
         self.draw_buttons(font.clone()).await;
         self.draw_solve(font.clone()).await;
+        self.draw_chooser(font.clone()).await;
     }
 }
