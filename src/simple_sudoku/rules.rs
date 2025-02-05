@@ -683,7 +683,6 @@ impl Sudoku {
                     }
 
                     for ((x1, y1), (fin_x, fin_y)) in picked_cells {
-                        println!("x1:{x1} y2:{y1} fin_x:{fin_x} fin_y:{fin_y}");
                         let removed_cells: Vec<(usize, usize)> =
                             Sudoku::get_cell_square(self.n, fin_x, fin_y)
                                 .into_iter()
@@ -875,7 +874,80 @@ impl Sudoku {
 
     // règle 17: http://www.taupierbw.be/SudokuCoach/SC_YWing.shtml
     pub(super) fn y_wing(&mut self) -> bool {
-        warn!("y_wing isn't implemented yet");
+        let mut modified = false;
+        for y in 0..self.n2 {
+            for x in 0..self.n2 {
+                if self.possibility_board[y][x].len() != 2 {
+                    continue;
+                }
+                let (value1, value2) = {
+                    let temp = self.possibility_board[y][x].iter().collect::<Vec<_>>();
+                    (temp[0].clone(), temp[1].clone())
+                };
+                let cell_groups: Vec<(usize, usize)> = Sudoku::get_cell_groups(self.n, x, y)
+                    .into_iter()
+                    .flatten()
+                    .collect();
+
+                let b1_values = cell_groups.iter().filter(|(x1, y1)| {
+                    let possibilities = &self.possibility_board[*y1][*x1];
+                    possibilities.len() == 2
+                        && possibilities.contains(&value1)
+                        && !possibilities.contains(&value2)
+                });
+
+                let b2_values: Vec<&(usize, usize)> = cell_groups
+                    .iter()
+                    .filter(|(x2, y2)| {
+                        let possibilities = &self.possibility_board[*y2][*x2];
+                        possibilities.len() == 2
+                            && possibilities.contains(&value2)
+                            && !possibilities.contains(&value1)
+                    })
+                    .collect();
+
+                let mut bi_values: Vec<(usize, (usize, usize), (usize, usize))> = Vec::new();
+                for (x1, y1) in b1_values {
+                    for (x2, y2) in b2_values.iter() {
+                        let possible_value3: Option<&usize> = self.possibility_board[*y1][*x1]
+                            .intersection(&self.possibility_board[*y2][*x2])
+                            .into_iter()
+                            .next();
+                        if let Some(value3) = possible_value3 {
+                            bi_values.push((*value3, (*x1, *y1), (*x2, *y2)));
+                        }
+                    }
+                }
+
+                for (value, (x1, y1), (x2, y2)) in bi_values {
+                    let cell_group1: HashSet<(usize, usize)> =
+                        Sudoku::get_cell_groups(self.n, x1, y1)
+                            .into_iter()
+                            .flatten()
+                            .collect();
+                    let cell_group2: HashSet<(usize, usize)> =
+                        Sudoku::get_cell_groups(self.n, x2, y2)
+                            .into_iter()
+                            .flatten()
+                            .collect();
+                    let common_cells: HashSet<&(usize, usize)> =
+                        cell_group1.intersection(&cell_group2).collect();
+                    for &(x3, y3) in common_cells {
+                        if (x3 == x1 && y3 == y1) || (x3 == x2 && y3 == y2) {
+                            continue;
+                        }
+                        if self.possibility_board[y3][x3].remove(&value) {
+                            debug_only!("possibilitée {value} supprimée de x: {x3}, y: {y3}");
+                            modified = true;
+                        }
+                    }
+                }
+
+                if modified {
+                    return true;
+                }
+            }
+        }
         false
     }
 
