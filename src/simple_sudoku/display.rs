@@ -4,16 +4,18 @@ use std::collections::HashSet;
 
 impl<'a> SudokuDisplay<'a> {
     pub fn new(sudoku: &'a mut Sudoku) -> Self {
-        let window_size = 900.0;
-        let pixel_per_cell = window_size / sudoku.get_n2() as f32;
-        let x_offset = 250.0;
-        let y_offset = 50.0;
-        let bx_offset = 150.0;
+        let scale_factor = 0.8;
+        let grid_size = 900.0 * scale_factor;
+        let pixel_per_cell = (grid_size / sudoku.get_n2() as f32) * scale_factor;
+        let x_offset = 250.0 * scale_factor;
+        let y_offset = 50.0 * scale_factor;
+        let bx_offset = 150.0 * scale_factor;
         let solving = false;
 
         Self {
             sudoku,
-            window_size,
+            scale_factor,
+            grid_size,
             pixel_per_cell,
             selected_cell: None,
             selected_buttons: HashSet::new(),
@@ -24,32 +26,31 @@ impl<'a> SudokuDisplay<'a> {
         }
     }
 
-    pub fn solve_once(&mut self){
-        self.sudoku.solve_once();
+    pub fn solve_once(&mut self) {
+        if let Err(e) = self.sudoku.solve_once() {
+            eprintln!("Error solving sudoku: {:?}", e);
+        }
     }
 
-    async fn draw_buttons(&self, font: Font){
-        
+    async fn draw_buttons(&self, font: Font) {
         let mut color: Color;
-        for x in 0..self.sudoku.get_n(){
-            for y in 0..self.sudoku.get_n(){
-                let b_size = 150.0;
+        for x in 0..self.sudoku.get_n() {
+            for y in 0..self.sudoku.get_n() {
+                let b_size = self.pixel_per_cell * 3.0 / 2.0;
                 let b_padding = 10.0;
-                let b_x = self.x_offset + self.window_size + self.bx_offset + (x as f32) * (b_size + b_padding);
-                let b_y = self.y_offset + (self.window_size - (b_size + b_padding)*(self.sudoku.get_n() as f32))/2.0 + (y as f32) * (b_size + b_padding);
-                if self.selected_buttons.contains(&(x,y)){
+                let b_x = self.x_offset
+                    + self.grid_size
+                    + self.bx_offset
+                    + (x as f32) * (b_size + b_padding);
+                let b_y = self.y_offset
+                    + (self.grid_size - (b_size + b_padding) * (self.sudoku.get_n() as f32)) / 2.0
+                    + (y as f32) * (b_size + b_padding);
+                if self.selected_buttons.contains(&(x, y)) {
                     color = Color::from_hex(0xc2ddf8);
-                }
-                else{
+                } else {
                     color = Color::from_hex(0xe4ebf2);
                 }
-                draw_rectangle(
-                    b_x,
-                    b_y,
-                    b_size,
-                    b_size,
-                    color
-                );
+                draw_rectangle(b_x, b_y, b_size, b_size, color);
                 let font_size = b_size as u16 * 2 / 3;
                 let text = (y * self.sudoku.get_n() + x + 1).to_string();
                 let text_dimensions = measure_text(&text, Some(&font), font_size, 1.0);
@@ -89,7 +90,7 @@ impl<'a> SudokuDisplay<'a> {
             draw_line(
                 0.0 + self.x_offset,
                 i * self.pixel_per_cell + self.y_offset,
-                self.window_size + self.x_offset,
+                self.grid_size + self.x_offset,
                 i * self.pixel_per_cell + self.y_offset,
                 1.0,
                 Color::from_hex(0xc0c5d3),
@@ -99,7 +100,7 @@ impl<'a> SudokuDisplay<'a> {
                 i * self.pixel_per_cell + self.x_offset,
                 0.0 + self.y_offset,
                 i * self.pixel_per_cell + self.x_offset,
-                self.window_size + self.y_offset,
+                self.grid_size + self.y_offset,
                 1.0,
                 Color::from_hex(0xc0c5d3),
             );
@@ -126,8 +127,10 @@ impl<'a> SudokuDisplay<'a> {
                 let font_size = self.pixel_per_cell as u16 * 2 / 3;
                 let text = cell.to_string();
                 let text_dimensions = measure_text(&text, Some(&font), font_size, 1.0);
-                let text_x = (x as f32 * self.pixel_per_cell) + (self.pixel_per_cell - text_dimensions.width) / 2.0;
-                let text_y = (y as f32 * self.pixel_per_cell) + (self.pixel_per_cell + text_dimensions.height) / 2.0;
+                let text_x = (x as f32 * self.pixel_per_cell)
+                    + (self.pixel_per_cell - text_dimensions.width) / 2.0;
+                let text_y = (y as f32 * self.pixel_per_cell)
+                    + (self.pixel_per_cell + text_dimensions.height) / 2.0;
                 draw_text_ex(
                     &text,
                     text_x + self.x_offset,
@@ -143,22 +146,28 @@ impl<'a> SudokuDisplay<'a> {
         }
 
         let pb = self.sudoku.get_possibility_board();
-        for x in 0..n2{
-            for y in 0..n2{
-                if pb[y][x].len()==0{
+        for x in 0..n2 {
+            for y in 0..n2 {
+                if pb[y][x].len() == 0 {
                     continue;
                 }
                 let font_size = self.pixel_per_cell as u16 * 2 / (3 * n as u16);
-                for i in 0..n{
-                    for j in 0..n{
-                        let number = i*n + j + 1;
-                        if !pb[y][x].contains(&number){
+                for i in 0..n {
+                    for j in 0..n {
+                        let number = i * n + j + 1;
+                        if !pb[y][x].contains(&number) {
                             continue;
                         }
                         let text = number.to_string();
                         let text_dimensions = measure_text(&text, Some(&font), font_size, 1.0);
-                        let text_x = (x as f32 * self.pixel_per_cell) - (self.pixel_per_cell / n as f32) + ((j as f32 + 1.0) * self.pixel_per_cell / n as f32) + (self.pixel_per_cell / n as f32 - text_dimensions.width) / 2.0;
-                        let text_y = (y as f32 * self.pixel_per_cell) - (self.pixel_per_cell / n as f32)+ ((i as f32 + 1.0) * self.pixel_per_cell / n as f32) + (self.pixel_per_cell / n as f32 + text_dimensions.height) / 2.0;
+                        let text_x = (x as f32 * self.pixel_per_cell)
+                            - (self.pixel_per_cell / n as f32)
+                            + ((j as f32 + 1.0) * self.pixel_per_cell / n as f32)
+                            + (self.pixel_per_cell / n as f32 - text_dimensions.width) / 2.0;
+                        let text_y = (y as f32 * self.pixel_per_cell)
+                            - (self.pixel_per_cell / n as f32)
+                            + ((i as f32 + 1.0) * self.pixel_per_cell / n as f32)
+                            + (self.pixel_per_cell / n as f32 + text_dimensions.height) / 2.0;
                         draw_text_ex(
                             &text,
                             text_x + self.x_offset,
@@ -171,43 +180,64 @@ impl<'a> SudokuDisplay<'a> {
                             },
                         );
                     }
-                    
-                    
-                    
-                    
                 }
             }
         }
     }
 
+    pub fn update_scale(&mut self) {
+        self.scale_factor = screen_height() / self.grid_size;
+        self.grid_size = screen_height();
+        self.pixel_per_cell = (self.grid_size / self.sudoku.get_n2() as f32) * self.scale_factor;
+        self.x_offset = 250.0 * self.scale_factor;
+        self.y_offset = 0.0 * self.scale_factor;
+        self.bx_offset = 50.0 * self.scale_factor;
+    }
+
     pub async fn run(&mut self, font: Font) {
-        let (mouse_x, mouse_y) = (mouse_position().0 - self.x_offset, mouse_position().1 - self.y_offset);
+        self.update_scale();
+        let b_size = self.pixel_per_cell * 3.0 / 2.0;
+        let b_padding = 10.0;
+
+        let (mouse_x, mouse_y) = (
+            mouse_position().0 - self.x_offset,
+            mouse_position().1 - self.y_offset,
+        );
         let x = (mouse_x / self.pixel_per_cell).floor() as usize;
         let y = (mouse_y / self.pixel_per_cell).floor() as usize;
-
-        
 
         clear_background(Color::from_hex(0xffffff));
 
         if is_mouse_button_pressed(MouseButton::Left) {
-            let b_size = 150.0;
-            let b_padding = 10.0;
-            let b_x = self.x_offset + self.window_size + self.bx_offset;
-            let b_y = self.y_offset + (self.window_size - (b_size + b_padding)*(self.sudoku.get_n() as f32))/2.0;
-            if mouse_x + self.x_offset > b_x && mouse_x + self.x_offset < b_x + (b_size + b_padding) * (self.sudoku.get_n() as f32)
-            && mouse_y + self.y_offset > b_y && mouse_y + self.y_offset < b_y + (b_size + b_padding) * (self.sudoku.get_n() as f32){
-                let button = (((mouse_x + self.x_offset - b_x)/(b_size+b_padding) as f32).floor() as usize, ((mouse_y + self.y_offset - b_y)/(b_size+b_padding) as f32).floor() as usize);
-                if self.selected_buttons.contains(&button){
+            let b_x = self.x_offset + self.grid_size + self.bx_offset;
+            let b_y = self.y_offset
+                + (self.grid_size - (b_size + b_padding) * (self.sudoku.get_n() as f32)) / 2.0;
+            if mouse_x + self.x_offset > b_x
+                && mouse_x + self.x_offset
+                    < b_x + (b_size + b_padding) * (self.sudoku.get_n() as f32)
+                && mouse_y + self.y_offset > b_y
+                && mouse_y + self.y_offset
+                    < b_y + (b_size + b_padding) * (self.sudoku.get_n() as f32)
+            {
+                let button = (
+                    ((mouse_x + self.x_offset - b_x) / (b_size + b_padding) as f32).floor()
+                        as usize,
+                    ((mouse_y + self.y_offset - b_y) / (b_size + b_padding) as f32).floor()
+                        as usize,
+                );
+                if self.selected_buttons.contains(&button) {
                     self.selected_buttons.remove(&button);
-                }
-                else{
+                } else {
                     self.selected_buttons.insert(button);
                 }
             }
         }
 
-        if (mouse_x as f32) < self.window_size && (mouse_x as f32) > 0.0 && (mouse_y as f32) < self.window_size && (mouse_y as f32) > 0.0{
-
+        if (mouse_x as f32) < self.grid_size
+            && (mouse_x as f32) > 0.0
+            && (mouse_y as f32) < self.grid_size
+            && (mouse_y as f32) > 0.0
+        {
             if is_mouse_button_pressed(MouseButton::Left) {
                 if self.selected_cell.is_some() && self.selected_cell.unwrap() == (x, y) {
                     self.selected_cell = None;
@@ -216,18 +246,19 @@ impl<'a> SudokuDisplay<'a> {
                 }
                 self.solve_once();
             }
-            
+
             self.draw_cell(x, y, Color::from_hex(0xf1f5f9));
-            
         }
 
         if let Some((x, y)) = self.selected_cell {
-            for (x, y) in Sudoku::get_cell_groups(self.sudoku.get_n(), x, y).iter().flatten() {
+            for (x, y) in Sudoku::get_cell_groups(self.sudoku.get_n(), x, y)
+                .iter()
+                .flatten()
+            {
                 self.draw_cell(*x, *y, Color::from_hex(0xe4ebf2));
             }
             self.draw_cell(x, y, Color::from_hex(0xc2ddf8));
         }
-        
 
         self.draw_sudoku(font.clone()).await;
         self.draw_buttons(font.clone()).await;

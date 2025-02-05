@@ -14,7 +14,8 @@ pub struct Sudoku {
 
 pub struct SudokuDisplay<'a> {
     sudoku: &'a mut Sudoku,
-    window_size: f32,
+    scale_factor: f32,
+    grid_size: f32,
     pixel_per_cell: f32,
     selected_cell: Option<(usize, usize)>,
     selected_buttons: HashSet<(usize, usize)>,
