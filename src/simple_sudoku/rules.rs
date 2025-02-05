@@ -708,15 +708,15 @@ impl Sudoku {
         false
     }
 
-    // règle 14: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedXWing.shtml
-    pub(super) fn sashimi_finned_x_wing(&mut self) -> bool {
-        warn!("sashimi_finned_x_wing isn't implemented yet");
+    // règle 14: http://www.taupierbw.be/SudokuCoach/SC_FrankenXWing.shtml
+    pub(super) fn franken_x_wing(&mut self) -> bool {
+        warn!("franken_x_wing isn't implemented yet");
         false
     }
 
-    // règle 15: http://www.taupierbw.be/SudokuCoach/SC_FrankenXWing.shtml
-    pub(super) fn franken_x_wing(&mut self) -> bool {
-        warn!("franken_x_wing isn't implemented yet");
+    // règle 15: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedXWing.shtml
+    pub(super) fn finned_mutant_x_xing(&mut self) -> bool {
+        warn!("sashimi_finned_x_wing isn't implemented yet");
         false
     }
 
