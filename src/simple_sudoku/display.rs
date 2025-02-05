@@ -10,6 +10,7 @@ impl<'a> SudokuDisplay<'a> {
         let x_offset = 250.0 * scale_factor;
         let y_offset = 50.0 * scale_factor;
         let bx_offset = 150.0 * scale_factor;
+        let solvex_offset = 50.0 * scale_factor;
         let solving = false;
 
         Self {
