@@ -15,7 +15,8 @@ impl<'a> SudokuDisplay<'a> {
         let choosey_offset = (y_offset - 100.0) / 2.0;
         let mode = "play".to_string();
         let solving = false;
-        let player_pboard: Vec<Vec<HashSet<usize>>> = vec![vec![HashSet::new();sudoku.get_n2()]; sudoku.get_n2()];
+        let player_pboard: Vec<Vec<HashSet<usize>>> =
+            vec![vec![HashSet::new(); sudoku.get_n2()]; sudoku.get_n2()];
         let note = false;
 
         Self {
@@ -38,48 +39,40 @@ impl<'a> SudokuDisplay<'a> {
         }
     }
 
-    pub fn solve_once(&mut self){
-        if self.sudoku.solve_once().unwrap()>2 as usize{
+    pub fn solve_once(&mut self) {
+        if self.sudoku.solve_once().unwrap() > 2 as usize {
             self.solve_once();
         }
     }
 
-    async fn draw_chooser(&mut self, font: Font){
+    async fn draw_chooser(&mut self, font: Font) {
         let mut color: Color;
         let choose_sizex = 150.0 * self.scale_factor;
         let choose_sizey = 100.0 * self.scale_factor;
         let choose_xpadding = 10.0 * self.scale_factor;
-        let choose1_x = self.x_offset + (self.grid_size - choose_sizex*2.0 - choose_xpadding)/2.0;
+        let choose1_x =
+            self.x_offset + (self.grid_size - choose_sizex * 2.0 - choose_xpadding) / 2.0;
         let choose1_y = self.y_offset - self.choosey_offset - choose_sizey;
 
         color = Color::from_hex(0xe4ebf2);
-        if self.mode=="play".to_string(){
+        if self.mode == "play".to_string() {
             color = Color::from_hex(0xc2ddf8);
         }
 
-        draw_rectangle(
-            choose1_x,
-            choose1_y,
-            choose_sizex,
-            choose_sizey,
-            color
-        );
+        draw_rectangle(choose1_x, choose1_y, choose_sizex, choose_sizey, color);
 
-        let choose2_x = self.x_offset + (self.grid_size - choose_sizex*2.0 - choose_xpadding)/2.0 + choose_sizex + choose_xpadding;
+        let choose2_x = self.x_offset
+            + (self.grid_size - choose_sizex * 2.0 - choose_xpadding) / 2.0
+            + choose_sizex
+            + choose_xpadding;
         let choose2_y = self.y_offset - self.choosey_offset - choose_sizey;
 
         color = Color::from_hex(0xe4ebf2);
-        if self.mode=="analyse".to_string(){
+        if self.mode == "analyse".to_string() {
             color = Color::from_hex(0xc2ddf8);
         }
 
-        draw_rectangle(
-            choose2_x,
-            choose2_y,
-            choose_sizex,
-            choose_sizey,
-            color
-        );
+        draw_rectangle(choose2_x, choose2_y, choose_sizex, choose_sizey, color);
 
         let font_size = choose_sizey as u16 * 2 / 8;
         let text1 = "Play";
@@ -117,37 +110,28 @@ impl<'a> SudokuDisplay<'a> {
         );
     }
 
-    async fn draw_solve(&mut self, font: Font){
+    async fn draw_solve(&mut self, font: Font) {
         let mut color: Color;
         let solve_sizex = 150.0 * self.scale_factor;
         let solve_sizey = 100.0 * self.scale_factor;
         let solve_ypadding = 10.0 * self.scale_factor;
         let solve1_x = self.x_offset - self.solvex_offset - solve_sizex;
-        let solve1_y = self.y_offset + (self.grid_size - solve_sizey*2.0 - solve_ypadding)/2.0;
+        let solve1_y = self.y_offset + (self.grid_size - solve_sizey * 2.0 - solve_ypadding) / 2.0;
         color = Color::from_hex(0xe4ebf2);
 
-        draw_rectangle(
-            solve1_x,
-            solve1_y,
-            solve_sizex,
-            solve_sizey,
-            color
-        );
+        draw_rectangle(solve1_x, solve1_y, solve_sizex, solve_sizey, color);
 
-        if self.solving{
+        if self.solving {
             color = Color::from_hex(0xc2ddf8);
         }
 
         let solve2_x = self.x_offset - self.solvex_offset - solve_sizex;
-        let solve2_y = self.y_offset + (self.grid_size - (solve_sizey)*2.0 - solve_ypadding)/2.0 + solve_sizey + solve_ypadding;
+        let solve2_y = self.y_offset
+            + (self.grid_size - (solve_sizey) * 2.0 - solve_ypadding) / 2.0
+            + solve_sizey
+            + solve_ypadding;
 
-        draw_rectangle(
-            solve2_x,
-            solve2_y,
-            solve_sizex,
-            solve_sizey,
-            color
-        );
+        draw_rectangle(solve2_x, solve2_y, solve_sizex, solve_sizey, color);
 
         let font_size = solve_sizey as u16 * 2 / 8;
         let text1 = "solve once";
@@ -299,7 +283,7 @@ impl<'a> SudokuDisplay<'a> {
         }
 
         let mut pb = self.sudoku.get_possibility_board();
-        if self.mode == "play".to_string(){
+        if self.mode == "play".to_string() {
             pb = self.player_pboard.clone();
         }
         for x in 0..n2 {
@@ -376,16 +360,18 @@ impl<'a> SudokuDisplay<'a> {
 
         //si on clique
         if is_mouse_button_pressed(MouseButton::Left) {
-            if self.selected_cell.is_some(){
+            if self.selected_cell.is_some() {
                 let selected_x = self.selected_cell.unwrap().0;
                 let selected_y = self.selected_cell.unwrap().1;
                 let b_x = self.x_offset + self.grid_size + self.bx_offset;
                 let b_y = self.y_offset
                     + (self.grid_size - (b_size + b_padding) * (self.sudoku.get_n() as f32)) / 2.0;
                 if mouse_x + self.x_offset > b_x
-                    && mouse_x + self.x_offset < b_x + (b_size + b_padding) * (self.sudoku.get_n() as f32)
+                    && mouse_x + self.x_offset
+                        < b_x + (b_size + b_padding) * (self.sudoku.get_n() as f32)
                     && mouse_y + self.y_offset > b_y
-                    && mouse_y + self.y_offset < b_y + (b_size + b_padding) * (self.sudoku.get_n() as f32)
+                    && mouse_y + self.y_offset
+                        < b_y + (b_size + b_padding) * (self.sudoku.get_n() as f32)
                     && self.mode == "play".to_string()
                 {
                     let button = (
@@ -395,10 +381,9 @@ impl<'a> SudokuDisplay<'a> {
                             as usize,
                     );
 
-                    let value = button.0 + button.1*self.sudoku.get_n() + 1;
-                    
-                    if self.note && self.sudoku.get_board()[selected_y][selected_x]==0{
-                        
+                    let value = button.0 + button.1 * self.sudoku.get_n() + 1;
+
+                    if self.note && self.sudoku.get_board()[selected_y][selected_x] == 0 {
                         if self.selected_buttons.contains(&button) {
                             self.selected_buttons.remove(&button);
                             self.player_pboard[selected_y][selected_x].remove(&value);
@@ -406,17 +391,17 @@ impl<'a> SudokuDisplay<'a> {
                             self.selected_buttons.insert(button);
                             self.player_pboard[selected_y][selected_x].insert(value);
                         }
-                    }
-                    else if !self.note{
-                        if self.sudoku.get_board()[selected_y][selected_x]!=value{
+                    } else if !self.note {
+                        if self.sudoku.get_board()[selected_y][selected_x] != value {
                             self.sudoku.set_value(selected_x, selected_y, value);
-                            for group in Sudoku::get_cell_groups(self.sudoku.get_n(), selected_x, selected_y) {
+                            for group in
+                                Sudoku::get_cell_groups(self.sudoku.get_n(), selected_x, selected_y)
+                            {
                                 for (i, j) in group {
                                     self.player_pboard[j][i].remove(&value);
                                 }
                             }
-                        }
-                        else{
+                        } else {
                             self.sudoku.set_value(selected_x, selected_y, 0);
                         }
                         self.player_pboard[selected_y][selected_x].clear();
@@ -425,49 +410,70 @@ impl<'a> SudokuDisplay<'a> {
             }
 
             let solve1_x = self.x_offset - self.solvex_offset - solve_sizex;
-            let solve1_y = self.y_offset + (self.grid_size - (solve_sizey)*2.0 - solve_ypadding)/2.0;
+            let solve1_y =
+                self.y_offset + (self.grid_size - (solve_sizey) * 2.0 - solve_ypadding) / 2.0;
 
             let solve2_x = self.x_offset - self.solvex_offset - solve_sizex;
-            let solve2_y = self.y_offset + (self.grid_size - (solve_sizey)*2.0 - solve_ypadding)/2.0 + solve_sizey + solve_ypadding;
-            
-            if mouse_x + self.x_offset > solve1_x && mouse_y + self.y_offset > solve1_y
-            && mouse_x + self.x_offset < solve1_x + solve_sizex && mouse_y + self.y_offset < solve1_y + solve_sizey{
+            let solve2_y = self.y_offset
+                + (self.grid_size - (solve_sizey) * 2.0 - solve_ypadding) / 2.0
+                + solve_sizey
+                + solve_ypadding;
+
+            if mouse_x + self.x_offset > solve1_x
+                && mouse_y + self.y_offset > solve1_y
+                && mouse_x + self.x_offset < solve1_x + solve_sizex
+                && mouse_y + self.y_offset < solve1_y + solve_sizey
+            {
                 self.solve_once();
             }
 
-            if mouse_x + self.x_offset > solve2_x && mouse_y + self.y_offset > solve2_y
-            && mouse_x + self.x_offset < solve2_x + solve_sizex && mouse_y + self.y_offset < solve2_y + solve_sizey{
-                if self.solving{
+            if mouse_x + self.x_offset > solve2_x
+                && mouse_y + self.y_offset > solve2_y
+                && mouse_x + self.x_offset < solve2_x + solve_sizex
+                && mouse_y + self.y_offset < solve2_y + solve_sizey
+            {
+                if self.solving {
                     self.solving = false;
                     self.note = false;
-                }
-                else{
+                } else {
                     self.solving = true;
                     self.note = true;
                 }
-                
             }
 
-            let choose1_x = self.x_offset + (self.grid_size - choose_sizex*2.0 - choose_xpadding)/2.0;
+            let choose1_x =
+                self.x_offset + (self.grid_size - choose_sizex * 2.0 - choose_xpadding) / 2.0;
             let choose1_y = self.y_offset - self.choosey_offset - choose_sizey;
 
-            let choose2_x = self.x_offset + (self.grid_size - choose_sizex*2.0 - choose_xpadding)/2.0 + choose_sizex + choose_xpadding;
+            let choose2_x = self.x_offset
+                + (self.grid_size - choose_sizex * 2.0 - choose_xpadding) / 2.0
+                + choose_sizex
+                + choose_xpadding;
             let choose2_y = self.y_offset - self.choosey_offset - choose_sizey;
-            
-            if mouse_x + self.x_offset > choose1_x && mouse_y + self.y_offset > choose1_y
-            && mouse_x + self.x_offset < choose1_x + choose_sizex && mouse_y + self.y_offset < choose1_y + choose_sizey{
+
+            if mouse_x + self.x_offset > choose1_x
+                && mouse_y + self.y_offset > choose1_y
+                && mouse_x + self.x_offset < choose1_x + choose_sizex
+                && mouse_y + self.y_offset < choose1_y + choose_sizey
+            {
                 self.mode = "play".to_string();
             }
 
-            if mouse_x + self.x_offset > choose2_x && mouse_y + self.y_offset > choose2_y
-            && mouse_x + self.x_offset < choose2_x + choose_sizex && mouse_y + self.y_offset < choose2_y + choose_sizey{
+            if mouse_x + self.x_offset > choose2_x
+                && mouse_y + self.y_offset > choose2_y
+                && mouse_x + self.x_offset < choose2_x + choose_sizex
+                && mouse_y + self.y_offset < choose2_y + choose_sizey
+            {
                 self.mode = "analyse".to_string();
             }
         }
 
         //si on clique dans le sudoku
-        if (mouse_x as f32) < self.grid_size && (mouse_x as f32) > 0.0 && (mouse_y as f32) < self.grid_size && (mouse_y as f32) > 0.0{
-
+        if (mouse_x as f32) < self.grid_size
+            && (mouse_x as f32) > 0.0
+            && (mouse_y as f32) < self.grid_size
+            && (mouse_y as f32) > 0.0
+        {
             if is_mouse_button_pressed(MouseButton::Left) {
                 if self.selected_cell.is_some() && self.selected_cell.unwrap() == (x, y) {
                     self.selected_cell = None;
@@ -476,17 +482,17 @@ impl<'a> SudokuDisplay<'a> {
                 }
                 self.selected_buttons.clear();
 
-                if self.selected_cell.is_some() && self.selected_cell.unwrap() == (x, y){
+                if self.selected_cell.is_some() && self.selected_cell.unwrap() == (x, y) {
                     let mut pb: &HashSet<usize> = &self.sudoku.get_possibility_board()[y][x];
-                    if self.mode == "play".to_string(){
+                    if self.mode == "play".to_string() {
                         pb = &self.player_pboard[y][x];
                     }
-                    
-                    for n in pb{
-                        for i in 0..self.sudoku.get_n(){
-                            for j in 0..self.sudoku.get_n(){
-                                if self.sudoku.get_n()*j + i + 1 == *n{
-                                    self.selected_buttons.insert((i,j));
+
+                    for n in pb {
+                        for i in 0..self.sudoku.get_n() {
+                            for j in 0..self.sudoku.get_n() {
+                                if self.sudoku.get_n() * j + i + 1 == *n {
+                                    self.selected_buttons.insert((i, j));
                                 }
                             }
                         }
