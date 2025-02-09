@@ -20,9 +20,8 @@ async fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
     #[cfg(debug_assertions)]
     debug!("Debug activé");
-    let mut sudoku = Sudoku::parse_file("sudoku-3-difficile-9.txt").unwrap();
+    let mut sudoku = Sudoku::parse_file("sudoku-3-64-9.txt").unwrap();
     println!("{}", sudoku);
-    // sudoku.display_possibilities();
     let mut sudoku_display = SudokuDisplay::new(&mut sudoku);
 
     let font = load_ttf_font("./res/font/RobotoMono-Thin.ttf")
