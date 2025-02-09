@@ -517,92 +517,67 @@ impl Sudoku {
 
     // règle 12: http://www.taupierbw.be/SudokuCoach/SC_XWing.shtml
     pub(super) fn x_wing(&mut self) -> bool {
+        let mut modified = false;
         for value in 1..self.n2 {
             for i1 in 0..(self.n2 - 1) {
                 for i2 in (i1 + 1)..self.n2 {
-                    // i1 and i2 represents rows or columns
+                    let mut picked_cells: Vec<(&str, (usize, usize))> = Vec::new();
 
-                    // collect the indexes of the cells that contains the value in the lines (x_position) or the column (y_position) i1 and i2
-                    let mut x_positions: Vec<usize> = Vec::new();
-                    let mut invalidate_x = false;
+                    let row1_positions: HashSet<usize> = (0..self.n2)
+                        .into_iter()
+                        .filter(|x| self.possibility_board[i1][*x].contains(&value))
+                        .collect();
+                    let row2_positions: HashSet<usize> = (0..self.n2)
+                        .into_iter()
+                        .filter(|x| self.possibility_board[i2][*x].contains(&value))
+                        .collect();
 
-                    let mut y_positions: Vec<usize> = Vec::new();
-                    let mut invalidate_y = false;
+                    if row1_positions.len() == 2 && row1_positions == row2_positions {
+                        let row1_vec: Vec<usize> = row1_positions.into_iter().collect();
+                        let (x1, x2) = (row1_vec[0], row1_vec[1]);
 
-                    for j in 0..self.n2 {
-                        // if this value is on the same cell in lines i1 and i2
-                        if !invalidate_x {
-                            let cell1 = self.possibility_board[i1][j].contains(&value);
-                            let cell2 = self.possibility_board[i2][j].contains(&value);
-                            if cell1 ^ cell2 {
-                                invalidate_x = true;
-                            } else if cell1 && cell2 {
-                                x_positions.push(j);
-                            }
-                        }
-
-                        // if this value is on the same cell in columns i1 and i2
-                        if !invalidate_y {
-                            let cell1 = self.possibility_board[j][i1].contains(&value);
-                            let cell2 = self.possibility_board[j][i2].contains(&value);
-                            if cell1 ^ cell2 {
-                                invalidate_y = true;
-                            } else if cell1 && cell2 {
-                                y_positions.push(j);
-                            }
-                        }
-                    }
-
-                    let mut modified = false;
-
-                    // if there are 2 cells with the same value in the same 2 lines
-                    // eliminate this value from the other cells in these columns
-                    if !invalidate_x && x_positions.len() == 2 {
-                        let (x1, x2) = (x_positions[0], x_positions[1]);
-                        for y in 0..self.n2 {
+                        let col1 = Sudoku::get_cell_col(self.n, x1);
+                        let col2 = Sudoku::get_cell_col(self.n, x2);
+                        for &(x, y) in col1.union(&col2) {
                             if y == i1 || y == i2 {
                                 continue;
                             }
-
-                            if self.possibility_board[y][x1].remove(&value) {
-                                debug_only!("possibilitée {value} supprimée de x: {x1}, y: {y}");
-                                modified = true
-                            }
-
-                            if self.possibility_board[y][x2].remove(&value) {
-                                debug_only!("possibilitée {value} supprimée de x: {x2}, y: {y}");
-                                modified = true
-                            }
-
-                            if modified {
-                                return true;
-                            }
+                            picked_cells.push(("rows", (x, y)));
                         }
                     }
 
-                    // if there are 2 cells with the same value in the same 2 columns
-                    // eliminate this value from the other cells in these lines
-                    if !invalidate_y && y_positions.len() == 2 {
-                        let (y1, y2) = (y_positions[0], y_positions[1]);
-                        for x in 0..self.n2 {
+                    let col1_positions: HashSet<usize> = (0..self.n2)
+                        .into_iter()
+                        .filter(|y| self.possibility_board[*y][i1].contains(&value))
+                        .collect();
+                    let col2_positions: HashSet<usize> = (0..self.n2)
+                        .into_iter()
+                        .filter(|y| self.possibility_board[*y][i2].contains(&value))
+                        .collect();
+
+                    if col1_positions.len() == 2 && col1_positions == col2_positions {
+                        let row1_vec: Vec<usize> = col1_positions.into_iter().collect();
+                        let (y1, y2) = (row1_vec[0], row1_vec[1]);
+
+                        let row1 = Sudoku::get_cell_row(self.n, y1);
+                        let row2 = Sudoku::get_cell_row(self.n, y2);
+                        for &(x, y) in row1.union(&row2) {
                             if x == i1 || x == i2 {
                                 continue;
                             }
-
-                            if self.possibility_board[y1][x].remove(&value) {
-                                debug_only!("possibilitée {value} supprimée de x: {x}, y: {y1}");
-                                modified = true
-                            }
-
-                            if self.possibility_board[y2][x].remove(&value) {
-                                debug_only!("possibilitée {value} supprimée de x: {x}, y: {y2}");
-                                modified = true
-                            }
-
-                            if modified {
-                                return true;
-                            }
+                            picked_cells.push(("cols", (x, y)));
                         }
+                    }
+
+                    for (is_row, (x, y)) in picked_cells {
+                        if self.possibility_board[y][x].remove(&value) {
+                            debug_only!("{is_row} {i1} and {i2}: possibilitée {value} supprimée de x: {x}, y: {y}");
+                            modified = true;
+                        }
+                    }
+
+                    if modified {
+                        return true;
                     }
                 }
             }
@@ -616,7 +591,10 @@ impl Sudoku {
         for value in 1..self.n2 {
             for i1 in 0..(self.n2 - 1) {
                 for i2 in (i1 + 1)..self.n2 {
-                    let mut picked_cells: Vec<((usize, usize), (usize, usize))> = Vec::new();
+                    if i1 / self.n == i2 / self.n {
+                        continue;
+                    }
+                    let mut picked_cells: Vec<(&str, (usize, usize), (usize, usize))> = Vec::new();
 
                     let row1_positions: HashSet<usize> = (0..self.n2)
                         .into_iter()
@@ -644,9 +622,9 @@ impl Sudoku {
                         let smaller_vec: Vec<usize> = smaller_row.iter().cloned().collect();
                         let (x1, x2) = (smaller_vec[0], smaller_vec[1]);
                         if fin / self.n == x1 / self.n {
-                            picked_cells.push(((x1, fin_i), (*fin, fin_i)));
+                            picked_cells.push(("rows", (x1, fin_i), (*fin, fin_i)));
                         } else if fin / self.n == x2 / self.n {
-                            picked_cells.push(((x2, fin_i), (*fin, fin_i)));
+                            picked_cells.push(("rows", (x2, fin_i), (*fin, fin_i)));
                         }
                     }
 
@@ -676,13 +654,13 @@ impl Sudoku {
                         let smaller_vec: Vec<usize> = smaller_col.iter().cloned().collect();
                         let (y1, y2) = (smaller_vec[0], smaller_vec[1]);
                         if fin / self.n == y1 / self.n {
-                            picked_cells.push(((fin_i, y1), (fin_i, *fin)));
+                            picked_cells.push(("cols", (fin_i, y1), (fin_i, *fin)));
                         } else if fin / self.n == y2 / self.n {
-                            picked_cells.push(((fin_i, y2), (fin_i, *fin)));
+                            picked_cells.push(("cols", (fin_i, y2), (fin_i, *fin)));
                         }
                     }
 
-                    for ((x1, y1), (fin_x, fin_y)) in picked_cells {
+                    for (is_row, (x1, y1), (fin_x, fin_y)) in picked_cells {
                         let removed_cells: Vec<(usize, usize)> =
                             Sudoku::get_cell_square(self.n, fin_x, fin_y)
                                 .into_iter()
@@ -693,7 +671,7 @@ impl Sudoku {
                                 .collect();
                         for (x, y) in removed_cells {
                             if self.possibility_board[y][x].remove(&value) {
-                                debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}");
+                                debug_only!("{is_row} {i1} and {i2}: possibilitée {value} supprimée de x: {x}, y: {y}");
                                 modified = true;
                             }
                         }
@@ -801,7 +779,7 @@ impl Sudoku {
             for i1 in 0..(self.n2 - 1) {
                 for i2 in (i1 + 1)..self.n2 {
                     // i1 and i2 represents rows or columns
-                    let mut picked_cells: Vec<((usize, usize), (usize, usize))> = Vec::new();
+                    let mut picked_cells: Vec<(&str, (usize, usize), (usize, usize))> = Vec::new();
 
                     let row1_positions: Vec<usize> = (0..self.n2)
                         .into_iter()
@@ -818,7 +796,7 @@ impl Sudoku {
                         let x22 = row2_positions[1];
                         if x11 == x21 || x12 == x22 {
                             let (x1, x2) = if x11 == x21 { (x12, x22) } else { (x11, x21) };
-                            picked_cells.push(((x1, i1), (x2, i2)));
+                            picked_cells.push(("rows", (x1, i1), (x2, i2)));
                         }
                     }
 
@@ -837,11 +815,11 @@ impl Sudoku {
                         let y22 = col2_positions[1];
                         if y11 == y21 || y12 == y22 {
                             let (y1, y2) = if y11 == y21 { (y12, y22) } else { (y11, y21) };
-                            picked_cells.push(((i1, y1), (i2, y2)));
+                            picked_cells.push(("cols", (i1, y1), (i2, y2)));
                         }
                     }
 
-                    for ((x1, y1), (x2, y2)) in picked_cells {
+                    for (is_row, (x1, y1), (x2, y2)) in picked_cells {
                         let cell_group1: HashSet<(usize, usize)> =
                             Sudoku::get_cell_groups(self.n, x1, y1)
                                 .into_iter()
@@ -856,8 +834,12 @@ impl Sudoku {
                             cell_group1.intersection(&cell_group2).collect();
 
                         for &(x, y) in common_cells {
+                            if (x == x1 && y == y1) || (x == x2 && y == y2) {
+                                continue;
+                            }
+
                             if self.possibility_board[y][x].remove(&value) {
-                                debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}");
+                                debug_only!("{is_row} {i1} and {i2}: {x1},{y1} et {x2},{y2}: possibilitée {value} supprimée de x: {x}, y: {y}");
                                 modified = true;
                             }
                         }
@@ -1010,7 +992,6 @@ impl Sudoku {
                                     {
                                         continue;
                                     }
-                                    println!("x:{x} y:{y}\nvalue1:{value1}\nx1:{x1} y1:{y1}\nx2:{x2} y2:{y2}\nx3:{x3} y3:{y3}");
                                     picked_cells.push((x, y3));
                                     picked_cells.push((x3, y));
                                 }
