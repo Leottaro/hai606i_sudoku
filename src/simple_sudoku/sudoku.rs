@@ -1,4 +1,4 @@
-use super::Sudoku;
+use super::{Sudoku, SudokuGroups::*};
 #[cfg(debug_assertions)]
 use log::debug;
 use std::{
@@ -27,10 +27,8 @@ impl Sudoku {
     pub fn fix_value(&mut self, x: usize, y: usize, value: usize) {
         self.board[y][x] = value;
         self.possibility_board[y][x].clear();
-        for group in Sudoku::get_cell_groups(self.n, x, y) {
-            for (x, y) in group {
-                self.possibility_board[y][x].remove(&value);
-            }
+        for &(x, y) in self.cell_groups.get(&(x, y, ALL)).unwrap() {
+            self.possibility_board[y][x].remove(&value);
         }
     }
 
@@ -123,11 +121,49 @@ impl Sudoku {
     // CREATION
 
     pub fn new(n: usize) -> Self {
+        let n2 = n * n;
+        let board = vec![vec![0; n2]; n2];
+        let possibility_board = vec![vec![(1..=n2).collect(); n2]; n2];
+
+        let mut groups = HashMap::new();
+        let rows = Sudoku::get_rows(n);
+        let columns = Sudoku::get_cols(n);
+        let squares = Sudoku::get_squares(n);
+        let mut lines = rows.clone();
+        lines.extend(columns.clone());
+        let mut all = lines.clone();
+        all.extend(squares.clone());
+        groups.insert(ROW, rows);
+        groups.insert(COLUMN, columns);
+        groups.insert(LINES, lines);
+        groups.insert(SQUARE, squares);
+        groups.insert(ALL, all);
+
+        let mut cell_groups = HashMap::new();
+        for y in 0..n2 {
+            for x in 0..n2 {
+                let rows = Sudoku::get_cell_row(n, y);
+                let columns = Sudoku::get_cell_col(n, x);
+                let squares = Sudoku::get_cell_square(n, x, y);
+                let mut lines = rows.clone();
+                lines.extend(columns.clone());
+                let mut all = lines.clone();
+                all.extend(squares.clone());
+                cell_groups.insert((x, y, ROW), rows);
+                cell_groups.insert((x, y, COLUMN), columns);
+                cell_groups.insert((x, y, LINES), lines);
+                cell_groups.insert((x, y, SQUARE), squares);
+                cell_groups.insert((x, y, ALL), all);
+            }
+        }
+
         Self {
-            n: n,
-            n2: n * n,
-            board: vec![vec![0; n * n]; n * n],
-            possibility_board: vec![vec![(1..=n * n).collect(); n * n]; n * n],
+            n,
+            n2,
+            board,
+            possibility_board,
+            groups,
+            cell_groups,
         }
     }
 
@@ -141,41 +177,17 @@ impl Sudoku {
         let file = std::fs::read_to_string(file_path)?;
         let mut lines = file.lines();
         let n: usize = lines.next().unwrap().parse()?;
-        let n2 = n * n;
 
-        let board: Vec<Vec<usize>> = lines
-            .take(n2)
-            .map(|line| {
-                line.split_whitespace()
-                    .map(|s| s.parse().unwrap())
-                    .collect()
-            })
-            .collect();
-
-        let mut possibility_board: Vec<Vec<HashSet<usize>>> =
-            vec![vec![(1..=n2).collect(); n2]; n2];
-
-        for y in 0..n2 {
-            for x in 0..n2 {
-                let value = board[y][x];
+        let mut sudoku = Self::new(n);
+        for (y, line) in lines.take(sudoku.n2).enumerate() {
+            for (x, cell) in line.split_whitespace().enumerate() {
+                let value: usize = cell.parse().unwrap();
                 if value == 0 {
                     continue;
                 }
-                possibility_board[y][x].clear();
-                for group in Sudoku::get_cell_groups(n, x, y) {
-                    for (x, y) in group {
-                        possibility_board[y][x].remove(&value);
-                    }
-                }
+                sudoku.fix_value(x, y, value);
             }
         }
-
-        let sudoku = Self {
-            n,
-            n2,
-            board,
-            possibility_board,
-        };
 
         if let Err(((x1, y1), (x2, y2))) = sudoku.is_valid() {
             return Err(format!(
@@ -276,14 +288,12 @@ impl Sudoku {
         }
 
         let possible_values = self.possibility_board[y][x].clone();
-        let cell_group: Vec<(usize, usize)> = Sudoku::get_cell_groups(self.n, x, y)
-            .into_iter()
-            .flatten()
-            .collect();
+        let cell_group: HashSet<(usize, usize)> =
+            self.cell_groups.get(&(x, y, ALL)).unwrap().clone();
         self.possibility_board[y][x].clear();
         for value in possible_values.clone().into_iter() {
             self.board[y][x] = value;
-            let changing_cells: Vec<&(usize, usize)> = cell_group
+            let changing_cells: HashSet<&(usize, usize)> = cell_group
                 .iter()
                 .filter(|(x, y)| self.possibility_board[*y][*x].contains(&value))
                 .collect();
@@ -380,20 +390,16 @@ impl Sudoku {
 
     pub fn is_valid(&self) -> Result<(), ((usize, usize), (usize, usize))> {
         // check si un groupe contient 2 fois la même valeur
-        for group in Sudoku::get_groups(self.n) {
-            let mut already_seen_values: HashMap<usize, (usize, usize)> = HashMap::new();
-            for (x, y) in group.into_iter() {
-                let cell_value = self.board[y][x];
-                if cell_value == 0 {
+        for group in self.groups.get(&ALL).unwrap() {
+            for (i, &(x1, y1)) in group.iter().enumerate() {
+                if self.board[y1][x1] == 0 {
                     continue;
                 }
-                if already_seen_values.contains_key(&cell_value) {
-                    return Err((
-                        (x, y),
-                        already_seen_values.get(&cell_value).unwrap().clone(),
-                    ));
+                for (j, &(x2, y2)) in group.iter().enumerate() {
+                    if i != j && self.board[y1][x1] == self.board[y2][x2] {
+                        return Err(((x1, y1), (x2, y2)));
+                    }
                 }
-                already_seen_values.insert(cell_value, (x, y));
             }
         }
 
