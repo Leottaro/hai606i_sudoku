@@ -59,7 +59,7 @@ mod tests {
                     .unwrap()
             })
             .collect();
-        let mut sudoku_solved: Vec<String> = Vec::new();
+        let mut sudoku_solved: Vec<(String, usize)> = Vec::new();
         let mut sudoku_unsolved: Vec<String> = Vec::new();
         for file_name in file_names.iter() {
             if !file_name.starts_with("sudoku-3") || !file_name.ends_with(".txt") {
@@ -74,19 +74,20 @@ mod tests {
             let mut sudoku = sudoku_result.unwrap();
 
             println!("{}", sudoku);
+            let mut difficulty: usize = 0;
             loop {
                 match sudoku.rule_solve(None) {
                     Ok(0) => {
                         if sudoku.is_solved() {
                             println!("sudoku solved!");
-                            sudoku_solved.push(file_name.clone());
+                            sudoku_solved.push((file_name.clone(), difficulty));
                         } else {
                             println!("can't do anything more...");
                             sudoku_unsolved.push(file_name.clone());
                         }
                         break;
                     }
-                    Ok(_) => (),
+                    Ok(diff) => difficulty = usize::max(difficulty, diff),
                     Err(((x1, y1), (x2, y2))) => {
                         println!("Error: ({}, {}) and ({}, {})", x1, y1, x2, y2);
                         assert!(false);
@@ -97,10 +98,19 @@ mod tests {
             println!("{}", sudoku);
         }
 
-        println!("solved sudokus: {}", sudoku_solved.join(", "));
-        println!("unsolved sudokus: {}", sudoku_unsolved.join(", "));
+        sudoku_solved.sort_by(|(_, d1), (_, d2)| d1.cmp(d2));
+
         println!(
-            "{}/{} sudoku solved",
+            "solved sudokus:\n{}",
+            sudoku_solved
+                .iter()
+                .map(|(file_name, difficulty)| format!("{}: difficulty {}", file_name, difficulty))
+                .collect::<Vec<String>>()
+                .join("\n")
+        );
+        println!("\nunsolved sudokus: {}", sudoku_unsolved.join(", "));
+        println!(
+            "\n{}/{} sudoku solved",
             sudoku_solved.len(),
             sudoku_solved.len() + sudoku_unsolved.len()
         );
