@@ -1,4 +1,4 @@
-use super::{Sudoku, SudokuDisplay};
+use super::{Sudoku, SudokuDisplay, SudokuGroups::*};
 use macroquad::prelude::*;
 use std::{collections::HashSet, ops::Range};
 
@@ -25,6 +25,14 @@ impl<'a> SudokuDisplay<'a> {
         specific_rules: Option<Range<usize>>,
     ) -> Result<usize, ((usize, usize), (usize, usize))> {
         self.sudoku.rule_solve(specific_rules)
+    }
+
+    pub fn is_valid(&self) -> Result<(), ((usize, usize), (usize, usize))> {
+        self.sudoku.is_valid()
+    }
+
+    pub fn is_solved(&self) -> bool {
+        self.sudoku.is_solved()
     }
 
     async fn draw_buttons(&self, font: Font) {
@@ -233,10 +241,7 @@ impl<'a> SudokuDisplay<'a> {
         }
 
         if let Some((x, y)) = self.selected_cell {
-            for (x, y) in Sudoku::get_cell_groups(self.sudoku.get_n(), x, y)
-                .iter()
-                .flatten()
-            {
+            for (x, y) in self.sudoku.cell_groups.get(&(x, y, ALL)).unwrap() {
                 self.draw_cell(*x, *y, Color::from_hex(0xe4ebf2));
             }
             self.draw_cell(x, y, Color::from_hex(0xc2ddf8));
