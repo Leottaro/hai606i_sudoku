@@ -1046,9 +1046,50 @@ impl Sudoku {
 
     // règle 23: http://www.taupierbw.be/SudokuCoach/SC_BUG.shtml
     pub(super) fn bi_value_universal_grave(&mut self) -> bool {
-        warn!("bi_value_universal_grave isn't implemented yet");
+        let mut unique_triple: Option<(usize, usize)> = None;
+        for y in 0..self.n2 {
+            for x in 0..self.n2 {
+                let possibilities_number = self.possibility_board[y][x].len();
+                if possibilities_number == 0 || possibilities_number == 2 {
+                    continue;
+                }
+                if possibilities_number != 3 {
+                    return false;
+                }
+                if unique_triple.is_some() {
+                    return false;
+                }
+                unique_triple = Some((x, y));
+            }
+        }
 
-        false
+        if unique_triple.is_none() {
+            return false;
+        }
+
+        let (x0, y0) = unique_triple.unwrap();
+        let mut appearing_value: Vec<usize> = vec![0; self.n2];
+        for &(x, y) in self.cell_groups.get(&(x0, y0, ALL)).unwrap() {
+            for value in self.possibility_board[y][x].iter() {
+                appearing_value[*value - 1] += 1;
+            }
+        }
+
+        let max_appearing_value = appearing_value
+            .iter()
+            .enumerate()
+            .max_by_key(|&(_, count)| count)
+            .map(|(index, _)| index + 1)
+            .unwrap();
+
+        self.fix_value(x0, y0, max_appearing_value);
+        debug_only!(
+            "valeur {} fixée en x: {}, y: {}",
+            max_appearing_value,
+            x0,
+            y0
+        );
+        return true;
     }
 
     // règle 24: http://www.taupierbw.be/SudokuCoach/SC_XYChain.shtml
