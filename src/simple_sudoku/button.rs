@@ -10,7 +10,8 @@ impl Button {
         height: f32,
         enabled: bool,
         text: String,
-        font: Font,
+        clicked: bool,
+        scale_factor: f32,
     ) -> Self {
         Button {
             x,
@@ -19,26 +20,26 @@ impl Button {
             height,
             enabled,
             text,
-            font,
-            clicked: false,
+            clicked,
             hover: false,
+            scale_factor,
         }
     }
 
     pub fn x(&self) -> f32 {
-        self.x
+        self.x * self.scale_factor
     }
 
     pub fn y(&self) -> f32 {
-        self.y
+        self.y * self.scale_factor
     }
 
     pub fn width(&self) -> f32 {
-        self.width
+        self.width * self.scale_factor
     }
 
     pub fn height(&self) -> f32 {
-        self.height
+        self.height * self.scale_factor
     }
 
     pub fn enabled(&self) -> bool {
@@ -47,6 +48,10 @@ impl Button {
 
     pub fn clicked(&self) -> bool {
         self.clicked
+    }
+
+    pub fn text(&self) -> &str {
+        &self.text
     }
 
     pub fn set_enabled(&mut self, enabled: bool) {
@@ -61,9 +66,13 @@ impl Button {
         self.hover = hover;
     }
 
+    pub fn set_scale_factor(&mut self, scale_factor: f32) {
+        self.scale_factor = scale_factor;
+    }
+
     pub async fn draw(&self, font: Font) {
         let color = Color::from_hex(0xe4ebf2);
-        let hover_color = Color::from_hex(0xf1f5f9);
+        let hover_color = Color::from_hex(0xd0dbe7);
         let clicked_color = Color::from_hex(0xc2ddf8);
         let clicked_hovered_color = Color::from_hex(0x9ac5f8);
 
@@ -78,12 +87,20 @@ impl Button {
         } else {
             color
         };
-        draw_rectangle(self.x, self.y, self.width, self.height, actual_color);
-        let font_size = self.height as u16 * 2 / 8;
+        draw_rectangle(
+            self.x * self.scale_factor,
+            self.y * self.scale_factor,
+            self.width * self.scale_factor,
+            self.height * self.scale_factor,
+            actual_color,
+        );
+        let font_size = (self.height * self.scale_factor) as u16 * 2 / 8;
         let text = self.text.clone();
         let text_dimensions = measure_text(&text, Some(&font), font_size, 1.0);
-        let text_x = self.x + (self.width - text_dimensions.width) / 2.0;
-        let text_y = self.y + (self.height + text_dimensions.height) / 2.0;
+        let text_x = self.x * self.scale_factor
+            + (self.width * self.scale_factor - text_dimensions.width) / 2.0;
+        let text_y = self.y * self.scale_factor
+            + (self.height * self.scale_factor + text_dimensions.height) / 2.0;
         draw_text_ex(
             &text,
             text_x,

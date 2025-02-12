@@ -1,6 +1,6 @@
-use super::{button, Button, Sudoku, SudokuDisplay};
+use super::{Button, Sudoku, SudokuDisplay};
 use macroquad::prelude::*;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 impl<'a> SudokuDisplay<'a> {
     pub fn new(sudoku: &'a mut Sudoku, font: Font) -> Self {
@@ -19,24 +19,39 @@ impl<'a> SudokuDisplay<'a> {
             vec![vec![HashSet::new(); sudoku.get_n2()]; sudoku.get_n2()];
         let note = false;
         let mut button_list: Vec<Button> = Vec::new();
+        let mut actions_boutons: HashMap<String, fn(&mut SudokuDisplay<'_>) -> ()> = HashMap::new();
 
+        // ================== Buttons ==================
         let choose_sizex = 150.0 * scale_factor;
         let choose_sizey = 100.0 * scale_factor;
         let choose_xpadding = 10.0 * scale_factor;
 
-        // ================== Buttons ==================
-        let boutonPlay = Button::new(
+        let bouton_play = Button::new(
             x_offset + (grid_size - choose_sizex * 2.0 - choose_xpadding) / 2.0,
             y_offset - choosey_offset - choose_sizey,
             choose_sizex,
             choose_sizey,
             true,
             "Play".to_string(),
-            font.clone(),
+            true,
+            scale_factor,
         );
-        button_list.push(boutonPlay);
 
-        let boutonAnalyse: Button = Button::new(
+        actions_boutons.insert("Play".to_string(), |sudoku_display| {
+            sudoku_display.set_mode("play".to_string());
+            for bouton in sudoku_display.button_list.iter_mut() {
+                if bouton.text == "Analyse".to_string() {
+                    bouton.set_clicked(false);
+                }
+                if bouton.text == "Play".to_string() {
+                    bouton.set_clicked(!bouton.clicked());
+                }
+            }
+        });
+
+        button_list.push(bouton_play);
+
+        let bouton_analyse: Button = Button::new(
             x_offset
                 + (grid_size - choose_sizex * 2.0 - choose_xpadding) / 2.0
                 + choose_sizex
@@ -46,12 +61,132 @@ impl<'a> SudokuDisplay<'a> {
             choose_sizey,
             true,
             "Analyse".to_string(),
-            font.clone(),
+            false,
+            scale_factor,
         );
-        button_list.push(boutonAnalyse);
+
+        actions_boutons.insert("Analyse".to_string(), |sudoku_display| {
+            sudoku_display.set_mode("analyse".to_string());
+            for bouton in sudoku_display.button_list.iter_mut() {
+                if bouton.text == "Play".to_string() {
+                    bouton.set_clicked(false);
+                }
+                if bouton.text == "Analyse".to_string() {
+                    bouton.set_clicked(!bouton.clicked());
+                }
+            }
+        });
+
+        button_list.push(bouton_analyse);
+
+        let solve_sizex = 150.0 * scale_factor;
+        let solve_sizey = 100.0 * scale_factor;
+        let solve_ypadding = 10.0 * scale_factor;
+        let solve1_x = x_offset - solvex_offset - solve_sizex;
+        let solve1_y = y_offset + (grid_size - solve_sizey * 2.0 - solve_ypadding) / 2.0;
+
+        let button_solve_once = Button::new(
+            solve1_x,
+            solve1_y,
+            solve_sizex,
+            solve_sizey,
+            true,
+            "solve once".to_string(),
+            false,
+            scale_factor,
+        );
+
+        actions_boutons.insert("solve once".to_string(), |sudoku_display| {
+            sudoku_display.solve_once();
+        });
+
+        button_list.push(button_solve_once);
+
+        let solve2_x = x_offset - solvex_offset - solve_sizex;
+        let solve2_y = y_offset
+            + (grid_size - (solve_sizey) * 2.0 - solve_ypadding) / 2.0
+            + solve_sizey
+            + solve_ypadding;
+        let button_solve = Button::new(
+            solve2_x,
+            solve2_y,
+            solve_sizex,
+            solve_sizey,
+            true,
+            "solve".to_string(),
+            false,
+            scale_factor,
+        );
+
+        button_list.push(button_solve);
+
+        for x in 0..sudoku.get_n() {
+            for y in 0..sudoku.get_n() {
+                let value1 = y * sudoku.get_n() + x + 1;
+                
+
+                let b_size = pixel_per_cell * 3.0 / 2.0;
+                let b_padding = 10.0;
+                let b_x = x_offset + grid_size + bx_offset + (x as f32) * (b_size + b_padding);
+                let b_y = y_offset
+                    + (grid_size - (b_size + b_padding) * (sudoku.get_n() as f32)) / 2.0
+                    + (y as f32) * (b_size + b_padding);
+                let bouton_numero = Button::new(
+                    b_x,
+                    b_y,
+                    b_size,
+                    b_size,
+                    true,
+                    value1.to_string(),
+                    false,
+                    scale_factor,
+                );
+
+                actions_boutons.insert(value1.to_string(), move |sudoku_display| {
+                    if sudoku_display.selected_cell.is_some() {
+                        let (x1, y1) = sudoku_display.selected_cell.unwrap();
+                        let value = y * sudoku_display.sudoku.get_n() + x + 1;
+                        println!("{}", value);
+
+                        if sudoku_display.note && sudoku_display.sudoku.get_board()[y1][x1] == 0 {
+                            
+                            if sudoku_display.selected_buttons.contains(&value) {
+                                sudoku_display.selected_buttons.remove(&value);
+                                sudoku_display.player_pboard[y1][x1].remove(&value);
+                            } else {
+                                sudoku_display.selected_buttons.insert(value);
+                                sudoku_display.player_pboard[y1][x1].insert(value);
+                            }
+                        } else if !sudoku_display.note {
+                            if sudoku_display.sudoku.get_board()[y1][x1] != value {
+                                sudoku_display.sudoku.set_value(x1, y1, value);
+                                for group in Sudoku::get_cell_groups(
+                                    sudoku_display.sudoku.get_n(),
+                                    x1,
+                                    y1,
+                                ) {
+                                    for (i, j) in group {
+                                        sudoku_display.player_pboard[j][i].remove(&value);
+                                    }
+                                }
+                            } else {
+                                sudoku_display.sudoku.set_value(x1, y1, 0);
+                            }
+                            sudoku_display.player_pboard[y1][x1].clear();
+                        }
+                    }
+            });
+
+                button_list.push(bouton_numero);
+            }
+        }
         // =============================================
 
-        Self {
+        // ================== Actions ==================
+
+        // =============================================
+
+        let a = Self {
             sudoku,
             max_scale,
             scale_factor,
@@ -70,175 +205,26 @@ impl<'a> SudokuDisplay<'a> {
             note,
             button_list,
             font,
-        }
+            actions_boutons,
+        };
+
+        ///
+
+        ///
+        a
+    }
+
+    pub fn set_mode(&mut self, mode: String) {
+        self.mode = mode;
+    }
+
+    pub fn button_list(&self) -> &Vec<Button> {
+        &self.button_list
     }
 
     pub fn solve_once(&mut self) {
         if self.sudoku.solve_once().unwrap() > 2 as usize {
             self.solve_once();
-        }
-    }
-
-    async fn draw_chooser(&mut self, font: Font) {
-        let mut color: Color;
-        let choose_sizex = 150.0 * self.scale_factor;
-        let choose_sizey = 100.0 * self.scale_factor;
-        let choose_xpadding = 10.0 * self.scale_factor;
-        let choose1_x =
-            self.x_offset + (self.grid_size - choose_sizex * 2.0 - choose_xpadding) / 2.0;
-        let choose1_y = self.y_offset - self.choosey_offset - choose_sizey;
-
-        color = Color::from_hex(0xe4ebf2);
-        if self.mode == "play".to_string() {
-            color = Color::from_hex(0xc2ddf8);
-        }
-
-        draw_rectangle(choose1_x, choose1_y, choose_sizex, choose_sizey, color);
-
-        let choose2_x = self.x_offset
-            + (self.grid_size - choose_sizex * 2.0 - choose_xpadding) / 2.0
-            + choose_sizex
-            + choose_xpadding;
-        let choose2_y = self.y_offset - self.choosey_offset - choose_sizey;
-
-        color = Color::from_hex(0xe4ebf2);
-        if self.mode == "analyse".to_string() {
-            color = Color::from_hex(0xc2ddf8);
-        }
-
-        draw_rectangle(choose2_x, choose2_y, choose_sizex, choose_sizey, color);
-
-        let font_size = choose_sizey as u16 * 2 / 8;
-        let text1 = "Play";
-        let text1_dimensions = measure_text(&text1, Some(&font), font_size, 1.0);
-        let text1_x = choose1_x + (choose_sizex - text1_dimensions.width) / 2.0;
-        let text1_y = choose1_y + (choose_sizey + text1_dimensions.height) / 2.0;
-
-        draw_text_ex(
-            &text1,
-            text1_x,
-            text1_y,
-            TextParams {
-                font: Some(&font),
-                font_size: font_size,
-                color: Color::from_hex(0x000000),
-                ..Default::default()
-            },
-        );
-
-        let text2 = "Analyse";
-        let text2_dimensions = measure_text(&text2, Some(&font), font_size, 1.0);
-        let text2_x = choose2_x + (choose_sizex - text2_dimensions.width) / 2.0;
-        let text2_y = choose2_y + (choose_sizey + text2_dimensions.height) / 2.0;
-
-        draw_text_ex(
-            &text2,
-            text2_x,
-            text2_y,
-            TextParams {
-                font: Some(&font),
-                font_size: font_size,
-                color: Color::from_hex(0x000000),
-                ..Default::default()
-            },
-        );
-    }
-
-    async fn draw_solve(&mut self, font: Font) {
-        let mut color: Color;
-        let solve_sizex = 150.0 * self.scale_factor;
-        let solve_sizey = 100.0 * self.scale_factor;
-        let solve_ypadding = 10.0 * self.scale_factor;
-        let solve1_x = self.x_offset - self.solvex_offset - solve_sizex;
-        let solve1_y = self.y_offset + (self.grid_size - solve_sizey * 2.0 - solve_ypadding) / 2.0;
-        color = Color::from_hex(0xe4ebf2);
-
-        draw_rectangle(solve1_x, solve1_y, solve_sizex, solve_sizey, color);
-
-        if self.solving {
-            color = Color::from_hex(0xc2ddf8);
-        }
-
-        let solve2_x = self.x_offset - self.solvex_offset - solve_sizex;
-        let solve2_y = self.y_offset
-            + (self.grid_size - (solve_sizey) * 2.0 - solve_ypadding) / 2.0
-            + solve_sizey
-            + solve_ypadding;
-
-        draw_rectangle(solve2_x, solve2_y, solve_sizex, solve_sizey, color);
-
-        let font_size = solve_sizey as u16 * 2 / 8;
-        let text1 = "solve once";
-        let text1_dimensions = measure_text(&text1, Some(&font), font_size, 1.0);
-        let text1_x = solve1_x + (solve_sizex - text1_dimensions.width) / 2.0;
-        let text1_y = solve1_y + (solve_sizey + text1_dimensions.height) / 2.0;
-
-        draw_text_ex(
-            &text1,
-            text1_x,
-            text1_y,
-            TextParams {
-                font: Some(&font),
-                font_size: font_size,
-                color: Color::from_hex(0x000000),
-                ..Default::default()
-            },
-        );
-
-        let text2 = "solve";
-        let text2_dimensions = measure_text(&text2, Some(&font), font_size, 1.0);
-        let text2_x = solve2_x + (solve_sizex - text2_dimensions.width) / 2.0;
-        let text2_y = solve2_y + (solve_sizey + text2_dimensions.height) / 2.0;
-
-        draw_text_ex(
-            &text2,
-            text2_x,
-            text2_y,
-            TextParams {
-                font: Some(&font),
-                font_size: font_size,
-                color: Color::from_hex(0x000000),
-                ..Default::default()
-            },
-        );
-    }
-
-    async fn draw_buttons(&self, font: Font) {
-        let mut color: Color;
-        for x in 0..self.sudoku.get_n() {
-            for y in 0..self.sudoku.get_n() {
-                let b_size = self.pixel_per_cell * 3.0 / 2.0;
-                let b_padding = 10.0;
-                let b_x = self.x_offset
-                    + self.grid_size
-                    + self.bx_offset
-                    + (x as f32) * (b_size + b_padding);
-                let b_y = self.y_offset
-                    + (self.grid_size - (b_size + b_padding) * (self.sudoku.get_n() as f32)) / 2.0
-                    + (y as f32) * (b_size + b_padding);
-                if self.selected_buttons.contains(&(x, y)) {
-                    color = Color::from_hex(0xc2ddf8);
-                } else {
-                    color = Color::from_hex(0xe4ebf2);
-                }
-                draw_rectangle(b_x, b_y, b_size, b_size, color);
-                let font_size = b_size as u16 * 2 / 3;
-                let text = (y * self.sudoku.get_n() + x + 1).to_string();
-                let text_dimensions = measure_text(&text, Some(&font), font_size, 1.0);
-                let text_x = b_x + (b_size - text_dimensions.width) / 2.0;
-                let text_y = b_y + (b_size + text_dimensions.height) / 2.0;
-                draw_text_ex(
-                    &text,
-                    text_x,
-                    text_y,
-                    TextParams {
-                        font: Some(&font),
-                        font_size: font_size,
-                        color: Color::from_hex(0x000000),
-                        ..Default::default()
-                    },
-                );
-            }
         }
     }
 
@@ -383,126 +369,11 @@ impl<'a> SudokuDisplay<'a> {
         let b_size = self.pixel_per_cell * 3.0 / 2.0;
         let b_padding = 10.0;
 
-        let (mouse_x, mouse_y) = (
-            mouse_position().0,
-            mouse_position().1,
-        );
+        let (mouse_x, mouse_y) = (mouse_position().0, mouse_position().1);
         let x = ((mouse_x - self.x_offset) / self.pixel_per_cell).floor() as usize;
         let y = ((mouse_y - self.y_offset) / self.pixel_per_cell).floor() as usize;
 
         clear_background(Color::from_hex(0xffffff));
-
-        let choose1_y = self.y_offset - self.choosey_offset - choose_sizey;
-
-        //si on clique
-        if is_mouse_button_pressed(MouseButton::Left) {
-            if self.selected_cell.is_some() {
-                let selected_x = self.selected_cell.unwrap().0;
-                let selected_y = self.selected_cell.unwrap().1;
-                let b_x = self.x_offset + self.grid_size + self.bx_offset;
-                let b_y = self.y_offset
-                    + (self.grid_size - (b_size + b_padding) * (self.sudoku.get_n() as f32)) / 2.0;
-                if mouse_x + self.x_offset > b_x
-                    && mouse_x + self.x_offset
-                        < b_x + (b_size + b_padding) * (self.sudoku.get_n() as f32)
-                    && mouse_y + self.y_offset > b_y
-                    && mouse_y + self.y_offset
-                        < b_y + (b_size + b_padding) * (self.sudoku.get_n() as f32)
-                    && self.mode == "play".to_string()
-                {
-                    let button = (
-                        ((mouse_x + self.x_offset - b_x) / (b_size + b_padding) as f32).floor()
-                            as usize,
-                        ((mouse_y + self.y_offset - b_y) / (b_size + b_padding) as f32).floor()
-                            as usize,
-                    );
-
-                    let value = button.0 + button.1 * self.sudoku.get_n() + 1;
-
-                    if self.note && self.sudoku.get_board()[selected_y][selected_x] == 0 {
-                        if self.selected_buttons.contains(&button) {
-                            self.selected_buttons.remove(&button);
-                            self.player_pboard[selected_y][selected_x].remove(&value);
-                        } else {
-                            self.selected_buttons.insert(button);
-                            self.player_pboard[selected_y][selected_x].insert(value);
-                        }
-                    } else if !self.note {
-                        if self.sudoku.get_board()[selected_y][selected_x] != value {
-                            self.sudoku.set_value(selected_x, selected_y, value);
-                            for group in
-                                Sudoku::get_cell_groups(self.sudoku.get_n(), selected_x, selected_y)
-                            {
-                                for (i, j) in group {
-                                    self.player_pboard[j][i].remove(&value);
-                                }
-                            }
-                        } else {
-                            self.sudoku.set_value(selected_x, selected_y, 0);
-                        }
-                        self.player_pboard[selected_y][selected_x].clear();
-                    }
-                }
-            }
-
-            let solve1_x = self.x_offset - self.solvex_offset - solve_sizex;
-            let solve1_y =
-                self.y_offset + (self.grid_size - (solve_sizey) * 2.0 - solve_ypadding) / 2.0;
-
-            let solve2_x = self.x_offset - self.solvex_offset - solve_sizex;
-            let solve2_y = self.y_offset
-                + (self.grid_size - (solve_sizey) * 2.0 - solve_ypadding) / 2.0
-                + solve_sizey
-                + solve_ypadding;
-
-            if mouse_x + self.x_offset > solve1_x
-                && mouse_y + self.y_offset > solve1_y
-                && mouse_x + self.x_offset < solve1_x + solve_sizex
-                && mouse_y + self.y_offset < solve1_y + solve_sizey
-            {
-                self.solve_once();
-            }
-
-            if mouse_x + self.x_offset > solve2_x
-                && mouse_y + self.y_offset > solve2_y
-                && mouse_x + self.x_offset < solve2_x + solve_sizex
-                && mouse_y + self.y_offset < solve2_y + solve_sizey
-            {
-                if self.solving {
-                    self.solving = false;
-                    self.note = false;
-                } else {
-                    self.solving = true;
-                    self.note = true;
-                }
-            }
-
-            let choose1_x =
-                self.x_offset + (self.grid_size - choose_sizex * 2.0 - choose_xpadding) / 2.0;
-            let choose1_y = self.y_offset - self.choosey_offset - choose_sizey;
-
-            let choose2_x = self.x_offset
-                + (self.grid_size - choose_sizex * 2.0 - choose_xpadding) / 2.0
-                + choose_sizex
-                + choose_xpadding;
-            let choose2_y = self.y_offset - self.choosey_offset - choose_sizey;
-
-            if mouse_x + self.x_offset > choose1_x
-                && mouse_y + self.y_offset > choose1_y
-                && mouse_x + self.x_offset < choose1_x + choose_sizex
-                && mouse_y + self.y_offset < choose1_y + choose_sizey
-            {
-                self.mode = "play".to_string();
-            }
-
-            if mouse_x + self.x_offset > choose2_x
-                && mouse_y + self.y_offset > choose2_y
-                && mouse_x + self.x_offset < choose2_x + choose_sizex
-                && mouse_y + self.y_offset < choose2_y + choose_sizey
-            {
-                self.mode = "analyse".to_string();
-            }
-        }
 
         //si on clique dans le sudoku
         let sudoku_x = mouse_x - self.x_offset;
@@ -529,8 +400,9 @@ impl<'a> SudokuDisplay<'a> {
                     for n in pb {
                         for i in 0..self.sudoku.get_n() {
                             for j in 0..self.sudoku.get_n() {
-                                if self.sudoku.get_n() * j + i + 1 == *n {
-                                    self.selected_buttons.insert((i, j));
+                                let value = self.sudoku.get_n() * j + i + 1;
+                                if value == *n {
+                                    self.selected_buttons.insert(value);
                                 }
                             }
                         }
@@ -551,7 +423,9 @@ impl<'a> SudokuDisplay<'a> {
         }
 
         self.draw_sudoku(font.clone()).await;
+        let mut action: Option<fn(&mut SudokuDisplay<'_>)> = None;
         for bouton in self.button_list.iter_mut() {
+            bouton.set_scale_factor(self.scale_factor);
             if !bouton.enabled() {
                 continue;
             }
@@ -561,13 +435,16 @@ impl<'a> SudokuDisplay<'a> {
                 && mouse_y < bouton.y() + bouton.height()
             {
                 if is_mouse_button_pressed(MouseButton::Left) {
-                    bouton.set_clicked(!bouton.clicked());
+                    action = Some(*self.actions_boutons.get(&bouton.text).unwrap());
                 }
                 bouton.set_hover(true);
             } else {
                 bouton.set_hover(false);
             }
             bouton.draw(self.font.clone()).await;
+        }
+        if action.is_some() {
+            action.unwrap()(self);
         }
         //self.draw_buttons(font.clone()).await;
         //self.draw_solve(font.clone()).await;

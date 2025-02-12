@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use macroquad::color::Color;
 
 pub mod display;
 pub mod rules;
@@ -21,7 +20,7 @@ pub struct SudokuDisplay<'a> {
     grid_size: f32,
     pixel_per_cell: f32,
     selected_cell: Option<(usize, usize)>,
-    selected_buttons: HashSet<(usize, usize)>,
+    selected_buttons: HashSet<usize>,
     x_offset: f32,
     y_offset: f32,
     bx_offset: f32,
@@ -33,6 +32,7 @@ pub struct SudokuDisplay<'a> {
     note: bool,
     button_list: Vec<Button>,
     font: macroquad::text::Font,
+    actions_boutons: std::collections::HashMap<String, fn(&mut SudokuDisplay<'_>)>
 }
 
 pub struct Button {
@@ -42,7 +42,7 @@ pub struct Button {
     pub height: f32,
     pub enabled: bool,
     pub text: String,
-    pub font: macroquad::text::Font,
     pub clicked: bool,
     pub hover: bool,
+    pub scale_factor: f32,
 }
