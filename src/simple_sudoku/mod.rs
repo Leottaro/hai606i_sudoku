@@ -1,9 +1,9 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, rc::Rc};
 
+pub mod button;
 pub mod display;
 pub mod rules;
 pub mod sudoku;
-pub mod button;
 
 #[derive(Debug)]
 pub struct Sudoku {
@@ -32,7 +32,7 @@ pub struct SudokuDisplay<'a> {
     note: bool,
     button_list: Vec<Button>,
     font: macroquad::text::Font,
-    actions_boutons: std::collections::HashMap<String, fn(&mut SudokuDisplay<'_>)>
+    actions_boutons: std::collections::HashMap<String, Rc<Box<dyn Fn(&mut SudokuDisplay)>>>,
 }
 
 pub struct Button {

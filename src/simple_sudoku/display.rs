@@ -1,7 +1,9 @@
 use super::{Button, Sudoku, SudokuDisplay};
 use macroquad::prelude::*;
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
+#[allow(dead_code)] // no warning due to unused functions
 impl<'a> SudokuDisplay<'a> {
     pub fn new(sudoku: &'a mut Sudoku, font: Font) -> Self {
         let max_scale = screen_height();
@@ -19,7 +21,8 @@ impl<'a> SudokuDisplay<'a> {
             vec![vec![HashSet::new(); sudoku.get_n2()]; sudoku.get_n2()];
         let note = false;
         let mut button_list: Vec<Button> = Vec::new();
-        let mut actions_boutons: HashMap<String, fn(&mut SudokuDisplay<'_>) -> ()> = HashMap::new();
+        let mut actions_boutons: HashMap<String, Rc<Box<dyn Fn(&mut SudokuDisplay) -> ()>>> =
+            HashMap::new();
 
         // ================== Buttons ==================
         let choose_sizex = 150.0 * scale_factor;
@@ -37,17 +40,20 @@ impl<'a> SudokuDisplay<'a> {
             scale_factor,
         );
 
-        actions_boutons.insert("Play".to_string(), |sudoku_display| {
-            sudoku_display.set_mode("play".to_string());
-            for bouton in sudoku_display.button_list.iter_mut() {
-                if bouton.text == "Analyse".to_string() {
-                    bouton.set_clicked(false);
+        actions_boutons.insert(
+            "Play".to_string(),
+            Rc::new(Box::new(|sudoku_display| {
+                sudoku_display.set_mode("play".to_string());
+                for bouton in sudoku_display.button_list.iter_mut() {
+                    if bouton.text == "Analyse".to_string() {
+                        bouton.set_clicked(false);
+                    }
+                    if bouton.text == "Play".to_string() {
+                        bouton.set_clicked(!bouton.clicked());
+                    }
                 }
-                if bouton.text == "Play".to_string() {
-                    bouton.set_clicked(!bouton.clicked());
-                }
-            }
-        });
+            })),
+        );
 
         button_list.push(bouton_play);
 
@@ -65,17 +71,20 @@ impl<'a> SudokuDisplay<'a> {
             scale_factor,
         );
 
-        actions_boutons.insert("Analyse".to_string(), |sudoku_display| {
-            sudoku_display.set_mode("analyse".to_string());
-            for bouton in sudoku_display.button_list.iter_mut() {
-                if bouton.text == "Play".to_string() {
-                    bouton.set_clicked(false);
+        actions_boutons.insert(
+            "Analyse".to_string(),
+            Rc::new(Box::new(|sudoku_display| {
+                sudoku_display.set_mode("analyse".to_string());
+                for bouton in sudoku_display.button_list.iter_mut() {
+                    if bouton.text == "Play".to_string() {
+                        bouton.set_clicked(false);
+                    }
+                    if bouton.text == "Analyse".to_string() {
+                        bouton.set_clicked(!bouton.clicked());
+                    }
                 }
-                if bouton.text == "Analyse".to_string() {
-                    bouton.set_clicked(!bouton.clicked());
-                }
-            }
-        });
+            })),
+        );
 
         button_list.push(bouton_analyse);
 
@@ -96,9 +105,12 @@ impl<'a> SudokuDisplay<'a> {
             scale_factor,
         );
 
-        actions_boutons.insert("solve once".to_string(), |sudoku_display| {
-            sudoku_display.solve_once();
-        });
+        actions_boutons.insert(
+            "solve once".to_string(),
+            Rc::new(Box::new(|sudoku_display| {
+                sudoku_display.solve_once();
+            })),
+        );
 
         button_list.push(button_solve_once);
 
@@ -123,7 +135,6 @@ impl<'a> SudokuDisplay<'a> {
         for x in 0..sudoku.get_n() {
             for y in 0..sudoku.get_n() {
                 let value1 = y * sudoku.get_n() + x + 1;
-                
 
                 let b_size = pixel_per_cell * 3.0 / 2.0;
                 let b_padding = 10.0;
@@ -142,40 +153,43 @@ impl<'a> SudokuDisplay<'a> {
                     scale_factor,
                 );
 
-                actions_boutons.insert(value1.to_string(), move |sudoku_display| {
-                    if sudoku_display.selected_cell.is_some() {
-                        let (x1, y1) = sudoku_display.selected_cell.unwrap();
-                        let value = y * sudoku_display.sudoku.get_n() + x + 1;
-                        println!("{}", value);
+                actions_boutons.insert(
+                    value1.to_string(),
+                    Rc::new(Box::new(move |sudoku_display| {
+                        if sudoku_display.selected_cell.is_some() {
+                            let (x1, y1) = sudoku_display.selected_cell.unwrap();
+                            let value = y * sudoku_display.sudoku.get_n() + x + 1;
+                            println!("{}", value);
 
-                        if sudoku_display.note && sudoku_display.sudoku.get_board()[y1][x1] == 0 {
-                            
-                            if sudoku_display.selected_buttons.contains(&value) {
-                                sudoku_display.selected_buttons.remove(&value);
-                                sudoku_display.player_pboard[y1][x1].remove(&value);
-                            } else {
-                                sudoku_display.selected_buttons.insert(value);
-                                sudoku_display.player_pboard[y1][x1].insert(value);
-                            }
-                        } else if !sudoku_display.note {
-                            if sudoku_display.sudoku.get_board()[y1][x1] != value {
-                                sudoku_display.sudoku.set_value(x1, y1, value);
-                                for group in Sudoku::get_cell_groups(
-                                    sudoku_display.sudoku.get_n(),
-                                    x1,
-                                    y1,
-                                ) {
-                                    for (i, j) in group {
-                                        sudoku_display.player_pboard[j][i].remove(&value);
-                                    }
+                            if sudoku_display.note && sudoku_display.sudoku.get_board()[y1][x1] == 0
+                            {
+                                if sudoku_display.selected_buttons.contains(&value) {
+                                    sudoku_display.selected_buttons.remove(&value);
+                                    sudoku_display.player_pboard[y1][x1].remove(&value);
+                                } else {
+                                    sudoku_display.selected_buttons.insert(value);
+                                    sudoku_display.player_pboard[y1][x1].insert(value);
                                 }
-                            } else {
-                                sudoku_display.sudoku.set_value(x1, y1, 0);
+                            } else if !sudoku_display.note {
+                                if sudoku_display.sudoku.get_board()[y1][x1] != value {
+                                    sudoku_display.sudoku.set_value(x1, y1, value);
+                                    for group in Sudoku::get_cell_groups(
+                                        sudoku_display.sudoku.get_n(),
+                                        x1,
+                                        y1,
+                                    ) {
+                                        for (i, j) in group {
+                                            sudoku_display.player_pboard[j][i].remove(&value);
+                                        }
+                                    }
+                                } else {
+                                    sudoku_display.sudoku.set_value(x1, y1, 0);
+                                }
+                                sudoku_display.player_pboard[y1][x1].clear();
                             }
-                            sudoku_display.player_pboard[y1][x1].clear();
                         }
-                    }
-            });
+                    })),
+                );
 
                 button_list.push(bouton_numero);
             }
@@ -186,7 +200,7 @@ impl<'a> SudokuDisplay<'a> {
 
         // =============================================
 
-        let a = Self {
+        Self {
             sudoku,
             max_scale,
             scale_factor,
@@ -206,12 +220,7 @@ impl<'a> SudokuDisplay<'a> {
             button_list,
             font,
             actions_boutons,
-        };
-
-        ///
-
-        ///
-        a
+        }
     }
 
     pub fn set_mode(&mut self, mode: String) {
@@ -423,7 +432,7 @@ impl<'a> SudokuDisplay<'a> {
         }
 
         self.draw_sudoku(font.clone()).await;
-        let mut action: Option<fn(&mut SudokuDisplay<'_>)> = None;
+        let mut action: Option<Rc<Box<dyn Fn(&mut SudokuDisplay)>>> = None;
         for bouton in self.button_list.iter_mut() {
             bouton.set_scale_factor(self.scale_factor);
             if !bouton.enabled() {
@@ -435,7 +444,7 @@ impl<'a> SudokuDisplay<'a> {
                 && mouse_y < bouton.y() + bouton.height()
             {
                 if is_mouse_button_pressed(MouseButton::Left) {
-                    action = Some(*self.actions_boutons.get(&bouton.text).unwrap());
+                    action = Some(Rc::clone(self.actions_boutons.get(&bouton.text).unwrap()));
                 }
                 bouton.set_hover(true);
             } else {
@@ -443,8 +452,8 @@ impl<'a> SudokuDisplay<'a> {
             }
             bouton.draw(self.font.clone()).await;
         }
-        if action.is_some() {
-            action.unwrap()(self);
+        if let Some(action) = action {
+            action(self);
         }
         //self.draw_buttons(font.clone()).await;
         //self.draw_solve(font.clone()).await;
