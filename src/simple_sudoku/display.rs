@@ -23,7 +23,7 @@ impl<'a> SudokuDisplay<'a> {
     pub fn rule_solve(
         &mut self,
         specific_rules: Option<Range<usize>>,
-    ) -> Result<usize, ((usize, usize), (usize, usize))> {
+    ) -> Result<bool, ((usize, usize), (usize, usize))> {
         self.sudoku.rule_solve(specific_rules)
     }
 
@@ -33,6 +33,10 @@ impl<'a> SudokuDisplay<'a> {
 
     pub fn is_solved(&self) -> bool {
         self.sudoku.is_solved()
+    }
+
+    pub fn get_difficulty(&self) -> usize {
+        self.sudoku.difficulty
     }
 
     async fn draw_buttons(&self, font: Font) {

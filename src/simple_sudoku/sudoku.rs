@@ -1,11 +1,14 @@
 use super::{Sudoku, SudokuGroups::*};
 #[cfg(debug_assertions)]
 use log::debug;
+use macroquad::rand::ChooseRandom;
+use rand::Rng;
 use std::{
     cmp::max,
     collections::{HashMap, HashSet},
     env::current_dir,
     ops::Range,
+    process::exit,
 };
 
 #[allow(dead_code)] // no warning due to unused functions
@@ -24,12 +27,42 @@ impl Sudoku {
         self.possibility_board.clone()
     }
 
+    pub fn get_difficulty(&self) -> usize {
+        self.difficulty
+    }
+
     pub fn fix_value(&mut self, x: usize, y: usize, value: usize) {
         self.board[y][x] = value;
         self.possibility_board[y][x].clear();
         for &(x, y) in self.cell_groups.get(&(x, y, ALL)).unwrap() {
             self.possibility_board[y][x].remove(&value);
         }
+    }
+
+    pub fn remove_value(&mut self, x: usize, y: usize) -> usize {
+        let removed_value = self.board[y][x];
+
+        self.board[y][x] = 0;
+        self.possibility_board[y][x] = (1..=self.n2).into_iter().collect();
+
+        for &(x1, y1) in self.cell_groups.get(&(x, y, ALL)).unwrap() {
+            if self.board[y1][x1] != 0 {
+                self.possibility_board[y][x].remove(&self.board[y1][x1]);
+                continue;
+            }
+
+            if self
+                .cell_groups
+                .get(&(x1, y1, ALL))
+                .unwrap()
+                .iter()
+                .all(|&(x2, y2)| self.board[y2][x2] != removed_value)
+            {
+                self.possibility_board[y1][x1].insert(removed_value);
+            }
+        }
+
+        removed_value
     }
 
     pub fn is_same_group(&mut self, x1: usize, y1: usize, x2: usize, y2: usize) -> bool {
@@ -142,6 +175,7 @@ impl Sudoku {
         let n2 = n * n;
         let board = vec![vec![0; n2]; n2];
         let possibility_board = vec![vec![(1..=n2).collect(); n2]; n2];
+        let difficulty = 0;
 
         let mut groups = HashMap::new();
         let rows = Sudoku::get_rows(n);
@@ -180,9 +214,139 @@ impl Sudoku {
             n2,
             board,
             possibility_board,
+            difficulty,
             groups,
             cell_groups,
         }
+    }
+
+    pub fn generate_full(n: usize) -> Self {
+        let mut sudoku = Self::new(n);
+        let values: Vec<usize> = (1..=sudoku.n2).into_iter().collect();
+
+        // OPTION 1
+        for i in 0..sudoku.n {
+            let mut square_values = {
+                let mut temp = values.clone();
+                temp.shuffle();
+                temp.into_iter()
+            };
+            for dy in 0..sudoku.n {
+                for dx in 0..sudoku.n {
+                    sudoku.fix_value(
+                        i * sudoku.n + dx,
+                        i * sudoku.n + dy,
+                        square_values.next().unwrap(),
+                    );
+                }
+            }
+        }
+
+        // OPTION 2
+        // let (cell0, row0_square0, row0_rest) = {
+        //     let mut row0_rest = values.clone();
+        //     row0_rest.shuffle();
+        //     let cell0 = row0_rest.pop().unwrap();
+        //     let row0_square0: Vec<usize> = row0_rest.drain(0..sudoku.n - 1).collect();
+        //     (cell0, row0_square0, row0_rest)
+        // };
+
+        // let (col0_square0, col0_rest) = {
+        //     let mut col0_rest = row0_rest.clone();
+        //     col0_rest.shuffle();
+        //     let col0_square0: Vec<usize> = col0_rest.drain(0..sudoku.n - 1).collect();
+        //     col0_rest.extend(row0_square0.iter());
+        //     col0_rest.shuffle();
+        //     (col0_square0, col0_rest)
+        // };
+
+        // let mut row_values = row0_square0.iter().chain(row0_rest.iter());
+        // let mut col_values = col0_square0.iter().chain(col0_rest.iter());
+
+        // sudoku.fix_value(0, 0, cell0);
+        // for i in 1..sudoku.n2 {
+        //     sudoku.fix_value(i, 0, *row_values.next().unwrap());
+        //     sudoku.fix_value(0, i, *col_values.next().unwrap());
+        // }
+
+        // for i in 1..sudoku.n2 {
+        //     let diag_possibilities: Vec<&usize> = sudoku.possibility_board[i][i].iter().collect();
+        //     let random_value = diag_possibilities[rnd.gen_range(0..diag_possibilities.len())];
+        //     sudoku.fix_value(i, i, *random_value);
+        // }
+
+        // for y in 1..sudoku.n {
+        //     for x in 1..sudoku.n {
+        //         if x == y {
+        //             continue;
+        //         }
+        //         let diag_possibilities: Vec<&usize> =
+        //             sudoku.possibility_board[y][x].iter().collect();
+        //         let random_value = diag_possibilities[rnd.gen_range(0..diag_possibilities.len())];
+        //         sudoku.fix_value(x, y, *random_value);
+        //     }
+        // }
+
+        sudoku.backtrack_solve(0, 0);
+
+        sudoku
+    }
+
+    pub fn generate(n: usize, aimed_difficulty: usize) -> Self {
+        let mut rng = rand::thread_rng();
+        let mut checkpoint_sudoku = Self::generate_full(n);
+
+        let mut last_removed_x: usize = 0;
+        let mut last_removed_y: usize = 0;
+        let mut last_removed_value: usize = 0;
+
+        while checkpoint_sudoku.difficulty < aimed_difficulty {
+            last_removed_x = rng.gen_range(0..checkpoint_sudoku.n2);
+            last_removed_y = rng.gen_range(0..checkpoint_sudoku.n2);
+            while checkpoint_sudoku.board[last_removed_y][last_removed_x] == 0 {
+                last_removed_x = rng.gen_range(0..checkpoint_sudoku.n2);
+                last_removed_y = rng.gen_range(0..checkpoint_sudoku.n2);
+            }
+            last_removed_value = checkpoint_sudoku.remove_value(last_removed_x, last_removed_y);
+
+            let mut sudoku = checkpoint_sudoku.clone();
+            let mut did_one_solve = false;
+            loop {
+                match sudoku.rule_solve(Some(0..aimed_difficulty + 2)) {
+                    Ok(false) => {
+                        if !did_one_solve {
+                            checkpoint_sudoku = Sudoku::generate_full(n);
+							println!("ça recommence !");
+                        } else {
+                            checkpoint_sudoku.fix_value(
+                                last_removed_x,
+                                last_removed_y,
+                                last_removed_value,
+                            );
+                        }
+                        break;
+                    }
+                    Ok(true) => {
+                        did_one_solve = true;
+                        if sudoku.board[last_removed_y][last_removed_x] == last_removed_value {
+                            checkpoint_sudoku.difficulty = sudoku.difficulty;
+                            break;
+                        }
+                    }
+                    Err(((x1, y1), (x2, y2))) => {
+                        eprintln!("OULALALALA GROS PROBLÈME MONSIEUR SUR LA GÉNÉRATION LÀÀÀÀ: \n{x1},{y1} et {x2},{y2}: \n{sudoku}");
+                        checkpoint_sudoku = Sudoku::generate_full(n);
+							println!("ça recommence !");
+                        break;
+                    }
+                }
+            }
+        }
+
+        // checkpoint_sudoku.fix_value(last_removed_x, last_removed_y, last_removed_value);
+        checkpoint_sudoku.difficulty = 0;
+
+        checkpoint_sudoku
     }
 
     pub fn parse_file(file_name: &str) -> Result<Self, Box<dyn std::error::Error>> {
@@ -221,7 +385,7 @@ impl Sudoku {
     pub fn rule_solve(
         &mut self,
         specific_rules: Option<Range<usize>>,
-    ) -> Result<usize, ((usize, usize), (usize, usize))> {
+    ) -> Result<bool, ((usize, usize), (usize, usize))> {
         let mut rules: Vec<(fn(&mut Sudoku) -> bool, usize)> = vec![
             (Sudoku::naked_singles, 1),
             (Sudoku::hidden_singles, 2),
@@ -266,7 +430,7 @@ impl Sudoku {
                 .collect()
         }
 
-        let mut difficulty: usize = 0;
+        let mut did_something = false;
         // try the rules and set the difficulty in consequence
         for &(rule, diff) in rules.iter() {
             // if the rule can't be applied, then pass to the next one
@@ -279,7 +443,8 @@ impl Sudoku {
                 debug!("Sudoku actuel:\n{}", self);
             }
 
-            difficulty = max(difficulty, diff);
+            did_something = true;
+            self.difficulty = max(self.difficulty, diff);
             let is_valid = self.is_valid();
             if is_valid.is_err() {
                 return Err(is_valid.unwrap_err());
@@ -287,7 +452,7 @@ impl Sudoku {
             break;
         }
 
-        Ok(difficulty)
+        Ok(did_something)
     }
 
     // BACKTRACK SOLVING
@@ -307,10 +472,13 @@ impl Sudoku {
         }
 
         let possible_values = self.possibility_board[y][x].clone();
+        let mut randomized_possible_values: Vec<usize> = possible_values.iter().cloned().collect();
+        randomized_possible_values.shuffle();
         let cell_group: HashSet<(usize, usize)> =
             self.cell_groups.get(&(x, y, ALL)).unwrap().clone();
+
         self.possibility_board[y][x].clear();
-        for value in possible_values.clone().into_iter() {
+        for value in randomized_possible_values {
             self.board[y][x] = value;
             let changing_cells: HashSet<&(usize, usize)> = cell_group
                 .iter()
@@ -474,5 +642,15 @@ impl PartialEq for Sudoku {
             }
         }
         true
+    }
+}
+
+impl Clone for Sudoku {
+    fn clone(&self) -> Self {
+        let mut sudoku = Sudoku::new(self.n);
+        sudoku.board = self.board.clone();
+        sudoku.possibility_board = self.possibility_board.clone();
+        sudoku.difficulty = self.difficulty;
+        sudoku
     }
 }

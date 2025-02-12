@@ -74,20 +74,19 @@ mod tests {
             let mut sudoku = sudoku_result.unwrap();
 
             println!("{}", sudoku);
-            let mut difficulty: usize = 0;
             loop {
                 match sudoku.rule_solve(None) {
-                    Ok(0) => {
+                    Ok(true) => (),
+                    Ok(false) => {
                         if sudoku.is_solved() {
                             println!("sudoku solved!");
-                            sudoku_solved.push((file_name.clone(), difficulty));
+                            sudoku_solved.push((file_name.clone(), sudoku.get_difficulty()));
                         } else {
                             println!("can't do anything more...");
                             sudoku_unsolved.push(file_name.clone());
                         }
                         break;
                     }
-                    Ok(diff) => difficulty = usize::max(difficulty, diff),
                     Err(((x1, y1), (x2, y2))) => {
                         println!("Error: ({}, {}) and ({}, {})", x1, y1, x2, y2);
                         assert!(false);

@@ -1,4 +1,3 @@
-use env_logger::Env;
 use macroquad::prelude::*;
 use simple_sudoku::{Sudoku, SudokuDisplay};
 use std::{thread, time};
@@ -17,10 +16,10 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug")).init();
     #[cfg(debug_assertions)]
     debug!("Debug activé");
-    let mut sudoku = Sudoku::parse_file("sudoku-3-64-9.txt").unwrap();
+    let mut sudoku = Sudoku::generate(3, 3);
     println!("{}", sudoku);
     let mut sudoku_display = SudokuDisplay::new(&mut sudoku);
 
@@ -31,10 +30,13 @@ async fn main() {
 
     while sudoku_display.is_valid().is_ok() && !sudoku_display.is_solved() {
         match sudoku_display.rule_solve(None) {
-            Ok(0) => {
-                println!("Sudoku solved!");
+            Ok(false) => {
+                println!(
+                    "Sudoku solved, difficulty: {}",
+                    sudoku_display.get_difficulty()
+                );
             }
-            Ok(_) => (),
+            Ok(true) => (),
             Err(((x1, y1), (x2, y2))) => {
                 println!("Error: ({}, {}) and ({}, {})", x1, y1, x2, y2);
             }
@@ -44,4 +46,8 @@ async fn main() {
         next_frame().await;
         thread::sleep(temps);
     }
+    println!(
+        "Sudoku solved, difficulty: {}",
+        sudoku_display.get_difficulty()
+    );
 }
