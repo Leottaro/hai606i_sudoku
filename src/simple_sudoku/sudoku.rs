@@ -32,6 +32,24 @@ impl Sudoku {
         }
     }
 
+    pub fn is_same_group(&mut self, x1: usize, y1: usize, x2: usize, y2: usize) -> bool {
+        x1 == x2 || y1 == y2 || (x1 / self.n == x2 / self.n && y1 / self.n == y2 / self.n)
+    }
+
+    pub fn get_strong_links(&self, value: usize) -> Vec<((usize, usize), (usize, usize))> {
+        let mut strong_links: Vec<((usize, usize), (usize, usize))> = Vec::new();
+        for group in self.groups.get(&ALL).unwrap() {
+            let value_cells: Vec<&(usize, usize)> = group
+                .iter()
+                .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
+                .collect();
+            if value_cells.len() == 2 {
+                strong_links.push((value_cells[0].clone(), value_cells[1].clone()));
+            }
+        }
+        strong_links
+    }
+
     // GLOBAL FUNCTIONS
 
     pub fn get_rows(n: usize) -> Vec<HashSet<(usize, usize)>> {
@@ -221,24 +239,25 @@ impl Sudoku {
             (Sudoku::franken_x_wing, 14),
             (Sudoku::finned_mutant_x_xing, 15),
             (Sudoku::skyscraper, 16),
-            (Sudoku::y_wing, 17),
-            (Sudoku::w_wing, 18),
-            (Sudoku::swordfish, 19),
-            (Sudoku::finned_swordfish, 20),
-            (Sudoku::sashimi_finned_swordfish, 21),
-            (Sudoku::xyz_wing, 22),
-            (Sudoku::bi_value_universal_grave, 23),
-            (Sudoku::xy_chain, 24),
-            (Sudoku::jellyfish, 25),
-            (Sudoku::finned_jellyfish, 26),
-            (Sudoku::sashimi_finned_jellyfish, 27),
-            (Sudoku::wxyz_wing, 28),
-            (Sudoku::subset_exclusion, 29),
-            (Sudoku::empty_rectangle, 30),
-            (Sudoku::almost_locked_set_forcing_chain, 31),
-            (Sudoku::death_blossom, 32),
-            (Sudoku::pattern_overlay, 33),
-            (Sudoku::bowmans_bingo, 34),
+            (Sudoku::simple_coloring, 17),
+            (Sudoku::y_wing, 18),
+            (Sudoku::w_wing, 19),
+            (Sudoku::swordfish, 20),
+            (Sudoku::finned_swordfish, 21),
+            (Sudoku::sashimi_finned_swordfish, 22),
+            (Sudoku::xyz_wing, 23),
+            (Sudoku::bi_value_universal_grave, 24),
+            (Sudoku::xy_chain, 25),
+            (Sudoku::jellyfish, 26),
+            (Sudoku::finned_jellyfish, 27),
+            (Sudoku::sashimi_finned_jellyfish, 28),
+            (Sudoku::wxyz_wing, 29),
+            (Sudoku::subset_exclusion, 30),
+            (Sudoku::empty_rectangle, 31),
+            (Sudoku::almost_locked_set_forcing_chain, 32),
+            (Sudoku::death_blossom, 33),
+            (Sudoku::pattern_overlay, 34),
+            (Sudoku::bowmans_bingo, 35),
         ];
         if specific_rules.is_some() {
             rules = rules

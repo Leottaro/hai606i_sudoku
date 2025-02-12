@@ -1,3 +1,4 @@
+use graph::prelude::{Graph, GraphBuilder, UndirectedCsrGraph, UndirectedNeighbors};
 use log::warn;
 use std::collections::HashSet;
 
@@ -856,7 +857,112 @@ impl Sudoku {
         false
     }
 
-    // règle 17: http://www.taupierbw.be/SudokuCoach/SC_YWing.shtml
+    // règle 17: http://www.taupierbw.be/SudokuCoach/SC_SimpleColoring.shtml
+    pub(super) fn simple_coloring(&mut self) -> bool {
+        let mut modified = false;
+        for value in 1..=self.n2 {
+            let mut chains: Vec<Vec<usize>> = Vec::new(); // ne contient pas les (x,y) mais y*n+x (plus simple a traiter)
+            let strong_links = self
+                .get_strong_links(value)
+                .into_iter()
+                .map(|((x1, y1), (x2, y2))| (y1 * self.n2 + x1, y2 * self.n2 + x2))
+                .collect::<Vec<_>>();
+            let graph: UndirectedCsrGraph<usize> = GraphBuilder::new()
+                .csr_layout(graph::prelude::CsrLayout::Unsorted)
+                .edges(strong_links)
+                .build();
+
+            for node in 0..graph.node_count() {
+                let mut visited: HashSet<usize> = HashSet::new();
+                let mut stack = vec![(node, vec![])];
+
+                while let Some((current, mut path)) = stack.pop() {
+                    if visited.contains(&current) {
+                        continue;
+                    }
+                    visited.insert(current);
+                    path.push(current);
+
+                    for &neighbor in graph.neighbors(current) {
+                        if !visited.contains(&neighbor) {
+                            stack.push((neighbor, path.clone()));
+                        } else if path.contains(&neighbor) {
+                            chains.push(path.clone());
+                        }
+                    }
+                }
+            }
+
+            let mut chains_hashset: Vec<(Vec<usize>, HashSet<usize>)> = chains
+                .into_iter()
+                .map(|chain| (chain.clone(), chain.into_iter().collect::<HashSet<usize>>()))
+                .collect();
+            chains_hashset.sort_by(|(chain1, _), (chain2, _)| chain2.len().cmp(&chain1.len()));
+
+            let mut keeped_hashsets: Vec<&HashSet<usize>> = Vec::new();
+            let mut keeped_chains: Vec<Vec<(usize, usize)>> = Vec::new();
+
+            for (chain1, hash1) in chains_hashset.iter() {
+                if chain1.len() < 3 || keeped_hashsets.contains(&hash1) {
+                    continue;
+                }
+                let mut keep = true;
+                for hash2 in keeped_hashsets.iter() {
+                    if hash2.is_superset(hash1) {
+                        keep = false;
+                    }
+                }
+                if keep {
+                    keeped_hashsets.push(hash1);
+                    keeped_chains.push(
+                        chain1
+                            .iter()
+                            .map(|cell_id| (cell_id % self.n2, cell_id / self.n2))
+                            .collect(),
+                    );
+                }
+            }
+
+            for chain in keeped_chains {
+                let chain_len = chain.len();
+                let &(x1, y1) = chain.get(0).unwrap();
+                let &(x2, y2) = chain.get(chain_len - 1).unwrap();
+                if chain_len % 2 == 0 {
+                    let cell_group1: &HashSet<(usize, usize)> =
+                        self.cell_groups.get(&(x1, y1, ALL)).unwrap();
+                    let cell_group2: &HashSet<(usize, usize)> =
+                        self.cell_groups.get(&(x2, y2, ALL)).unwrap();
+                    let common_cells: HashSet<&(usize, usize)> =
+                        cell_group1.intersection(&cell_group2).collect();
+                    for &(x3, y3) in common_cells {
+                        if (x3 == x1 && y3 == y1) || (x3 == x2 && y3 == y2) {
+                            continue;
+                        }
+                        if self.possibility_board[y3][x3].remove(&value) {
+                            debug_only!("possibilitée {value} supprimée de x: {x3}, y: {y3}");
+                            modified = true;
+                        }
+                    }
+                } else {
+                    if self.is_same_group(x1, y1, x2, y2) {
+                        for &(x, y) in chain.iter().step_by(2) {
+                            if self.possibility_board[y][x].remove(&value) {
+                                debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}");
+                                modified = true;
+                            }
+                        }
+                    }
+                }
+
+                if modified {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    // règle 18: http://www.taupierbw.be/SudokuCoach/SC_YWing.shtml
     pub(super) fn y_wing(&mut self) -> bool {
         let mut modified = false;
         for y in 0..self.n2 {
@@ -927,7 +1033,7 @@ impl Sudoku {
         false
     }
 
-    // règle 18: http://www.taupierbw.be/SudokuCoach/SC_WWing.shtml
+    // règle 19: http://www.taupierbw.be/SudokuCoach/SC_WWing.shtml
     pub(super) fn w_wing(&mut self) -> bool {
         let mut modified = false;
         for y in 0..self.n2 {
@@ -1019,32 +1125,32 @@ impl Sudoku {
         false
     }
 
-    // règle 19: http://www.taupierbw.be/SudokuCoach/SC_Swordfish.shtml
+    // règle 20: http://www.taupierbw.be/SudokuCoach/SC_Swordfish.shtml
     pub(super) fn swordfish(&mut self) -> bool {
         warn!("swordfish isn't implemented yet");
         false
     }
 
-    // règle 20: http://www.taupierbw.be/SudokuCoach/SC_FinnedSwordfish.shtml
+    // règle 21: http://www.taupierbw.be/SudokuCoach/SC_FinnedSwordfish.shtml
     pub(super) fn finned_swordfish(&mut self) -> bool {
         warn!("finned_swordfish isn't implemented yet");
         false
     }
 
-    // règle 21: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedSwordfish.shtml
+    // règle 22: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedSwordfish.shtml
     pub(super) fn sashimi_finned_swordfish(&mut self) -> bool {
         warn!("sashimi_finned_swordfish isn't implemented yet");
         false
     }
 
-    // règle 22: http://www.taupierbw.be/SudokuCoach/SC_XYZWing.shtml
+    // règle 23: http://www.taupierbw.be/SudokuCoach/SC_XYZWing.shtml
     pub(super) fn xyz_wing(&mut self) -> bool {
         warn!("xyz_wing isn't implemented yet");
 
         false
     }
 
-    // règle 23: http://www.taupierbw.be/SudokuCoach/SC_BUG.shtml
+    // règle 24: http://www.taupierbw.be/SudokuCoach/SC_BUG.shtml
     pub(super) fn bi_value_universal_grave(&mut self) -> bool {
         let mut unique_triple: Option<(usize, usize)> = None;
         for y in 0..self.n2 {
@@ -1092,77 +1198,77 @@ impl Sudoku {
         return true;
     }
 
-    // règle 24: http://www.taupierbw.be/SudokuCoach/SC_XYChain.shtml
+    // règle 25: http://www.taupierbw.be/SudokuCoach/SC_XYChain.shtml
     pub(super) fn xy_chain(&mut self) -> bool {
         warn!("xy_chain isn't implemented yet");
 
         false
     }
 
-    // règle 25: http://www.taupierbw.be/SudokuCoach/SC_Jellyfish.shtml
+    // règle 26: http://www.taupierbw.be/SudokuCoach/SC_Jellyfish.shtml
     pub(super) fn jellyfish(&mut self) -> bool {
         warn!("jellyfish isn't implemented yet");
 
         false
     }
 
-    // règle 26: http://www.taupierbw.be/SudokuCoach/SC_FinnedJellyfish.shtml
+    // règle 27: http://www.taupierbw.be/SudokuCoach/SC_FinnedJellyfish.shtml
     pub(super) fn finned_jellyfish(&mut self) -> bool {
         warn!("finned_jellyfish isn't implemented yet");
 
         false
     }
 
-    // règle 27: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedJellyfish.shtml
+    // règle 28: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedJellyfish.shtml
     pub(super) fn sashimi_finned_jellyfish(&mut self) -> bool {
         warn!("sashimi_finned_jellyfish isn't implemented yet");
 
         false
     }
 
-    // règle 28: http://www.taupierbw.be/SudokuCoach/SC_WXYZWing.shtml
+    // règle 29: http://www.taupierbw.be/SudokuCoach/SC_WXYZWing.shtml
     pub(super) fn wxyz_wing(&mut self) -> bool {
         warn!("wxyz_wing isn't implemented yet");
 
         false
     }
 
-    // règle 29: http://www.taupierbw.be/SudokuCoach/SC_APE.shtml
+    // règle 30: http://www.taupierbw.be/SudokuCoach/SC_APE.shtml
     pub(super) fn subset_exclusion(&mut self) -> bool {
         warn!("subset_exclusion isn't implemented yet");
 
         false
     }
 
-    // règle 30: http://www.taupierbw.be/SudokuCoach/SC_EmptyRectangle.shtml
+    // règle 31: http://www.taupierbw.be/SudokuCoach/SC_EmptyRectangle.shtml
     pub(super) fn empty_rectangle(&mut self) -> bool {
         warn!("empty_rectangle isn't implemented yet");
 
         false
     }
 
-    // règle 31: http://www.taupierbw.be/SudokuCoach/SC_ALSchain.shtml
+    // règle 32: http://www.taupierbw.be/SudokuCoach/SC_ALSchain.shtml
     pub(super) fn almost_locked_set_forcing_chain(&mut self) -> bool {
         warn!("almost_locked_set_forcing_chain isn't implemented yet");
 
         false
     }
 
-    // règle 32: http://www.taupierbw.be/SudokuCoach/SC_DeathBlossom.shtml
+    // règle 33: http://www.taupierbw.be/SudokuCoach/SC_DeathBlossom.shtml
     pub(super) fn death_blossom(&mut self) -> bool {
         warn!("death_blossom isn't implemented yet");
 
         false
     }
 
-    // règle 33: http://www.taupierbw.be/SudokuCoach/SC_PatternOverlay.shtml
+    // règle 34: http://www.taupierbw.be/SudokuCoach/SC_PatternOverlay.shtml
     pub(super) fn pattern_overlay(&mut self) -> bool {
         warn!("pattern_overlay isn't implemented yet");
 
         false
     }
 
-    // règle 34: http://www.taupierbw.be/SudokuCoach/SC_BowmanBingo.shtml
+    // règle 35: http://www.taupierbw.be/SudokuCoach/SC_BowmanBingo.shtml
     pub(super) fn bowmans_bingo(&mut self) -> bool {
         warn!("bowmans_bingo isn't implemented yet");
 
