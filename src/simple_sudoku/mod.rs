@@ -1,8 +1,10 @@
 use std::collections::HashSet;
+use macroquad::color::Color;
 
 pub mod display;
 pub mod rules;
 pub mod sudoku;
+pub mod button;
 
 #[derive(Debug)]
 pub struct Sudoku {
@@ -29,4 +31,18 @@ pub struct SudokuDisplay<'a> {
     solving: bool,
     player_pboard: Vec<Vec<HashSet<usize>>>,
     note: bool,
+    button_list: Vec<Button>,
+    font: macroquad::text::Font,
+}
+
+pub struct Button {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub enabled: bool,
+    pub text: String,
+    pub font: macroquad::text::Font,
+    pub clicked: bool,
+    pub hover: bool,
 }

@@ -1,9 +1,9 @@
-use super::{Sudoku, SudokuDisplay};
+use super::{button, Button, Sudoku, SudokuDisplay};
 use macroquad::prelude::*;
 use std::collections::HashSet;
 
 impl<'a> SudokuDisplay<'a> {
-    pub fn new(sudoku: &'a mut Sudoku) -> Self {
+    pub fn new(sudoku: &'a mut Sudoku, font: Font) -> Self {
         let max_scale = screen_height();
         let scale_factor = 1.0;
         let grid_size = 900.0 * scale_factor;
@@ -18,6 +18,38 @@ impl<'a> SudokuDisplay<'a> {
         let player_pboard: Vec<Vec<HashSet<usize>>> =
             vec![vec![HashSet::new(); sudoku.get_n2()]; sudoku.get_n2()];
         let note = false;
+        let mut button_list: Vec<Button> = Vec::new();
+
+        let choose_sizex = 150.0 * scale_factor;
+        let choose_sizey = 100.0 * scale_factor;
+        let choose_xpadding = 10.0 * scale_factor;
+
+        // ================== Buttons ==================
+        let boutonPlay = Button::new(
+            x_offset + (grid_size - choose_sizex * 2.0 - choose_xpadding) / 2.0,
+            y_offset - choosey_offset - choose_sizey,
+            choose_sizex,
+            choose_sizey,
+            true,
+            "Play".to_string(),
+            font.clone(),
+        );
+        button_list.push(boutonPlay);
+
+        let boutonAnalyse: Button = Button::new(
+            x_offset
+                + (grid_size - choose_sizex * 2.0 - choose_xpadding) / 2.0
+                + choose_sizex
+                + choose_xpadding,
+            y_offset - choosey_offset - choose_sizey,
+            choose_sizex,
+            choose_sizey,
+            true,
+            "Analyse".to_string(),
+            font.clone(),
+        );
+        button_list.push(boutonAnalyse);
+        // =============================================
 
         Self {
             sudoku,
@@ -36,6 +68,8 @@ impl<'a> SudokuDisplay<'a> {
             solving,
             player_pboard,
             note,
+            button_list,
+            font,
         }
     }
 
@@ -350,13 +384,15 @@ impl<'a> SudokuDisplay<'a> {
         let b_padding = 10.0;
 
         let (mouse_x, mouse_y) = (
-            mouse_position().0 - self.x_offset,
-            mouse_position().1 - self.y_offset,
+            mouse_position().0,
+            mouse_position().1,
         );
-        let x = (mouse_x / self.pixel_per_cell).floor() as usize;
-        let y = (mouse_y / self.pixel_per_cell).floor() as usize;
+        let x = ((mouse_x - self.x_offset) / self.pixel_per_cell).floor() as usize;
+        let y = ((mouse_y - self.y_offset) / self.pixel_per_cell).floor() as usize;
 
         clear_background(Color::from_hex(0xffffff));
+
+        let choose1_y = self.y_offset - self.choosey_offset - choose_sizey;
 
         //si on clique
         if is_mouse_button_pressed(MouseButton::Left) {
@@ -469,10 +505,12 @@ impl<'a> SudokuDisplay<'a> {
         }
 
         //si on clique dans le sudoku
-        if (mouse_x as f32) < self.grid_size
-            && (mouse_x as f32) > 0.0
-            && (mouse_y as f32) < self.grid_size
-            && (mouse_y as f32) > 0.0
+        let sudoku_x = mouse_x - self.x_offset;
+        let sudoku_y = mouse_y - self.y_offset;
+        if (sudoku_x as f32) < self.grid_size
+            && (sudoku_x as f32) > 0.0
+            && (sudoku_y as f32) < self.grid_size
+            && (sudoku_y as f32) > 0.0
         {
             if is_mouse_button_pressed(MouseButton::Left) {
                 if self.selected_cell.is_some() && self.selected_cell.unwrap() == (x, y) {
@@ -513,8 +551,26 @@ impl<'a> SudokuDisplay<'a> {
         }
 
         self.draw_sudoku(font.clone()).await;
-        self.draw_buttons(font.clone()).await;
-        self.draw_solve(font.clone()).await;
-        self.draw_chooser(font.clone()).await;
+        for bouton in self.button_list.iter_mut() {
+            if !bouton.enabled() {
+                continue;
+            }
+            if mouse_x > bouton.x()
+                && mouse_x < bouton.x() + bouton.width()
+                && mouse_y > bouton.y()
+                && mouse_y < bouton.y() + bouton.height()
+            {
+                if is_mouse_button_pressed(MouseButton::Left) {
+                    bouton.set_clicked(!bouton.clicked());
+                }
+                bouton.set_hover(true);
+            } else {
+                bouton.set_hover(false);
+            }
+            bouton.draw(self.font.clone()).await;
+        }
+        //self.draw_buttons(font.clone()).await;
+        //self.draw_solve(font.clone()).await;
+        //self.draw_chooser(font.clone()).await;
     }
 }

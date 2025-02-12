@@ -23,11 +23,11 @@ async fn main() {
     let mut sudoku = Sudoku::parse_file("sudoku-3-facile-1.txt").unwrap();
     println!("{}", sudoku);
     // sudoku.display_possibilities();
-    let mut sudoku_display = SudokuDisplay::new(&mut sudoku);
-
     let font = load_ttf_font("./res/font/RobotoMono-Thin.ttf")
         .await
         .unwrap();
+    let mut sudoku_display = SudokuDisplay::new(&mut sudoku, font.clone());
+
     // let temps = time::Duration::from_millis(100);
 
     loop {
