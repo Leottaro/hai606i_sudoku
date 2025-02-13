@@ -4,7 +4,7 @@ pub mod display;
 pub mod rules;
 pub mod sudoku;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum SudokuGroups {
     ROW,
     COLUMN,

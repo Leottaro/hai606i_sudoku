@@ -1,4 +1,7 @@
-use super::{Sudoku, SudokuGroups::*};
+use super::{
+    Sudoku,
+    SudokuGroups::{self, *},
+};
 #[cfg(debug_assertions)]
 use log::debug;
 use std::{
@@ -22,6 +25,31 @@ impl Sudoku {
     }
     pub fn get_possibility_board(&self) -> Vec<Vec<HashSet<usize>>> {
         self.possibility_board.clone()
+    }
+
+    pub fn get_groups(&self, groups: SudokuGroups) -> Vec<HashSet<(usize, usize)>> {
+        self.groups.get(&groups).unwrap().to_owned()
+    }
+
+    pub fn get_cell_group(
+        &self,
+        x: usize,
+        y: usize,
+        groups: SudokuGroups,
+    ) -> HashSet<(usize, usize)> {
+        self.cell_groups.get(&(x, y, groups)).unwrap().to_owned()
+    }
+
+    pub fn get_cell_groups(
+        &self,
+        x: usize,
+        y: usize,
+        groups: Vec<SudokuGroups>,
+    ) -> Vec<HashSet<(usize, usize)>> {
+        groups
+            .iter()
+            .map(|&group| self.get_cell_group(x, y, group))
+            .collect()
     }
 
     pub fn fix_value(&mut self, x: usize, y: usize, value: usize) {
@@ -50,92 +78,6 @@ impl Sudoku {
         strong_links
     }
 
-    // GLOBAL FUNCTIONS
-
-    pub fn get_rows(n: usize) -> Vec<HashSet<(usize, usize)>> {
-        let mut lines = Vec::new();
-        for y in 0..n * n {
-            let mut line = HashSet::new();
-            for x in 0..n * n {
-                line.insert((x, y));
-            }
-            lines.push(line);
-        }
-        lines
-    }
-
-    pub fn get_cols(n: usize) -> Vec<HashSet<(usize, usize)>> {
-        let mut lines = Vec::new();
-        for x in 0..n * n {
-            let mut line = HashSet::new();
-            for y in 0..n * n {
-                line.insert((x, y));
-            }
-            lines.push(line);
-        }
-        lines
-    }
-
-    pub fn get_squares(n: usize) -> Vec<HashSet<(usize, usize)>> {
-        let mut squares = Vec::new();
-        for y0 in (0..n * n).step_by(n) {
-            for x0 in (0..n * n).step_by(n) {
-                let mut square = HashSet::new();
-                for j in 0..n {
-                    for i in 0..n {
-                        square.insert((x0 + i, y0 + j));
-                    }
-                }
-                squares.push(square);
-            }
-        }
-        squares
-    }
-
-    pub fn get_groups(n: usize) -> Vec<HashSet<(usize, usize)>> {
-        let mut groups = Vec::new();
-        groups.extend(Sudoku::get_rows(n));
-        groups.extend(Sudoku::get_cols(n));
-        groups.extend(Sudoku::get_squares(n));
-        groups
-    }
-
-    pub fn get_cell_row(n: usize, y: usize) -> HashSet<(usize, usize)> {
-        let mut line = HashSet::new();
-        for x in 0..n * n {
-            line.insert((x, y));
-        }
-        line
-    }
-
-    pub fn get_cell_col(n: usize, x: usize) -> HashSet<(usize, usize)> {
-        let mut line = HashSet::new();
-        for y in 0..n * n {
-            line.insert((x, y));
-        }
-        line
-    }
-
-    pub fn get_cell_square(n: usize, x: usize, y: usize) -> HashSet<(usize, usize)> {
-        let mut square = HashSet::new();
-        let x0 = x - x % n;
-        let y0 = y - y % n;
-        for i in 0..n {
-            for j in 0..n {
-                square.insert((x0 + i, y0 + j));
-            }
-        }
-        square
-    }
-
-    pub fn get_cell_groups(n: usize, x: usize, y: usize) -> Vec<HashSet<(usize, usize)>> {
-        vec![
-            Sudoku::get_cell_row(n, y),
-            Sudoku::get_cell_col(n, x),
-            Sudoku::get_cell_square(n, x, y),
-        ]
-    }
-
     // CREATION
 
     pub fn new(n: usize) -> Self {
@@ -143,37 +85,58 @@ impl Sudoku {
         let board = vec![vec![0; n2]; n2];
         let possibility_board = vec![vec![(1..=n2).collect(); n2]; n2];
 
-        let mut groups = HashMap::new();
-        let rows = Sudoku::get_rows(n);
-        let columns = Sudoku::get_cols(n);
-        let squares = Sudoku::get_squares(n);
+        let mut rows = Vec::new();
+        let mut cols = Vec::new();
+        for i in 0..n2 {
+            let mut row = HashSet::new();
+            let mut col = HashSet::new();
+            for j in 0..n2 {
+                row.insert((j, i));
+                col.insert((i, j));
+            }
+            rows.push(row);
+            cols.push(col);
+        }
         let mut lines = rows.clone();
-        lines.extend(columns.clone());
+        lines.extend(cols.clone());
+
+        let mut squares = Vec::new();
+        for y0 in 0..n {
+            for x0 in 0..n {
+                let mut square = HashSet::new();
+                for dy in 0..n {
+                    for dx in 0..n {
+                        square.insert((x0 * n + dx, y0 * n + dy));
+                    }
+                }
+                squares.push(square);
+            }
+        }
         let mut all = lines.clone();
         all.extend(squares.clone());
-        groups.insert(ROW, rows);
-        groups.insert(COLUMN, columns);
-        groups.insert(LINES, lines);
-        groups.insert(SQUARE, squares);
-        groups.insert(ALL, all);
 
         let mut cell_groups = HashMap::new();
         for y in 0..n2 {
             for x in 0..n2 {
-                let rows = Sudoku::get_cell_row(n, y);
-                let columns = Sudoku::get_cell_col(n, x);
-                let squares = Sudoku::get_cell_square(n, x, y);
-                let mut lines = rows.clone();
-                lines.extend(columns.clone());
-                let mut all = lines.clone();
-                all.extend(squares.clone());
-                cell_groups.insert((x, y, ROW), rows);
-                cell_groups.insert((x, y, COLUMN), columns);
+                let row = rows[y].clone();
+                let col = cols[x].clone();
+                let square = squares[(y / n) * n + (x / n)].clone();
+                let lines = row.union(&col).cloned().collect::<HashSet<_>>();
+                let all = lines.union(&square).cloned().collect::<HashSet<_>>();
+                cell_groups.insert((x, y, ROW), row);
+                cell_groups.insert((x, y, COLUMN), col);
+                cell_groups.insert((x, y, SQUARE), square);
                 cell_groups.insert((x, y, LINES), lines);
-                cell_groups.insert((x, y, SQUARE), squares);
                 cell_groups.insert((x, y, ALL), all);
             }
         }
+
+        let mut groups = HashMap::new();
+        groups.insert(ROW, rows);
+        groups.insert(COLUMN, cols);
+        groups.insert(LINES, lines);
+        groups.insert(SQUARE, squares);
+        groups.insert(ALL, all);
 
         Self {
             n,
@@ -307,8 +270,7 @@ impl Sudoku {
         }
 
         let possible_values = self.possibility_board[y][x].clone();
-        let cell_group: HashSet<(usize, usize)> =
-            self.cell_groups.get(&(x, y, ALL)).unwrap().clone();
+        let cell_group: HashSet<(usize, usize)> = self.get_cell_group(x, y, ALL).clone();
         self.possibility_board[y][x].clear();
         for value in possible_values.clone().into_iter() {
             self.board[y][x] = value;

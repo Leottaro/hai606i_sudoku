@@ -241,8 +241,8 @@ impl<'a> SudokuDisplay<'a> {
         }
 
         if let Some((x, y)) = self.selected_cell {
-            for (x, y) in self.sudoku.cell_groups.get(&(x, y, ALL)).unwrap() {
-                self.draw_cell(*x, *y, Color::from_hex(0xe4ebf2));
+            for (x, y) in self.sudoku.get_cell_group(x, y, ALL) {
+                self.draw_cell(x, y, Color::from_hex(0xe4ebf2));
             }
             self.draw_cell(x, y, Color::from_hex(0xc2ddf8));
         }
