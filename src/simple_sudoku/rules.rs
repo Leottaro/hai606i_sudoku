@@ -88,7 +88,7 @@ impl Sudoku {
         false
     }
 
-    /// règle 4: http://www.taupierbw.be/SudokuCoach/SC_NakedTriples.shtml
+    // règle 4: http://www.taupierbw.be/SudokuCoach/SC_NakedTriples.shtml
     pub(super) fn naked_triples(&mut self) -> bool {
         let mut modified = false;
         for group in self.groups.get(&ALL).unwrap() {
@@ -140,7 +140,7 @@ impl Sudoku {
         false
     }
 
-    /// règle 5: http://www.taupierbw.be/SudokuCoach/SC_HiddenPairs.shtml
+    // règle 5: http://www.taupierbw.be/SudokuCoach/SC_HiddenPairs.shtml
     pub(super) fn hidden_pairs(&mut self) -> bool {
         for group in self.groups.get(&ALL).unwrap() {
             for value1 in 1..self.n2 {
@@ -527,21 +527,38 @@ impl Sudoku {
         let mut modified = false;
         for value in 1..self.n2 {
             for i1 in 0..(self.n2 - 1) {
-                for i2 in (i1 + 1)..self.n2 {
-                    let mut picked_cells: Vec<(&str, (usize, usize))> = Vec::new();
+                let row1_positions: HashSet<usize> = (0..self.n2)
+                    .into_iter()
+                    .filter(|x| self.possibility_board[i1][*x].contains(&value))
+                    .collect();
+                let row1_pos = if row1_positions.len() == 2 {
+                    let row1_vec: Vec<&usize> = row1_positions.iter().collect();
+                    Some((row1_vec[0].clone(), row1_vec[1].clone()))
+                } else {
+                    None
+                };
 
-                    let row1_positions: HashSet<usize> = (0..self.n2)
-                        .into_iter()
-                        .filter(|x| self.possibility_board[i1][*x].contains(&value))
-                        .collect();
+                let col1_positions: HashSet<usize> = (0..self.n2)
+                    .into_iter()
+                    .filter(|y| self.possibility_board[*y][i1].contains(&value))
+                    .collect();
+                let col1_pos: Option<(usize, usize)> = if col1_positions.len() == 2 {
+                    let col1_vec: Vec<&usize> = col1_positions.iter().collect();
+                    Some((col1_vec[0].clone(), col1_vec[1].clone()))
+                } else {
+                    None
+                };
+
+                for i2 in (i1 + 1)..self.n2 {
+                    let mut picked_cells: Vec<(bool, (usize, usize))> = Vec::new();
+
                     let row2_positions: HashSet<usize> = (0..self.n2)
                         .into_iter()
                         .filter(|x| self.possibility_board[i2][*x].contains(&value))
                         .collect();
 
-                    if row1_positions.len() == 2 && row1_positions == row2_positions {
-                        let row1_vec: Vec<usize> = row1_positions.into_iter().collect();
-                        let (x1, x2) = (row1_vec[0], row1_vec[1]);
+                    if row1_pos.is_some() && row2_positions == row1_positions {
+                        let (x1, x2) = row1_pos.unwrap();
 
                         let col1 = self.get_cell_group(x1, i1, COLUMN);
                         let col2 = self.get_cell_group(x2, i1, COLUMN);
@@ -549,22 +566,17 @@ impl Sudoku {
                             if y == i1 || y == i2 {
                                 continue;
                             }
-                            picked_cells.push(("rows", (x, y)));
+                            picked_cells.push((true, (x, y)));
                         }
                     }
 
-                    let col1_positions: HashSet<usize> = (0..self.n2)
-                        .into_iter()
-                        .filter(|y| self.possibility_board[*y][i1].contains(&value))
-                        .collect();
                     let col2_positions: HashSet<usize> = (0..self.n2)
                         .into_iter()
                         .filter(|y| self.possibility_board[*y][i2].contains(&value))
                         .collect();
 
-                    if col1_positions.len() == 2 && col1_positions == col2_positions {
-                        let col1_vec: Vec<usize> = col1_positions.into_iter().collect();
-                        let (y1, y2) = (col1_vec[0], col1_vec[1]);
+                    if col1_pos.is_some() && col1_positions == col2_positions {
+                        let (y1, y2) = col1_pos.unwrap();
 
                         let row1 = self.get_cell_group(i1, y1, ROW);
                         let row2 = self.get_cell_group(i1, y2, ROW);
@@ -572,13 +584,13 @@ impl Sudoku {
                             if x == i1 || x == i2 {
                                 continue;
                             }
-                            picked_cells.push(("cols", (x, y)));
+                            picked_cells.push((false, (x, y)));
                         }
                     }
 
                     for (_is_row, (x, y)) in picked_cells {
                         if self.possibility_board[y][x].remove(&value) {
-                            debug_only!("{_is_row} {i1} and {i2}: possibilitée {value} supprimée de x: {x}, y: {y}");
+                            debug_only!("{} {i1} and {i2}: possibilitée {value} supprimée de x: {x}, y: {y}", if _is_row {"rows"} else {"cols"});
                             modified = true;
                         }
                     }
@@ -597,16 +609,22 @@ impl Sudoku {
         let mut modified = false;
         for value in 1..self.n2 {
             for i1 in 0..(self.n2 - 1) {
+                let row1_positions: HashSet<usize> = (0..self.n2)
+                    .into_iter()
+                    .filter(|x| self.possibility_board[i1][*x].contains(&value))
+                    .collect();
+
+                let col1_positions: HashSet<usize> = (0..self.n2)
+                    .into_iter()
+                    .filter(|y| self.possibility_board[*y][i1].contains(&value))
+                    .collect();
+
                 for i2 in (i1 + 1)..self.n2 {
                     if i1 / self.n == i2 / self.n {
                         continue;
                     }
-                    let mut picked_cells: Vec<(&str, (usize, usize), (usize, usize))> = Vec::new();
+                    let mut picked_cells: Vec<(bool, (usize, usize), (usize, usize))> = Vec::new();
 
-                    let row1_positions: HashSet<usize> = (0..self.n2)
-                        .into_iter()
-                        .filter(|x| self.possibility_board[i1][*x].contains(&value))
-                        .collect();
                     let row2_positions: HashSet<usize> = (0..self.n2)
                         .into_iter()
                         .filter(|x| self.possibility_board[i2][*x].contains(&value))
@@ -629,16 +647,12 @@ impl Sudoku {
                         let smaller_vec: Vec<usize> = smaller_row.iter().cloned().collect();
                         let (x1, x2) = (smaller_vec[0], smaller_vec[1]);
                         if fin / self.n == x1 / self.n {
-                            picked_cells.push(("rows", (x1, fin_i), (*fin, fin_i)));
+                            picked_cells.push((true, (x1, fin_i), (*fin, fin_i)));
                         } else if fin / self.n == x2 / self.n {
-                            picked_cells.push(("rows", (x2, fin_i), (*fin, fin_i)));
+                            picked_cells.push((true, (x2, fin_i), (*fin, fin_i)));
                         }
                     }
 
-                    let col1_positions: HashSet<usize> = (0..self.n2)
-                        .into_iter()
-                        .filter(|y| self.possibility_board[*y][i1].contains(&value))
-                        .collect();
                     let col2_positions: HashSet<usize> = (0..self.n2)
                         .into_iter()
                         .filter(|y| self.possibility_board[*y][i2].contains(&value))
@@ -661,26 +675,24 @@ impl Sudoku {
                         let smaller_vec: Vec<usize> = smaller_col.iter().cloned().collect();
                         let (y1, y2) = (smaller_vec[0], smaller_vec[1]);
                         if fin / self.n == y1 / self.n {
-                            picked_cells.push(("cols", (fin_i, y1), (fin_i, *fin)));
+                            picked_cells.push((false, (fin_i, y1), (fin_i, *fin)));
                         } else if fin / self.n == y2 / self.n {
-                            picked_cells.push(("cols", (fin_i, y2), (fin_i, *fin)));
+                            picked_cells.push((false, (fin_i, y2), (fin_i, *fin)));
                         }
                     }
 
                     for (_is_row, (x1, y1), (fin_x, fin_y)) in picked_cells {
-                        let removed_cells: Vec<&(usize, usize)> = self
-                            .cell_groups
-                            .get(&(fin_x, fin_y, SQUARE))
-                            .unwrap()
+                        let removed_cells: Vec<(usize, usize)> = self
+                            .get_cell_group(fin_x, fin_y, SQUARE)
                             .into_iter()
                             .filter(|(x, y)| {
                                 (y1 == fin_y && *x == x1 && *y != y1)
                                     || (x1 == fin_x && *x != x1 && *y == y1)
                             })
                             .collect();
-                        for &(x, y) in removed_cells {
+                        for (x, y) in removed_cells {
                             if self.possibility_board[y][x].remove(&value) {
-                                debug_only!("{_is_row} {i1} and {i2}: possibilitée {value} supprimée de x: {x}, y: {y}");
+                                debug_only!("{} {i1} and {i2}: possibilitée {value} supprimée de x: {x}, y: {y}", if _is_row {"rows"} else {"cols"});
                                 modified = true;
                             }
                         }
@@ -775,9 +787,9 @@ impl Sudoku {
         false
     }
 
-    // règle 15: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedXWing.shtml
-    pub(super) fn finned_mutant_x_xing(&mut self) -> bool {
-        warn!("sashimi_finned_x_wing isn't implemented yet");
+    // règle 15: https://www.taupierbw.be/SudokuCoach/SC_FinnedMutantXWing.shtml
+    pub(super) fn finned_mutant_x_wing(&mut self) -> bool {
+        warn!("finned_mutant_x_wing not yet implemented");
         false
     }
 
@@ -786,45 +798,55 @@ impl Sudoku {
         let mut modified = false;
         for value in 1..=self.n2 {
             for i1 in 0..(self.n2 - 1) {
+                let row1_positions: Vec<usize> = (0..self.n2)
+                    .into_iter()
+                    .filter(|x| self.possibility_board[i1][*x].contains(&value))
+                    .collect();
+                let row1_pos = if row1_positions.len() == 2 {
+                    Some((row1_positions[0].clone(), row1_positions[1].clone()))
+                } else {
+                    None
+                };
+
+                let col1_positions: Vec<usize> = (0..self.n2)
+                    .into_iter()
+                    .filter(|y| self.possibility_board[*y][i1].contains(&value))
+                    .collect();
+                let col1_pos = if col1_positions.len() == 2 {
+                    Some((col1_positions[0].clone(), col1_positions[1].clone()))
+                } else {
+                    None
+                };
+
                 for i2 in (i1 + 1)..self.n2 {
                     // i1 and i2 represents rows or columns
-                    let mut picked_cells: Vec<(&str, (usize, usize), (usize, usize))> = Vec::new();
+                    let mut picked_cells: Vec<(bool, (usize, usize), (usize, usize))> = Vec::new();
 
-                    let row1_positions: Vec<usize> = (0..self.n2)
-                        .into_iter()
-                        .filter(|x| self.possibility_board[i1][*x].contains(&value))
-                        .collect();
                     let row2_positions: Vec<usize> = (0..self.n2)
                         .into_iter()
                         .filter(|x| self.possibility_board[i2][*x].contains(&value))
                         .collect();
-                    if row1_positions.len() == 2 && row2_positions.len() == 2 {
-                        let x11 = row1_positions[0];
-                        let x12 = row1_positions[1];
+                    if row1_pos.is_some() && row2_positions.len() == 2 {
+                        let (x11, x12) = row1_pos.unwrap();
                         let x21 = row2_positions[0];
                         let x22 = row2_positions[1];
                         if x11 == x21 || x12 == x22 {
                             let (x1, x2) = if x11 == x21 { (x12, x22) } else { (x11, x21) };
-                            picked_cells.push(("rows", (x1, i1), (x2, i2)));
+                            picked_cells.push((true, (x1, i1), (x2, i2)));
                         }
                     }
 
-                    let col1_positions: Vec<usize> = (0..self.n2)
-                        .into_iter()
-                        .filter(|y| self.possibility_board[*y][i1].contains(&value))
-                        .collect();
                     let col2_positions: Vec<usize> = (0..self.n2)
                         .into_iter()
                         .filter(|y| self.possibility_board[*y][i2].contains(&value))
                         .collect();
-                    if col1_positions.len() == 2 && col2_positions.len() == 2 {
-                        let y11 = col1_positions[0];
-                        let y12 = col1_positions[1];
+                    if col1_pos.is_some() && col2_positions.len() == 2 {
+                        let (y11, y12) = col1_pos.unwrap();
                         let y21 = col2_positions[0];
                         let y22 = col2_positions[1];
                         if y11 == y21 || y12 == y22 {
                             let (y1, y2) = if y11 == y21 { (y12, y22) } else { (y11, y21) };
-                            picked_cells.push(("cols", (i1, y1), (i2, y2)));
+                            picked_cells.push((false, (i1, y1), (i2, y2)));
                         }
                     }
 
@@ -840,7 +862,7 @@ impl Sudoku {
                             }
 
                             if self.possibility_board[y][x].remove(&value) {
-                                debug_only!("{_is_row} {i1} and {i2}: {x1},{y1} et {x2},{y2}: possibilitée {value} supprimée de x: {x}, y: {y}");
+                                debug_only!("{} {i1} and {i2}: {x1},{y1} et {x2},{y2}: possibilitée {value} supprimée de x: {x}, y: {y}", if _is_row {"rows"} else {"cols"});
                                 modified = true;
                             }
                         }
@@ -1112,7 +1134,109 @@ impl Sudoku {
 
     // règle 20: http://www.taupierbw.be/SudokuCoach/SC_Swordfish.shtml
     pub(super) fn swordfish(&mut self) -> bool {
-        warn!("swordfish isn't implemented yet");
+        let mut modified = false;
+        for value in 1..=self.n2 {
+            for i1 in 0..(self.n2 - 1) {
+                let row1_positions: HashSet<usize> = (0..self.n2)
+                    .into_iter()
+                    .filter(|x| self.possibility_board[i1][*x].contains(&value))
+                    .collect();
+                let col1_positions: HashSet<usize> = (0..self.n2)
+                    .into_iter()
+                    .filter(|y| self.possibility_board[*y][i1].contains(&value))
+                    .collect();
+                for i2 in (i1 + 1)..self.n2 {
+                    let row2_positions: HashSet<usize> = (0..self.n2)
+                        .into_iter()
+                        .filter(|x| self.possibility_board[i2][*x].contains(&value))
+                        .collect();
+                    let col2_positions: HashSet<usize> = (0..self.n2)
+                        .into_iter()
+                        .filter(|y| self.possibility_board[*y][i2].contains(&value))
+                        .collect();
+                    for i3 in (i2 + 1)..self.n2 {
+                        let row3_positions: HashSet<usize> = (0..self.n2)
+                            .into_iter()
+                            .filter(|x| self.possibility_board[i3][*x].contains(&value))
+                            .collect();
+                        let col3_positions: HashSet<usize> = (0..self.n2)
+                            .into_iter()
+                            .filter(|y| self.possibility_board[*y][i3].contains(&value))
+                            .collect();
+
+                        // i1, i2 and i3 represents rows or columns
+                        let mut picked_cells: Vec<(bool, usize, usize, usize)> = Vec::new();
+
+                        if (row1_positions.len() == 3 || row1_positions.len() == 2)
+                            && (row2_positions.len() == 3 || row2_positions.len() == 2)
+                            && (row3_positions.len() == 3 || row3_positions.len() == 2)
+                        {
+                            let total_positions: HashSet<usize> = row1_positions
+                                .union(&row2_positions)
+                                .chain(&row3_positions)
+                                .cloned()
+                                .collect();
+                            if total_positions.len() == 3 {
+                                let val: Vec<usize> = total_positions.into_iter().collect();
+                                picked_cells.push((true, val[0], val[1], val[2]));
+                            }
+                        }
+
+                        if (col1_positions.len() == 3 || col1_positions.len() == 2)
+                            && (col2_positions.len() == 3 || col2_positions.len() == 2)
+                            && (col3_positions.len() == 3 || col3_positions.len() == 2)
+                        {
+                            let total_positions: HashSet<usize> = col1_positions
+                                .union(&col2_positions)
+                                .chain(&col3_positions)
+                                .cloned()
+                                .collect();
+                            if total_positions.len() == 3 {
+                                let val: Vec<usize> = total_positions.into_iter().collect();
+                                picked_cells.push((false, val[0], val[1], val[2]));
+                            }
+                        }
+
+                        for (_is_row, j1, j2, j3) in picked_cells {
+                            let mut common_cells: HashSet<&(usize, usize)>;
+                            let cell_groupe1: HashSet<(usize, usize)>;
+                            let cell_groupe2: HashSet<(usize, usize)>;
+                            let cell_groupe3: HashSet<(usize, usize)>;
+                            if _is_row {
+                                cell_groupe1 = self.get_cell_group(j1, i1, COLUMN);
+                                cell_groupe2 = self.get_cell_group(j2, i2, COLUMN);
+                                cell_groupe3 = self.get_cell_group(j3, i3, COLUMN);
+                                common_cells = cell_groupe1
+                                    .union(&cell_groupe2)
+                                    .chain(&cell_groupe3)
+                                    .collect();
+                                common_cells.retain(|&&(_, y)| y != i1 && y != i2 && y != i3);
+                            } else {
+                                cell_groupe1 = self.get_cell_group(i1, j1, ROW);
+                                cell_groupe2 = self.get_cell_group(i2, j2, ROW);
+                                cell_groupe3 = self.get_cell_group(i3, j3, ROW);
+                                common_cells = cell_groupe1
+                                    .union(&cell_groupe2)
+                                    .chain(&cell_groupe3)
+                                    .collect();
+                                common_cells.retain(|&&(x, _)| x != i1 && x != i2 && x != i3);
+                            }
+
+                            for &(x, y) in common_cells {
+                                if self.possibility_board[y][x].remove(&value) {
+                                    debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}");
+                                    modified = true;
+                                }
+                            }
+
+                            if modified {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
         false
     }
 
@@ -1128,14 +1252,49 @@ impl Sudoku {
         false
     }
 
-    // règle 23: http://www.taupierbw.be/SudokuCoach/SC_XYZWing.shtml
-    pub(super) fn xyz_wing(&mut self) -> bool {
-        warn!("xyz_wing isn't implemented yet");
-
+    // règle 23: https://www.taupierbw.be/SudokuCoach/SC_FrankenSwordfish.shtml
+    pub(super) fn franken_swordfish(&mut self) -> bool {
+        warn!("franken_swordfish not yet implemented");
         false
     }
 
-    // règle 24: http://www.taupierbw.be/SudokuCoach/SC_BUG.shtml
+    // règle 24: https://www.taupierbw.be/SudokuCoach/SC_MutantSwordfish.shtml
+    pub(super) fn mutant_swordfish(&mut self) -> bool {
+        warn!("mutant_swordfish not yet implemented");
+        false
+    }
+
+    // règle 25: https://www.taupierbw.be/SudokuCoach/SC_FinnedMutantSwordfish.shtml
+    pub(super) fn finned_mutant_swordfish(&mut self) -> bool {
+        warn!("finned_mutant_swordfish not yet implemented");
+        false
+    }
+
+    // règle 26: https://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedMutantSwordfish.shtml
+    pub(super) fn sashimi_finned_mutant_swordfish(&mut self) -> bool {
+        warn!("sashimi_finned_mutant_swordfish not yet implemented");
+        false
+    }
+
+    // règle 27: https://www.taupierbw.be/SudokuCoach/SC_Suedecoq.shtml
+    pub(super) fn sue_de_coq(&mut self) -> bool {
+        warn!("sue_de_coq not yet implemented");
+        false
+    }
+
+    // règle 28: http://www.taupierbw.be/SudokuCoach/SC_XYZWing.shtml
+    pub(super) fn xyz_wing(&mut self) -> bool {
+        warn!("xyz_wing isn't implemented yet");
+        false
+    }
+
+    // règle 29: https://www.taupierbw.be/SudokuCoach/SC_XCycle.shtml
+    pub(super) fn x_cycle(&mut self) -> bool {
+        warn!("x_cycle not yet implemented");
+        false
+    }
+
+    // règle 30: http://www.taupierbw.be/SudokuCoach/SC_BUG.shtml
     pub(super) fn bi_value_universal_grave(&mut self) -> bool {
         let mut unique_triple: Option<(usize, usize)> = None;
         for y in 0..self.n2 {
@@ -1183,80 +1342,153 @@ impl Sudoku {
         return true;
     }
 
-    // règle 25: http://www.taupierbw.be/SudokuCoach/SC_XYChain.shtml
+    // règle 31: http://www.taupierbw.be/SudokuCoach/SC_XYChain.shtml
     pub(super) fn xy_chain(&mut self) -> bool {
         warn!("xy_chain isn't implemented yet");
-
         false
     }
 
-    // règle 26: http://www.taupierbw.be/SudokuCoach/SC_Jellyfish.shtml
+    // règle 32: https://www.taupierbw.be/SudokuCoach/SC_Medusa.shtml
+    pub(super) fn three_d_medusa(&mut self) -> bool {
+        warn!("three_d_medusa not yet implemented");
+        false
+    }
+
+    // règle 33: http://www.taupierbw.be/SudokuCoach/SC_Jellyfish.shtml
     pub(super) fn jellyfish(&mut self) -> bool {
         warn!("jellyfish isn't implemented yet");
-
         false
     }
 
-    // règle 27: http://www.taupierbw.be/SudokuCoach/SC_FinnedJellyfish.shtml
+    // règle 34: http://www.taupierbw.be/SudokuCoach/SC_FinnedJellyfish.shtml
     pub(super) fn finned_jellyfish(&mut self) -> bool {
         warn!("finned_jellyfish isn't implemented yet");
-
         false
     }
 
-    // règle 28: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedJellyfish.shtml
+    // règle 35: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedJellyfish.shtml
     pub(super) fn sashimi_finned_jellyfish(&mut self) -> bool {
         warn!("sashimi_finned_jellyfish isn't implemented yet");
-
         false
     }
 
-    // règle 29: http://www.taupierbw.be/SudokuCoach/SC_WXYZWing.shtml
+    // règle 36: https://www.taupierbw.be/SudokuCoach/SC_AvoidableRectangle.shtml
+    pub(super) fn avoidable_rectangle(&mut self) -> bool {
+        warn!("avoidable_rectangle not yet implemented");
+        false
+    }
+
+    // règle 37: https://www.taupierbw.be/SudokuCoach/SC_UniqueRectangle.shtml
+    pub(super) fn unique_rectangle(&mut self) -> bool {
+        warn!("unique_rectangle not yet implemented");
+        false
+    }
+
+    // règle 38: https://www.taupierbw.be/SudokuCoach/SC_HiddenUniqueRectangle.shtml
+    pub(super) fn hidden_unique_rectangle(&mut self) -> bool {
+        warn!("hidden_unique_rectangle not yet implemented");
+        false
+    }
+
+    // règle 39: http://www.taupierbw.be/SudokuCoach/SC_WXYZWing.shtml
     pub(super) fn wxyz_wing(&mut self) -> bool {
         warn!("wxyz_wing isn't implemented yet");
-
         false
     }
 
-    // règle 30: http://www.taupierbw.be/SudokuCoach/SC_APE.shtml
+    // règle 40: https://www.taupierbw.be/SudokuCoach/SC_Firework.shtml
+    pub(super) fn firework(&mut self) -> bool {
+        warn!("firework not yet implemented");
+        false
+    }
+
+    // règle 41: http://www.taupierbw.be/SudokuCoach/SC_APE.shtml
     pub(super) fn subset_exclusion(&mut self) -> bool {
         warn!("subset_exclusion isn't implemented yet");
-
         false
     }
 
-    // règle 31: http://www.taupierbw.be/SudokuCoach/SC_EmptyRectangle.shtml
+    // règle 42: http://www.taupierbw.be/SudokuCoach/SC_EmptyRectangle.shtml
     pub(super) fn empty_rectangle(&mut self) -> bool {
         warn!("empty_rectangle isn't implemented yet");
-
         false
     }
 
-    // règle 32: http://www.taupierbw.be/SudokuCoach/SC_ALSchain.shtml
+    // règle 43: https://www.taupierbw.be/SudokuCoach/SC_SuedecoqExtended.shtml
+    pub(super) fn sue_de_coq_extended(&mut self) -> bool {
+        warn!("sue_de_coq_extended not yet implemented");
+        false
+    }
+
+    // règle 44: https://www.taupierbw.be/SudokuCoach/SC_SKLoop.shtml
+    pub(super) fn sk_loop(&mut self) -> bool {
+        warn!("sk_loop not yet implemented");
+        false
+    }
+
+    // règle 45: https://www.taupierbw.be/SudokuCoach/SC_Exocet.shtml
+    pub(super) fn exocet(&mut self) -> bool {
+        warn!("exocet not yet implemented");
+        false
+    }
+
+    // règle 46: https://www.taupierbw.be/SudokuCoach/SC_ALS.shtml
+    pub(super) fn almost_locked_sets(&mut self) -> bool {
+        warn!("almost_locked_sets not yet implemented");
+        false
+    }
+
+    // règle 47: https://www.taupierbw.be/SudokuCoach/SC_AIC.shtml
+    pub(super) fn alternating_inference_chain(&mut self) -> bool {
+        warn!("alternating_inference_chain not yet implemented");
+        false
+    }
+
+    // règle 48: https://www.taupierbw.be/SudokuCoach/SC_DigitForcingChains.shtml
+    pub(super) fn digit_forcing_chains(&mut self) -> bool {
+        warn!("digit_forcing_chains not yet implemented");
+        false
+    }
+
+    // règle 49: https://www.taupierbw.be/SudokuCoach/SC_NishioForcingChains.shtml
+    pub(super) fn nishio_forcing_chains(&mut self) -> bool {
+        warn!("nishio_forcing_chains not yet implemented");
+        false
+    }
+
+    // règle 50: https://www.taupierbw.be/SudokuCoach/SC_CellForcingChains.shtml
+    pub(super) fn cell_forcing_chains(&mut self) -> bool {
+        warn!("cell_forcing_chains not yet implemented");
+        false
+    }
+
+    // règle 51: https://www.taupierbw.be/SudokuCoach/SC_UnitForcingChains.shtml
+    pub(super) fn unit_forcing_chains(&mut self) -> bool {
+        warn!("unit_forcing_chains not yet implemented");
+        false
+    }
+
+    // règle 52: http://www.taupierbw.be/SudokuCoach/SC_ALSchain.shtml
     pub(super) fn almost_locked_set_forcing_chain(&mut self) -> bool {
         warn!("almost_locked_set_forcing_chain isn't implemented yet");
-
         false
     }
 
-    // règle 33: http://www.taupierbw.be/SudokuCoach/SC_DeathBlossom.shtml
+    // règle 53: http://www.taupierbw.be/SudokuCoach/SC_DeathBlossom.shtml
     pub(super) fn death_blossom(&mut self) -> bool {
         warn!("death_blossom isn't implemented yet");
-
         false
     }
 
-    // règle 34: http://www.taupierbw.be/SudokuCoach/SC_PatternOverlay.shtml
+    // règle 54: http://www.taupierbw.be/SudokuCoach/SC_PatternOverlay.shtml
     pub(super) fn pattern_overlay(&mut self) -> bool {
         warn!("pattern_overlay isn't implemented yet");
-
         false
     }
 
-    // règle 35: http://www.taupierbw.be/SudokuCoach/SC_BowmanBingo.shtml
+    // règle 55: http://www.taupierbw.be/SudokuCoach/SC_BowmanBingo.shtml
     pub(super) fn bowmans_bingo(&mut self) -> bool {
         warn!("bowmans_bingo isn't implemented yet");
-
         false
     }
 }
