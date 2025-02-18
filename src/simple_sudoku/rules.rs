@@ -1115,7 +1115,7 @@ impl Sudoku {
                             for (x3, y3) in picked_cells {
                                 if self.possibility_board[y3][x3].remove(&value2) {
                                     debug_only!(
-                                        "possibilitée {value2} supprimée de x: {x3}, y: {y3}"
+                                        "({x},{y}) ({x1},{y1}) ({x2},{y2}) ({x3},{y3}) possibilitée {value2} supprimée de x: {x3}, y: {y3}"
                                     );
                                     modified = true;
                                 }
@@ -1242,7 +1242,148 @@ impl Sudoku {
 
     // règle 21: http://www.taupierbw.be/SudokuCoach/SC_FinnedSwordfish.shtml
     pub(super) fn finned_swordfish(&mut self) -> bool {
-        warn!("finned_swordfish isn't implemented yet");
+        let mut modified = false;
+        for value in 1..=self.n2 {
+            for i1 in 0..(self.n2 - 1) {
+                let row1_positions: HashSet<usize> = (0..self.n2)
+                    .into_iter()
+                    .filter(|x| self.possibility_board[i1][*x].contains(&value))
+                    .collect();
+                let col1_positions: HashSet<usize> = (0..self.n2)
+                    .into_iter()
+                    .filter(|y| self.possibility_board[*y][i1].contains(&value))
+                    .collect();
+                for i2 in (i1 + 1)..self.n2 {
+                    let row2_positions: HashSet<usize> = (0..self.n2)
+                        .into_iter()
+                        .filter(|x| self.possibility_board[i2][*x].contains(&value))
+                        .collect();
+                    let col2_positions: HashSet<usize> = (0..self.n2)
+                        .into_iter()
+                        .filter(|y| self.possibility_board[*y][i2].contains(&value))
+                        .collect();
+                    for i3 in (i2 + 1)..self.n2 {
+                        let row3_positions: HashSet<usize> = (0..self.n2)
+                            .into_iter()
+                            .filter(|x| self.possibility_board[i3][*x].contains(&value))
+                            .collect();
+                        let col3_positions: HashSet<usize> = (0..self.n2)
+                            .into_iter()
+                            .filter(|y| self.possibility_board[*y][i3].contains(&value))
+                            .collect();
+
+                        // i1, i2 and i3 represents rows or columns
+                        let mut picked_cells: Vec<(bool, (usize, usize))> = Vec::new();
+
+                        if (2 <= row1_positions.len() && row1_positions.len() <= 3)
+                            && (2 <= row2_positions.len() && row2_positions.len() <= 3)
+                            && (2 <= row3_positions.len() && row3_positions.len() <= 3)
+                        {
+                            let total_positions: HashSet<usize> = row1_positions
+                                .union(&row2_positions)
+                                .chain(&row3_positions)
+                                .cloned()
+                                .collect();
+                            if total_positions.len() == 4 {
+                                let mut potential_fins = Vec::new();
+                                for &x in total_positions.iter() {
+                                    let contained_y: Vec<usize> = vec![i1, i2, i3]
+                                        .into_iter()
+                                        .filter(|&y| self.possibility_board[y][x].contains(&value))
+                                        .collect();
+                                    if contained_y.len() == 1 {
+                                        potential_fins.push((x, contained_y[0]));
+                                    }
+                                }
+
+                                if potential_fins.len() == 1 {
+                                    let (fin_x, fin_y) = potential_fins[0];
+                                    for x in total_positions.into_iter() {
+                                        if x != fin_x
+                                            && x / self.n == fin_x / self.n
+                                            && self.possibility_board[fin_y][x].contains(&value)
+                                        {
+                                            debug_only!("rows i1:{i1}, i2:{i2}, i3:{i3}: fin:{fin_x},{fin_y} picked:{x},{fin_y}");
+                                            picked_cells.push((true, (x, fin_y)));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (2 <= col1_positions.len() && col1_positions.len() <= 3)
+                            && (2 <= col2_positions.len() && col2_positions.len() <= 3)
+                            && (2 <= col3_positions.len() && col3_positions.len() <= 3)
+                        {
+                            let total_positions: HashSet<usize> = col1_positions
+                                .union(&col2_positions)
+                                .chain(&col3_positions)
+                                .cloned()
+                                .collect();
+                            if total_positions.len() == 4 {
+                                let mut potential_fins = Vec::new();
+                                for &y in total_positions.iter() {
+                                    let contained_x: Vec<usize> = vec![i1, i2, i3]
+                                        .into_iter()
+                                        .filter(|&x| self.possibility_board[y][x].contains(&value))
+                                        .collect();
+                                    if contained_x.len() == 1 {
+                                        potential_fins.push((contained_x[0], y));
+                                    }
+                                }
+
+                                if potential_fins.len() == 1 {
+                                    let (fin_x, fin_y) = potential_fins[0];
+                                    for y in total_positions.into_iter() {
+                                        if y != fin_y
+                                            && y / self.n == fin_y / self.n
+                                            && self.possibility_board[y][fin_x].contains(&value)
+                                        {
+                                            debug_only!("cols i1:{i1}, i2:{i2}, i3:{i3}: fin:{fin_x},{fin_y} picked:{fin_x},{y}");
+                                            picked_cells.push((false, (y, fin_x)));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        for (is_row, data) in picked_cells {
+                            if is_row {
+                                let (finned_cell_x, finned_cell_y) = data;
+                                let square_y = finned_cell_y - finned_cell_y % self.n;
+                                for dy in 0..self.n {
+                                    let y = square_y + dy;
+                                    if y == i1 || y == i2 || y == i3 {
+                                        continue;
+                                    }
+                                    if self.possibility_board[y][finned_cell_x].remove(&value) {
+                                        debug_only!("possibilitée {value} supprimée de x: {finned_cell_x}, y: {y}");
+                                        modified = true;
+                                    }
+                                }
+                            } else {
+                                let (finned_cell_y, finned_cell_x) = data;
+                                let square_x = finned_cell_x - finned_cell_x % self.n;
+                                for dx in 0..self.n {
+                                    let x = square_x + dx;
+                                    if x == i1 || x == i2 || x == i3 {
+                                        continue;
+                                    }
+                                    if self.possibility_board[finned_cell_y][x].remove(&value) {
+                                        debug_only!("possibilitée {value} supprimée de x: {x}, y: {finned_cell_y}");
+                                        modified = true;
+                                    }
+                                }
+                            }
+
+                            if modified {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
         false
     }
 
