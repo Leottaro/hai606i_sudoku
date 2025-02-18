@@ -50,10 +50,6 @@ impl Button {
         self.clicked
     }
 
-    pub fn text(&self) -> &str {
-        &self.text
-    }
-
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
