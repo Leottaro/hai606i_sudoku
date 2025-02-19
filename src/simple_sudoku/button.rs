@@ -76,7 +76,12 @@ impl Button {
         let hover_color = Color::from_hex(0xd0dbe7);
         let clicked_color = Color::from_hex(0xc2ddf8);
         let clicked_hovered_color = Color::from_hex(0x9ac5f8);
-        let blocked_color = Color::from_hex(0xababab);
+        let blocked_color = Color::from_hex(0x818294);
+        
+        let mut text_color = Color::from_hex(0x000000);
+        if !self.clickable {
+            text_color = Color::from_hex(0xffffff);
+        }
 
         let actual_color = if self.clickable {
             if self.clicked {
@@ -115,7 +120,7 @@ impl Button {
             TextParams {
                 font: Some(&font),
                 font_size: font_size,
-                color: Color::from_hex(0x000000),
+                color: text_color,
                 ..Default::default()
             },
         );

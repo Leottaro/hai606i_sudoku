@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 #[allow(dead_code)] // no warning due to unused functions
 impl<'a> SudokuDisplay<'a> {
-    pub fn new(sudoku: &'a mut Sudoku, font: Font) -> Self {
+    pub async fn new(sudoku: &'a mut Sudoku, font: Font) -> Self {
         let max_scale = screen_height();
         let scale_factor = 1.0;
         let grid_size = 900.0 * scale_factor;
@@ -22,6 +22,7 @@ impl<'a> SudokuDisplay<'a> {
         let mut button_list: Vec<Button> = Vec::new();
         let mut actions_boutons: HashMap<String, Rc<Box<dyn Fn(&mut SudokuDisplay) -> ()>>> =
             HashMap::new();
+        let background = load_texture("./res/bg/ow-bg.png").await.unwrap();
 
         // ================== Buttons ==================
         let choose_sizex = 150.0 * scale_factor;
@@ -303,6 +304,7 @@ impl<'a> SudokuDisplay<'a> {
             button_list,
             font,
             actions_boutons,
+            background,
         }
     }
 
@@ -458,7 +460,13 @@ impl<'a> SudokuDisplay<'a> {
         let x = ((mouse_x - self.x_offset) / self.pixel_per_cell).floor() as usize;
         let y = ((mouse_y - self.y_offset) / self.pixel_per_cell).floor() as usize;
 
+        //test bg
+
         clear_background(Color::from_hex(0xffffff));
+
+        
+        draw_texture(&self.background,0.,0.,WHITE);
+        
 
         //si on clique dans le sudoku
         let sudoku_x = mouse_x - self.x_offset;
