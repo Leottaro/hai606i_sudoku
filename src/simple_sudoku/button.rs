@@ -72,18 +72,24 @@ impl Button {
         let hover_color = Color::from_hex(0xd0dbe7);
         let clicked_color = Color::from_hex(0xc2ddf8);
         let clicked_hovered_color = Color::from_hex(0x9ac5f8);
+        let blocked_color = Color::from_hex(0xababab);
 
-        let actual_color = if self.clicked {
-            if self.hover {
-                clicked_hovered_color
+        let actual_color = if self.clickable{
+            if self.clicked {
+                if self.hover {
+                    clicked_hovered_color
+                } else {
+                    clicked_color
+                }
+            } else if self.hover {
+                hover_color
             } else {
-                clicked_color
+                color
             }
-        } else if self.hover {
-            hover_color
         } else {
-            color
+            blocked_color
         };
+        
         draw_rectangle(
             self.x * self.scale_factor,
             self.y * self.scale_factor,

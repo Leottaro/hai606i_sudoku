@@ -484,6 +484,7 @@ impl<'a> SudokuDisplay<'a> {
                     if self.mode == "play".to_string() {
                         pb = &self.player_pboard[y][x];
                     }
+                    
 
                     for n in pb {
                         for button in self.button_list.iter_mut(){
