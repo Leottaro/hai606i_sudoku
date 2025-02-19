@@ -19,6 +19,7 @@ impl Button {
             width,
             height,
             enabled,
+            clickable: true,
             text,
             clicked,
             hover: false,

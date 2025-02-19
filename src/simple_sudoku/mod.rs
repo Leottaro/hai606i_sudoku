@@ -38,6 +38,7 @@ pub struct Button {
     pub width: f32,
     pub height: f32,
     pub enabled: bool,
+    pub clickable: bool,
     pub text: String,
     pub clicked: bool,
     pub hover: bool,

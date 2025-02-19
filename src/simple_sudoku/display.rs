@@ -465,6 +465,7 @@ impl<'a> SudokuDisplay<'a> {
             && (sudoku_y as f32) < self.grid_size
             && (sudoku_y as f32) > 0.0
         {
+            println!("x : {}, y : {}", x, y);
             if is_mouse_button_pressed(MouseButton::Left) {
                 if self.selected_cell.is_some() && self.selected_cell.unwrap() == (x, y) {
                     self.selected_cell = None;
@@ -494,7 +495,8 @@ impl<'a> SudokuDisplay<'a> {
                     }
                 }
             }
-            self.draw_cell(x, y, Color::from_hex(0xf1f5f9));
+            // self.draw_cell(x, y, Color::from_hex(0xf1f5f9));
+            self.draw_cell(x, y, Color::from_hex(0xf00000));
         }
 
         if let Some((x, y)) = self.selected_cell {
