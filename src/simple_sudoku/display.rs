@@ -55,6 +55,13 @@ impl<'a> SudokuDisplay<'a> {
                     for button in sudoku_display.button_list.iter_mut() {
                         if button.text == i.to_string() {
                             button.set_enabled(true);
+                            if let Some((x, y)) = sudoku_display.selected_cell {
+                                if sudoku_display.player_pboard[y][x].contains(&i) {
+                                    button.set_clicked(true);
+                                } else {
+                                    button.set_clicked(false);
+                                }
+                            }
                         }
                     }
                 }
@@ -256,16 +263,15 @@ impl<'a> SudokuDisplay<'a> {
                                     }
                                 }
                             } else if !sudoku_display.note {
-                                if sudoku_display.sudoku.get_board()[y1][x1] != value {
-                                    sudoku_display.sudoku.set_value(x1, y1, value);
-                                    for (i, j) in sudoku_display.sudoku.get_cell_group(x1, y1, ALL)
-                                    {
-                                        sudoku_display.player_pboard[j][i].remove(&value);
-                                    }
-                                } else {
-                                    sudoku_display.sudoku.set_value(x1, y1, 0);
-                                }
+                                sudoku_display.sudoku.set_value(x1, y1, value);
                                 sudoku_display.player_pboard[y1][x1].clear();
+                                for n in 1..=sudoku_display.sudoku.get_n2() {
+                                    for button in sudoku_display.button_list.iter_mut() {
+                                        if button.text == n.to_string() {
+                                            button.set_clickable(false);
+                                        }
+                                    }
+                                }
                             }
                         }
                     })),
@@ -478,6 +484,7 @@ impl<'a> SudokuDisplay<'a> {
 
                 if self.selected_cell.is_some() && self.selected_cell.unwrap() == (x, y) {
                     let mut pb: &HashSet<usize> = &self.sudoku.get_possibility_board()[y][x];
+
                     if self.mode == "play".to_string() {
                         pb = &self.player_pboard[y][x];
                     }
@@ -486,6 +493,24 @@ impl<'a> SudokuDisplay<'a> {
                         for button in self.button_list.iter_mut() {
                             if button.text == n.to_string() {
                                 button.set_clicked(true);
+                            }
+                        }
+                    }
+
+                    if self.sudoku.get_board()[y][x] != 0 {
+                        for n in 1..=self.sudoku.get_n2() {
+                            for button in self.button_list.iter_mut() {
+                                if button.text == n.to_string() {
+                                    button.set_clickable(false);
+                                }
+                            }
+                        }
+                    } else {
+                        for n in 1..=self.sudoku.get_n2() {
+                            for button in self.button_list.iter_mut() {
+                                if button.text == n.to_string() {
+                                    button.set_clickable(true);
+                                }
                             }
                         }
                     }
@@ -513,7 +538,7 @@ impl<'a> SudokuDisplay<'a> {
                 && mouse_y > bouton.y()
                 && mouse_y < bouton.y() + bouton.height()
             {
-                if is_mouse_button_pressed(MouseButton::Left) {
+                if is_mouse_button_pressed(MouseButton::Left) && bouton.clickable {
                     action = Some(Rc::clone(self.actions_boutons.get(&bouton.text).unwrap()));
                 }
                 bouton.set_hover(true);

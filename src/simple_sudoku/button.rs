@@ -55,6 +55,10 @@ impl Button {
         self.enabled = enabled;
     }
 
+    pub fn set_clickable(&mut self, clickable: bool) {
+        self.clickable = clickable;
+    }
+
     pub fn set_clicked(&mut self, clicked: bool) {
         self.clicked = clicked;
     }
@@ -74,7 +78,7 @@ impl Button {
         let clicked_hovered_color = Color::from_hex(0x9ac5f8);
         let blocked_color = Color::from_hex(0xababab);
 
-        let actual_color = if self.clickable{
+        let actual_color = if self.clickable {
             if self.clicked {
                 if self.hover {
                     clicked_hovered_color
@@ -89,7 +93,7 @@ impl Button {
         } else {
             blocked_color
         };
-        
+
         draw_rectangle(
             self.x * self.scale_factor,
             self.y * self.scale_factor,
