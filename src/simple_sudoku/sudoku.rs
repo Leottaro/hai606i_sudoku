@@ -52,7 +52,7 @@ impl Sudoku {
             .collect()
     }
 
-    pub fn fix_value(&mut self, x: usize, y: usize, value: usize) {
+    pub fn set_value(&mut self, x: usize, y: usize, value: usize) {
         self.board[y][x] = value;
         self.possibility_board[y][x].clear();
         for &(x, y) in self.cell_groups.get(&(x, y, ALL)).unwrap() {
@@ -166,7 +166,7 @@ impl Sudoku {
                 if value == 0 {
                     continue;
                 }
-                sudoku.fix_value(x, y, value);
+                sudoku.set_value(x, y, value);
             }
         }
 

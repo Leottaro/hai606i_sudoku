@@ -1,7 +1,7 @@
 use env_logger::Env;
 use macroquad::prelude::*;
 use simple_sudoku::{Sudoku, SudokuDisplay};
-use std::{thread, time};
+// use std::{thread, time};
 
 mod simple_sudoku;
 mod tests;
@@ -22,26 +22,27 @@ async fn main() {
     debug!("Debug activé");
     let mut sudoku = Sudoku::parse_file("sudoku-rule-21-1.txt").unwrap();
     println!("{}", sudoku);
-    let mut sudoku_display = SudokuDisplay::new(&mut sudoku);
-
+    // sudoku.display_possibilities();
     let font = load_ttf_font("./res/font/RobotoMono-Thin.ttf")
         .await
         .unwrap();
-    let temps = time::Duration::from_millis(100);
+    let mut sudoku_display = SudokuDisplay::new(&mut sudoku, font.clone());
 
-    while sudoku_display.is_valid().is_ok() && !sudoku_display.is_solved() {
-        match sudoku_display.rule_solve(Some(3..22)) {
-            Ok(0) => {
-                println!("Sudoku solved!");
-            }
-            Ok(_) => (),
-            Err(((x1, y1), (x2, y2))) => {
-                println!("Error: ({}, {}) and ({}, {})", x1, y1, x2, y2);
-            }
-        }
+    // let temps = time::Duration::from_millis(100);
+
+    loop {
+        // match sudoku_display.rule_solve() {
+        //     Ok(0) => {
+        //         println!("Sudoku solved!");
+        //     }
+        //     Ok(_) => (),
+        //     Err(((x1, y1), (x2, y2))) => {
+        //         println!("Error: ({}, {}) and ({}, {})", x1, y1, x2, y2);
+        //     }
+        // }
 
         sudoku_display.run(font.clone()).await;
         next_frame().await;
-        thread::sleep(temps);
+        // thread::sleep(temps);
     }
 }
