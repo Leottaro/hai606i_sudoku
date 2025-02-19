@@ -52,7 +52,8 @@ pub struct Sudoku {
 
 pub struct SudokuDisplay<'a> {
     sudoku: &'a mut Sudoku,
-    max_scale: f32,
+    max_height: f32,
+    max_width: f32,
     scale_factor: f32,
     grid_size: f32,
     pixel_per_cell: f32,

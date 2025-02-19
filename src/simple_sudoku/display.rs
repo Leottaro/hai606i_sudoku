@@ -6,7 +6,8 @@ use std::rc::Rc;
 #[allow(dead_code)] // no warning due to unused functions
 impl<'a> SudokuDisplay<'a> {
     pub async fn new(sudoku: &'a mut Sudoku, font: Font) -> Self {
-        let max_scale = screen_height();
+        let max_height = screen_height();
+        let max_width = screen_width();
         let scale_factor = 1.0;
         let grid_size = 900.0 * scale_factor;
         let pixel_per_cell = grid_size / sudoku.get_n2() as f32;
@@ -289,7 +290,8 @@ impl<'a> SudokuDisplay<'a> {
 
         Self {
             sudoku,
-            max_scale,
+            max_height,
+            max_width,
             scale_factor,
             grid_size,
             pixel_per_cell,
@@ -444,7 +446,17 @@ impl<'a> SudokuDisplay<'a> {
     }
 
     pub fn update_scale(&mut self) {
-        self.scale_factor = screen_height() / self.max_scale;
+        //largeur voulue : 1700
+        //hauteur voulue : 1025
+        let ratio = screen_height() / screen_width();
+        let ratio_voulu = 1025./1700.;
+        if ratio>ratio_voulu {
+            self.scale_factor = screen_width() / self.max_width;
+        }
+        else{
+            self.scale_factor = screen_height() / self.max_height;
+        }
+        
         self.grid_size = 900.0 * self.scale_factor;
         self.pixel_per_cell = self.grid_size / self.sudoku.get_n2() as f32;
         self.x_offset = 250.0 * self.scale_factor;
