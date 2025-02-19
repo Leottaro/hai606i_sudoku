@@ -20,7 +20,6 @@ pub struct SudokuDisplay<'a> {
     grid_size: f32,
     pixel_per_cell: f32,
     selected_cell: Option<(usize, usize)>,
-    selected_buttons: HashSet<usize>,
     x_offset: f32,
     y_offset: f32,
     bx_offset: f32,

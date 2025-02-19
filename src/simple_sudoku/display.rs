@@ -242,16 +242,20 @@ impl<'a> SudokuDisplay<'a> {
                         if sudoku_display.selected_cell.is_some() {
                             let (x1, y1) = sudoku_display.selected_cell.unwrap();
                             let value = y * sudoku_display.sudoku.get_n() + x + 1;
-                            println!("{}", value);
-
                             if sudoku_display.note && sudoku_display.sudoku.get_board()[y1][x1] == 0
                             {
-                                if sudoku_display.selected_buttons.contains(&value) {
-                                    sudoku_display.selected_buttons.remove(&value);
-                                    sudoku_display.player_pboard[y1][x1].remove(&value);
-                                } else {
-                                    sudoku_display.selected_buttons.insert(value);
-                                    sudoku_display.player_pboard[y1][x1].insert(value);
+                                for bouton in sudoku_display.button_list.iter_mut() {
+                                    if bouton.text == value.to_string() {
+                                        
+                                        if bouton.clicked == true{
+                                            bouton.set_clicked(false);
+                                            sudoku_display.player_pboard[y1][x1].remove(&value);
+                                        }
+                                        else{
+                                            bouton.set_clicked(true);
+                                            sudoku_display.player_pboard[y1][x1].insert(value);
+                                        }
+                                    }
                                 }
                             } else if !sudoku_display.note {
                                 if sudoku_display.sudoku.get_board()[y1][x1] != value {
@@ -290,7 +294,6 @@ impl<'a> SudokuDisplay<'a> {
             grid_size,
             pixel_per_cell,
             selected_cell: None,
-            selected_buttons: HashSet::new(),
             x_offset,
             y_offset,
             bx_offset,
@@ -468,7 +471,13 @@ impl<'a> SudokuDisplay<'a> {
                 } else {
                     self.selected_cell = Some((x, y));
                 }
-                self.selected_buttons.clear();
+                for n in 1..=self.sudoku.get_n2(){
+                    for button in self.button_list.iter_mut(){
+                        if button.text==n.to_string(){
+                            button.set_clicked(false);
+                        }
+                    }
+                }
 
                 if self.selected_cell.is_some() && self.selected_cell.unwrap() == (x, y) {
                     let mut pb: &HashSet<usize> = &self.sudoku.get_possibility_board()[y][x];
@@ -477,12 +486,9 @@ impl<'a> SudokuDisplay<'a> {
                     }
 
                     for n in pb {
-                        for i in 0..self.sudoku.get_n() {
-                            for j in 0..self.sudoku.get_n() {
-                                let value = self.sudoku.get_n() * j + i + 1;
-                                if value == *n {
-                                    self.selected_buttons.insert(value);
-                                }
+                        for button in self.button_list.iter_mut(){
+                            if button.text==n.to_string(){
+                                button.set_clicked(true);
                             }
                         }
                     }
