@@ -1,7 +1,6 @@
 use env_logger::Env;
 use macroquad::prelude::*;
 use simple_sudoku::{Sudoku, SudokuDisplay};
-// use std::{thread, time};
 
 mod simple_sudoku;
 mod tests;
@@ -22,13 +21,10 @@ async fn main() {
     debug!("Debug activé");
     let mut sudoku = Sudoku::parse_file("sudoku-rule-21-1.txt").unwrap();
     println!("{}", sudoku);
-    // sudoku.display_possibilities();
     let font = load_ttf_font("./res/font/RobotoMono-Thin.ttf")
         .await
         .unwrap();
     let mut sudoku_display = SudokuDisplay::new(&mut sudoku, font.clone());
-
-    // let temps = time::Duration::from_millis(100);
 
     loop {
         // match sudoku_display.rule_solve() {
@@ -43,6 +39,5 @@ async fn main() {
 
         sudoku_display.run(font.clone()).await;
         next_frame().await;
-        // thread::sleep(temps);
     }
 }

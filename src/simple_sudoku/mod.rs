@@ -42,10 +42,12 @@ impl std::hash::Hash for SudokuGroups {
 pub struct Sudoku {
     n: usize,
     n2: usize,
-    board: Vec<Vec<usize>>,
-    possibility_board: Vec<Vec<HashSet<usize>>>,
     groups: HashMap<SudokuGroups, Vec<HashSet<(usize, usize)>>>,
     cell_groups: HashMap<(usize, usize, SudokuGroups), HashSet<(usize, usize)>>,
+
+    board: Vec<Vec<usize>>,
+    possibility_board: Vec<Vec<HashSet<usize>>>,
+    difficulty: Option<usize>,
 }
 
 pub struct SudokuDisplay<'a> {

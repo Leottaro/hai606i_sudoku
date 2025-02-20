@@ -14,12 +14,70 @@ macro_rules! debug_only {
 }
 
 impl Sudoku {
+    pub const RULES: &'static [fn(&mut Sudoku) -> bool] = &[
+        Sudoku::naked_singles,
+        Sudoku::hidden_singles,
+        Sudoku::naked_pairs,
+        Sudoku::naked_triples,
+        Sudoku::hidden_pairs,
+        Sudoku::hidden_triples,
+        Sudoku::naked_quads,
+        Sudoku::hidden_quads,
+        Sudoku::pointing_pair,
+        Sudoku::pointing_triple,
+        Sudoku::box_reduction,
+        Sudoku::x_wing,
+        Sudoku::finned_x_wing,
+        Sudoku::franken_x_wing,
+        Sudoku::finned_mutant_x_wing,
+        Sudoku::skyscraper,
+        Sudoku::simple_coloring,
+        Sudoku::y_wing,
+        Sudoku::w_wing,
+        Sudoku::swordfish,
+        Sudoku::finned_swordfish,
+        Sudoku::sashimi_finned_swordfish,
+        Sudoku::franken_swordfish,
+        Sudoku::mutant_swordfish,
+        Sudoku::finned_mutant_swordfish,
+        Sudoku::sashimi_finned_mutant_swordfish,
+        Sudoku::sue_de_coq,
+        Sudoku::xyz_wing,
+        Sudoku::x_cycle,
+        Sudoku::bi_value_universal_grave,
+        Sudoku::xy_chain,
+        Sudoku::three_d_medusa,
+        Sudoku::jellyfish,
+        Sudoku::finned_jellyfish,
+        Sudoku::sashimi_finned_jellyfish,
+        Sudoku::avoidable_rectangle,
+        Sudoku::unique_rectangle,
+        Sudoku::hidden_unique_rectangle,
+        Sudoku::wxyz_wing,
+        Sudoku::firework,
+        Sudoku::subset_exclusion,
+        Sudoku::empty_rectangle,
+        Sudoku::sue_de_coq_extended,
+        Sudoku::sk_loop,
+        Sudoku::exocet,
+        Sudoku::almost_locked_sets,
+        Sudoku::alternating_inference_chain,
+        Sudoku::digit_forcing_chains,
+        Sudoku::nishio_forcing_chains,
+        Sudoku::cell_forcing_chains,
+        Sudoku::unit_forcing_chains,
+        Sudoku::almost_locked_set_forcing_chain,
+        Sudoku::death_blossom,
+        Sudoku::pattern_overlay,
+        Sudoku::bowmans_bingo,
+    ];
+
     // RULES SOLVING
     // CHECK https://www.taupierbw.be/SudokuCoach
     // THE RULES ARE LISTED BY INCREASING DIFFICULTY
     // A RULE RETURN TRUE IF IT CHANGED SOMETHING
 
-    // règle 1: http://www.taupierbw.be/SudokuCoach/SC_Singles.shtml
+    // règle 0: http://www.taupierbw.be/SudokuCoach/SC_Singles.shtml
     pub(super) fn naked_singles(&mut self) -> bool {
         for y in 0..self.n2 {
             for x in 0..self.n2 {
@@ -34,7 +92,7 @@ impl Sudoku {
         false
     }
 
-    // règle 2: http://www.taupierbw.be/SudokuCoach/SC_Singles.shtml
+    // règle 1: http://www.taupierbw.be/SudokuCoach/SC_Singles.shtml
     pub(super) fn hidden_singles(&mut self) -> bool {
         for group in self.groups.get(&ALL).unwrap() {
             for value in 1..=self.n2 {
@@ -53,7 +111,7 @@ impl Sudoku {
         false
     }
 
-    // règle 3: http://www.taupierbw.be/SudokuCoach/SC_NakedPairs.shtml
+    // règle 2: http://www.taupierbw.be/SudokuCoach/SC_NakedPairs.shtml
     pub(super) fn naked_pairs(&mut self) -> bool {
         let mut modified = false;
         for group in self.groups.get(&ALL).unwrap() {
@@ -88,7 +146,7 @@ impl Sudoku {
         false
     }
 
-    // règle 4: http://www.taupierbw.be/SudokuCoach/SC_NakedTriples.shtml
+    // règle 3: http://www.taupierbw.be/SudokuCoach/SC_NakedTriples.shtml
     pub(super) fn naked_triples(&mut self) -> bool {
         let mut modified = false;
         for group in self.groups.get(&ALL).unwrap() {
@@ -140,7 +198,7 @@ impl Sudoku {
         false
     }
 
-    // règle 5: http://www.taupierbw.be/SudokuCoach/SC_HiddenPairs.shtml
+    // règle 4: http://www.taupierbw.be/SudokuCoach/SC_HiddenPairs.shtml
     pub(super) fn hidden_pairs(&mut self) -> bool {
         for group in self.groups.get(&ALL).unwrap() {
             for value1 in 1..self.n2 {
@@ -180,7 +238,7 @@ impl Sudoku {
         false
     }
 
-    // règle 6: http://www.taupierbw.be/SudokuCoach/SC_HiddenTriples.shtml
+    // règle 5: http://www.taupierbw.be/SudokuCoach/SC_HiddenTriples.shtml
     pub(super) fn hidden_triples(&mut self) -> bool {
         for group in self.groups.get(&ALL).unwrap() {
             for value1 in 1..self.n2 {
@@ -240,7 +298,7 @@ impl Sudoku {
         false
     }
 
-    // règle 7: http://www.taupierbw.be/SudokuCoach/SC_NakedQuads.shtml
+    // règle 6: http://www.taupierbw.be/SudokuCoach/SC_NakedQuads.shtml
     pub(super) fn naked_quads(&mut self) -> bool {
         let mut modified = false;
         for group in self.groups.get(&ALL).unwrap() {
@@ -300,7 +358,7 @@ impl Sudoku {
         false
     }
 
-    // règle 8: http://www.taupierbw.be/SudokuCoach/SC_HiddenQuads.shtml
+    // règle 7: http://www.taupierbw.be/SudokuCoach/SC_HiddenQuads.shtml
     pub(super) fn hidden_quads(&mut self) -> bool {
         for group in self.groups.get(&ALL).unwrap() {
             for value1 in 1..self.n2 {
@@ -371,7 +429,7 @@ impl Sudoku {
         false
     }
 
-    // règle 9: http://www.taupierbw.be/SudokuCoach/SC_PointingPair.shtml
+    // règle 8: http://www.taupierbw.be/SudokuCoach/SC_PointingPair.shtml
     pub(super) fn pointing_pair(&mut self) -> bool {
         for square in self.groups.get(&SQUARE).unwrap() {
             for value in 1..=self.n2 {
@@ -416,7 +474,7 @@ impl Sudoku {
         false
     }
 
-    // règle 10: http://www.taupierbw.be/SudokuCoach/SC_PointingTriple.shtml
+    // règle 9: http://www.taupierbw.be/SudokuCoach/SC_PointingTriple.shtml
     pub(super) fn pointing_triple(&mut self) -> bool {
         for square in self.groups.get(&SQUARE).unwrap() {
             for value in 1..=self.n2 {
@@ -462,7 +520,7 @@ impl Sudoku {
         false
     }
 
-    // règle 11: http://www.taupierbw.be/SudokuCoach/SC_BoxReduction.shtml
+    // règle 10: http://www.taupierbw.be/SudokuCoach/SC_BoxReduction.shtml
     pub(super) fn box_reduction(&mut self) -> bool {
         let mut modified = false;
         for rows in self.groups.get(&ROW).unwrap() {
@@ -522,7 +580,7 @@ impl Sudoku {
         false
     }
 
-    // règle 12: http://www.taupierbw.be/SudokuCoach/SC_XWing.shtml
+    // règle 11: http://www.taupierbw.be/SudokuCoach/SC_XWing.shtml
     pub(super) fn x_wing(&mut self) -> bool {
         let mut modified = false;
         for value in 1..self.n2 {
@@ -604,7 +662,7 @@ impl Sudoku {
         false
     }
 
-    // règle 13: http://www.taupierbw.be/SudokuCoach/SC_FinnedXWing.shtml
+    // règle 12: http://www.taupierbw.be/SudokuCoach/SC_FinnedXWing.shtml
     pub(super) fn finned_x_wing(&mut self) -> bool {
         let mut modified = false;
         for value in 1..self.n2 {
@@ -706,7 +764,7 @@ impl Sudoku {
         false
     }
 
-    // règle 14: http://www.taupierbw.be/SudokuCoach/SC_FrankenXWing.shtml
+    // règle 13: http://www.taupierbw.be/SudokuCoach/SC_FrankenXWing.shtml
     pub(super) fn franken_x_wing(&mut self) -> bool {
         let mut modified = false;
         for value in 1..=self.n2 {
@@ -787,13 +845,13 @@ impl Sudoku {
         false
     }
 
-    // règle 15: https://www.taupierbw.be/SudokuCoach/SC_FinnedMutantXWing.shtml
+    // règle 14: https://www.taupierbw.be/SudokuCoach/SC_FinnedMutantXWing.shtml
     pub(super) fn finned_mutant_x_wing(&mut self) -> bool {
         warn!("finned_mutant_x_wing not yet implemented");
         false
     }
 
-    // règle 16: http://www.taupierbw.be/SudokuCoach/SC_Skyscraper.shtml
+    // règle 15: http://www.taupierbw.be/SudokuCoach/SC_Skyscraper.shtml
     pub(super) fn skyscraper(&mut self) -> bool {
         let mut modified = false;
         for value in 1..=self.n2 {
@@ -877,7 +935,7 @@ impl Sudoku {
         false
     }
 
-    // règle 17: http://www.taupierbw.be/SudokuCoach/SC_SimpleColoring.shtml
+    // règle 16: http://www.taupierbw.be/SudokuCoach/SC_SimpleColoring.shtml
     pub(super) fn simple_coloring(&mut self) -> bool {
         let mut modified = false;
         for value in 1..=self.n2 {
@@ -980,7 +1038,7 @@ impl Sudoku {
         false
     }
 
-    // règle 18: http://www.taupierbw.be/SudokuCoach/SC_YWing.shtml
+    // règle 17: http://www.taupierbw.be/SudokuCoach/SC_YWing.shtml
     pub(super) fn y_wing(&mut self) -> bool {
         let mut modified = false;
         for y in 0..self.n2 {
@@ -1048,7 +1106,7 @@ impl Sudoku {
         false
     }
 
-    // règle 19: http://www.taupierbw.be/SudokuCoach/SC_WWing.shtml
+    // règle 18: http://www.taupierbw.be/SudokuCoach/SC_WWing.shtml
     pub(super) fn w_wing(&mut self) -> bool {
         let mut modified = false;
         for y in 0..self.n2 {
@@ -1132,7 +1190,7 @@ impl Sudoku {
         false
     }
 
-    // règle 20: http://www.taupierbw.be/SudokuCoach/SC_Swordfish.shtml
+    // règle 19: http://www.taupierbw.be/SudokuCoach/SC_Swordfish.shtml
     pub(super) fn swordfish(&mut self) -> bool {
         let mut modified = false;
         for value in 1..=self.n2 {
@@ -1240,7 +1298,7 @@ impl Sudoku {
         false
     }
 
-    // règle 21: http://www.taupierbw.be/SudokuCoach/SC_FinnedSwordfish.shtml
+    // règle 20: http://www.taupierbw.be/SudokuCoach/SC_FinnedSwordfish.shtml
     pub(super) fn finned_swordfish(&mut self) -> bool {
         let mut modified = false;
         for value in 1..=self.n2 {
@@ -1387,55 +1445,55 @@ impl Sudoku {
         false
     }
 
-    // règle 22: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedSwordfish.shtml
+    // règle 21: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedSwordfish.shtml
     pub(super) fn sashimi_finned_swordfish(&mut self) -> bool {
         warn!("sashimi_finned_swordfish isn't implemented yet");
         false
     }
 
-    // règle 23: https://www.taupierbw.be/SudokuCoach/SC_FrankenSwordfish.shtml
+    // règle 22: https://www.taupierbw.be/SudokuCoach/SC_FrankenSwordfish.shtml
     pub(super) fn franken_swordfish(&mut self) -> bool {
         warn!("franken_swordfish not yet implemented");
         false
     }
 
-    // règle 24: https://www.taupierbw.be/SudokuCoach/SC_MutantSwordfish.shtml
+    // règle 23: https://www.taupierbw.be/SudokuCoach/SC_MutantSwordfish.shtml
     pub(super) fn mutant_swordfish(&mut self) -> bool {
         warn!("mutant_swordfish not yet implemented");
         false
     }
 
-    // règle 25: https://www.taupierbw.be/SudokuCoach/SC_FinnedMutantSwordfish.shtml
+    // règle 24: https://www.taupierbw.be/SudokuCoach/SC_FinnedMutantSwordfish.shtml
     pub(super) fn finned_mutant_swordfish(&mut self) -> bool {
         warn!("finned_mutant_swordfish not yet implemented");
         false
     }
 
-    // règle 26: https://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedMutantSwordfish.shtml
+    // règle 25: https://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedMutantSwordfish.shtml
     pub(super) fn sashimi_finned_mutant_swordfish(&mut self) -> bool {
         warn!("sashimi_finned_mutant_swordfish not yet implemented");
         false
     }
 
-    // règle 27: https://www.taupierbw.be/SudokuCoach/SC_Suedecoq.shtml
+    // règle 26: https://www.taupierbw.be/SudokuCoach/SC_Suedecoq.shtml
     pub(super) fn sue_de_coq(&mut self) -> bool {
         warn!("sue_de_coq not yet implemented");
         false
     }
 
-    // règle 28: http://www.taupierbw.be/SudokuCoach/SC_XYZWing.shtml
+    // règle 27: http://www.taupierbw.be/SudokuCoach/SC_XYZWing.shtml
     pub(super) fn xyz_wing(&mut self) -> bool {
         warn!("xyz_wing isn't implemented yet");
         false
     }
 
-    // règle 29: https://www.taupierbw.be/SudokuCoach/SC_XCycle.shtml
+    // règle 28: https://www.taupierbw.be/SudokuCoach/SC_XCycle.shtml
     pub(super) fn x_cycle(&mut self) -> bool {
         warn!("x_cycle not yet implemented");
         false
     }
 
-    // règle 30: http://www.taupierbw.be/SudokuCoach/SC_BUG.shtml
+    // règle 29: http://www.taupierbw.be/SudokuCoach/SC_BUG.shtml
     pub(super) fn bi_value_universal_grave(&mut self) -> bool {
         let mut unique_triple: Option<(usize, usize)> = None;
         for y in 0..self.n2 {
@@ -1483,151 +1541,151 @@ impl Sudoku {
         return true;
     }
 
-    // règle 31: http://www.taupierbw.be/SudokuCoach/SC_XYChain.shtml
+    // règle 30: http://www.taupierbw.be/SudokuCoach/SC_XYChain.shtml
     pub(super) fn xy_chain(&mut self) -> bool {
         warn!("xy_chain isn't implemented yet");
         false
     }
 
-    // règle 32: https://www.taupierbw.be/SudokuCoach/SC_Medusa.shtml
+    // règle 31: https://www.taupierbw.be/SudokuCoach/SC_Medusa.shtml
     pub(super) fn three_d_medusa(&mut self) -> bool {
         warn!("three_d_medusa not yet implemented");
         false
     }
 
-    // règle 33: http://www.taupierbw.be/SudokuCoach/SC_Jellyfish.shtml
+    // règle 32: http://www.taupierbw.be/SudokuCoach/SC_Jellyfish.shtml
     pub(super) fn jellyfish(&mut self) -> bool {
         warn!("jellyfish isn't implemented yet");
         false
     }
 
-    // règle 34: http://www.taupierbw.be/SudokuCoach/SC_FinnedJellyfish.shtml
+    // règle 33: http://www.taupierbw.be/SudokuCoach/SC_FinnedJellyfish.shtml
     pub(super) fn finned_jellyfish(&mut self) -> bool {
         warn!("finned_jellyfish isn't implemented yet");
         false
     }
 
-    // règle 35: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedJellyfish.shtml
+    // règle 34: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedJellyfish.shtml
     pub(super) fn sashimi_finned_jellyfish(&mut self) -> bool {
         warn!("sashimi_finned_jellyfish isn't implemented yet");
         false
     }
 
-    // règle 36: https://www.taupierbw.be/SudokuCoach/SC_AvoidableRectangle.shtml
+    // règle 35: https://www.taupierbw.be/SudokuCoach/SC_AvoidableRectangle.shtml
     pub(super) fn avoidable_rectangle(&mut self) -> bool {
         warn!("avoidable_rectangle not yet implemented");
         false
     }
 
-    // règle 37: https://www.taupierbw.be/SudokuCoach/SC_UniqueRectangle.shtml
+    // règle 36: https://www.taupierbw.be/SudokuCoach/SC_UniqueRectangle.shtml
     pub(super) fn unique_rectangle(&mut self) -> bool {
         warn!("unique_rectangle not yet implemented");
         false
     }
 
-    // règle 38: https://www.taupierbw.be/SudokuCoach/SC_HiddenUniqueRectangle.shtml
+    // règle 37: https://www.taupierbw.be/SudokuCoach/SC_HiddenUniqueRectangle.shtml
     pub(super) fn hidden_unique_rectangle(&mut self) -> bool {
         warn!("hidden_unique_rectangle not yet implemented");
         false
     }
 
-    // règle 39: http://www.taupierbw.be/SudokuCoach/SC_WXYZWing.shtml
+    // règle 38: http://www.taupierbw.be/SudokuCoach/SC_WXYZWing.shtml
     pub(super) fn wxyz_wing(&mut self) -> bool {
         warn!("wxyz_wing isn't implemented yet");
         false
     }
 
-    // règle 40: https://www.taupierbw.be/SudokuCoach/SC_Firework.shtml
+    // règle 39: https://www.taupierbw.be/SudokuCoach/SC_Firework.shtml
     pub(super) fn firework(&mut self) -> bool {
         warn!("firework not yet implemented");
         false
     }
 
-    // règle 41: http://www.taupierbw.be/SudokuCoach/SC_APE.shtml
+    // règle 40: http://www.taupierbw.be/SudokuCoach/SC_APE.shtml
     pub(super) fn subset_exclusion(&mut self) -> bool {
         warn!("subset_exclusion isn't implemented yet");
         false
     }
 
-    // règle 42: http://www.taupierbw.be/SudokuCoach/SC_EmptyRectangle.shtml
+    // règle 41: http://www.taupierbw.be/SudokuCoach/SC_EmptyRectangle.shtml
     pub(super) fn empty_rectangle(&mut self) -> bool {
         warn!("empty_rectangle isn't implemented yet");
         false
     }
 
-    // règle 43: https://www.taupierbw.be/SudokuCoach/SC_SuedecoqExtended.shtml
+    // règle 42: https://www.taupierbw.be/SudokuCoach/SC_SuedecoqExtended.shtml
     pub(super) fn sue_de_coq_extended(&mut self) -> bool {
         warn!("sue_de_coq_extended not yet implemented");
         false
     }
 
-    // règle 44: https://www.taupierbw.be/SudokuCoach/SC_SKLoop.shtml
+    // règle 43: https://www.taupierbw.be/SudokuCoach/SC_SKLoop.shtml
     pub(super) fn sk_loop(&mut self) -> bool {
         warn!("sk_loop not yet implemented");
         false
     }
 
-    // règle 45: https://www.taupierbw.be/SudokuCoach/SC_Exocet.shtml
+    // règle 44: https://www.taupierbw.be/SudokuCoach/SC_Exocet.shtml
     pub(super) fn exocet(&mut self) -> bool {
         warn!("exocet not yet implemented");
         false
     }
 
-    // règle 46: https://www.taupierbw.be/SudokuCoach/SC_ALS.shtml
+    // règle 45: https://www.taupierbw.be/SudokuCoach/SC_ALS.shtml
     pub(super) fn almost_locked_sets(&mut self) -> bool {
         warn!("almost_locked_sets not yet implemented");
         false
     }
 
-    // règle 47: https://www.taupierbw.be/SudokuCoach/SC_AIC.shtml
+    // règle 46: https://www.taupierbw.be/SudokuCoach/SC_AIC.shtml
     pub(super) fn alternating_inference_chain(&mut self) -> bool {
         warn!("alternating_inference_chain not yet implemented");
         false
     }
 
-    // règle 48: https://www.taupierbw.be/SudokuCoach/SC_DigitForcingChains.shtml
+    // règle 47: https://www.taupierbw.be/SudokuCoach/SC_DigitForcingChains.shtml
     pub(super) fn digit_forcing_chains(&mut self) -> bool {
         warn!("digit_forcing_chains not yet implemented");
         false
     }
 
-    // règle 49: https://www.taupierbw.be/SudokuCoach/SC_NishioForcingChains.shtml
+    // règle 48: https://www.taupierbw.be/SudokuCoach/SC_NishioForcingChains.shtml
     pub(super) fn nishio_forcing_chains(&mut self) -> bool {
         warn!("nishio_forcing_chains not yet implemented");
         false
     }
 
-    // règle 50: https://www.taupierbw.be/SudokuCoach/SC_CellForcingChains.shtml
+    // règle 49: https://www.taupierbw.be/SudokuCoach/SC_CellForcingChains.shtml
     pub(super) fn cell_forcing_chains(&mut self) -> bool {
         warn!("cell_forcing_chains not yet implemented");
         false
     }
 
-    // règle 51: https://www.taupierbw.be/SudokuCoach/SC_UnitForcingChains.shtml
+    // règle 50: https://www.taupierbw.be/SudokuCoach/SC_UnitForcingChains.shtml
     pub(super) fn unit_forcing_chains(&mut self) -> bool {
         warn!("unit_forcing_chains not yet implemented");
         false
     }
 
-    // règle 52: http://www.taupierbw.be/SudokuCoach/SC_ALSchain.shtml
+    // règle 51: http://www.taupierbw.be/SudokuCoach/SC_ALSchain.shtml
     pub(super) fn almost_locked_set_forcing_chain(&mut self) -> bool {
         warn!("almost_locked_set_forcing_chain isn't implemented yet");
         false
     }
 
-    // règle 53: http://www.taupierbw.be/SudokuCoach/SC_DeathBlossom.shtml
+    // règle 52: http://www.taupierbw.be/SudokuCoach/SC_DeathBlossom.shtml
     pub(super) fn death_blossom(&mut self) -> bool {
         warn!("death_blossom isn't implemented yet");
         false
     }
 
-    // règle 54: http://www.taupierbw.be/SudokuCoach/SC_PatternOverlay.shtml
+    // règle 53: http://www.taupierbw.be/SudokuCoach/SC_PatternOverlay.shtml
     pub(super) fn pattern_overlay(&mut self) -> bool {
         warn!("pattern_overlay isn't implemented yet");
         false
     }
 
-    // règle 55: http://www.taupierbw.be/SudokuCoach/SC_BowmanBingo.shtml
+    // règle 54: http://www.taupierbw.be/SudokuCoach/SC_BowmanBingo.shtml
     pub(super) fn bowmans_bingo(&mut self) -> bool {
         warn!("bowmans_bingo isn't implemented yet");
         false
