@@ -449,7 +449,7 @@ impl<'a> SudokuDisplay<'a> {
         //largeur voulue : 1700
         //hauteur voulue : 1025
         let ratio = screen_height() / screen_width();
-        let ratio_voulu = 1025./1700.;
+        let ratio_voulu = 1080./1920.;
         if ratio>ratio_voulu {
             self.scale_factor = screen_width() / self.max_width;
         }
