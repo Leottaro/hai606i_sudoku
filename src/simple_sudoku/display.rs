@@ -6,8 +6,8 @@ use std::rc::Rc;
 #[allow(dead_code)] // no warning due to unused functions
 impl<'a> SudokuDisplay<'a> {
     pub async fn new(sudoku: &'a mut Sudoku, font: Font) -> Self {
-        let max_height = screen_height();
-        let max_width = screen_width();
+        let max_height = screen_height() * 1.05;
+        let max_width = screen_width() * 1.05;
         let scale_factor = 1.0;
         let grid_size = 900.0 * scale_factor;
         let pixel_per_cell = grid_size / sudoku.get_n2() as f32;
@@ -446,17 +446,15 @@ impl<'a> SudokuDisplay<'a> {
     }
 
     pub fn update_scale(&mut self) {
-        //largeur voulue : 1700
-        //hauteur voulue : 1025
-        let ratio = screen_height() / screen_width();
-        let ratio_voulu = 1080./1920.;
-        if ratio>ratio_voulu {
+        let ratio = screen_width() / screen_height();
+        let ratio_voulu = 411. / 245.;
+        println!("{}/{} = {}", screen_width(), screen_height(), ratio);
+        if ratio <= ratio_voulu {
             self.scale_factor = screen_width() / self.max_width;
-        }
-        else{
+        } else {
             self.scale_factor = screen_height() / self.max_height;
         }
-        
+
         self.grid_size = 900.0 * self.scale_factor;
         self.pixel_per_cell = self.grid_size / self.sudoku.get_n2() as f32;
         self.x_offset = 250.0 * self.scale_factor;
@@ -476,9 +474,7 @@ impl<'a> SudokuDisplay<'a> {
 
         clear_background(Color::from_hex(0xffffff));
 
-        
-        draw_texture(&self.background,0.,0.,WHITE);
-        
+        draw_texture(&self.background, 0., 0., WHITE);
 
         //si on clique dans le sudoku
         let sudoku_x = mouse_x - self.x_offset;
