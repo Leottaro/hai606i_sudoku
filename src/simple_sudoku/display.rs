@@ -1,4 +1,4 @@
-use super::{Button, Sudoku, SudokuDisplay, SudokuGroups::*};
+use super::{Button, ButtonFunction, Sudoku, SudokuDisplay, SudokuGroups::*};
 use macroquad::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -20,8 +20,7 @@ impl<'a> SudokuDisplay<'a> {
             vec![vec![HashSet::new(); sudoku.get_n2()]; sudoku.get_n2()];
         let note = false;
         let mut button_list: Vec<Button> = Vec::new();
-        let mut actions_boutons: HashMap<String, Rc<Box<dyn Fn(&mut SudokuDisplay) -> ()>>> =
-            HashMap::new();
+        let mut actions_boutons: HashMap<String, ButtonFunction> = HashMap::new();
 
         // ================== Buttons ==================
         let choose_sizex = 150.0 * scale_factor;
@@ -33,7 +32,6 @@ impl<'a> SudokuDisplay<'a> {
             y_offset - choosey_offset - choose_sizey,
             choose_sizex,
             choose_sizey,
-            true,
             "Play".to_string(),
             true,
             scale_factor,
@@ -44,10 +42,10 @@ impl<'a> SudokuDisplay<'a> {
             Rc::new(Box::new(|sudoku_display| {
                 sudoku_display.set_mode("play".to_string());
                 for bouton in sudoku_display.button_list.iter_mut() {
-                    if bouton.text == "Analyse".to_string() {
+                    if bouton.text == *"Analyse" {
                         bouton.set_clicked(false);
                     }
-                    if bouton.text == "Play".to_string() {
+                    if bouton.text == *"Play" {
                         bouton.set_clicked(true);
                     }
                 }
@@ -59,7 +57,7 @@ impl<'a> SudokuDisplay<'a> {
                     }
                 }
                 for button in sudoku_display.button_list.iter_mut() {
-                    if button.text == "Note".to_string() || button.text == "Undo".to_string() {
+                    if button.text == *"Note" || button.text == *"Undo" {
                         button.set_enabled(true);
                     }
                 }
@@ -76,7 +74,6 @@ impl<'a> SudokuDisplay<'a> {
             y_offset - choosey_offset - choose_sizey,
             choose_sizex,
             choose_sizey,
-            true,
             "Analyse".to_string(),
             false,
             scale_factor,
@@ -87,10 +84,10 @@ impl<'a> SudokuDisplay<'a> {
             Rc::new(Box::new(|sudoku_display| {
                 sudoku_display.set_mode("Analyse".to_string());
                 for bouton in sudoku_display.button_list.iter_mut() {
-                    if bouton.text == "Play".to_string() {
+                    if bouton.text == *"Play" {
                         bouton.set_clicked(false);
                     }
-                    if bouton.text == "Analyse".to_string() {
+                    if bouton.text == *"Analyse" {
                         bouton.set_clicked(true);
                     }
                 }
@@ -102,7 +99,7 @@ impl<'a> SudokuDisplay<'a> {
                     }
                 }
                 for button in sudoku_display.button_list.iter_mut() {
-                    if button.text == "Note".to_string() || button.text == "Undo".to_string() {
+                    if button.text == *"Note" || button.text == *"Undo" {
                         button.set_enabled(false);
                     }
                 }
@@ -122,7 +119,6 @@ impl<'a> SudokuDisplay<'a> {
             solve1_y,
             solve_sizex,
             solve_sizey,
-            true,
             "Solve once".to_string(),
             false,
             scale_factor,
@@ -147,7 +143,6 @@ impl<'a> SudokuDisplay<'a> {
             solve2_y,
             solve_sizex,
             solve_sizey,
-            true,
             "Solve".to_string(),
             false,
             scale_factor,
@@ -170,7 +165,6 @@ impl<'a> SudokuDisplay<'a> {
                 - solve_ypadding,
             b_size * 1.5 + b_padding * 0.5,
             solve_sizey,
-            true,
             "Note".to_string(),
             false,
             scale_factor,
@@ -181,7 +175,7 @@ impl<'a> SudokuDisplay<'a> {
             Rc::new(Box::new(|sudoku_display| {
                 sudoku_display.note = !sudoku_display.note;
                 for bouton in sudoku_display.button_list.iter_mut() {
-                    if bouton.text == "Note".to_string() {
+                    if bouton.text == *"Note" {
                         bouton.set_clicked(!bouton.clicked());
                     }
                 }
@@ -197,7 +191,6 @@ impl<'a> SudokuDisplay<'a> {
                 - solve_ypadding,
             b_size * 1.5 + b_padding * 0.5,
             solve_sizey,
-            true,
             "Undo".to_string(),
             false,
             scale_factor,
@@ -208,7 +201,7 @@ impl<'a> SudokuDisplay<'a> {
             Rc::new(Box::new(|sudoku_display| {
                 sudoku_display.note = !sudoku_display.note;
                 for bouton in sudoku_display.button_list.iter_mut() {
-                    if bouton.text == "Note".to_string() {
+                    if bouton.text == *"Note" {
                         bouton.set_clicked(!bouton.clicked());
                     }
                 }
@@ -230,7 +223,6 @@ impl<'a> SudokuDisplay<'a> {
                     b_y,
                     b_size,
                     b_size,
-                    true,
                     value1.to_string(),
                     false,
                     scale_factor,
@@ -246,7 +238,7 @@ impl<'a> SudokuDisplay<'a> {
                             {
                                 for bouton in sudoku_display.button_list.iter_mut() {
                                     if bouton.text == value.to_string() {
-                                        if bouton.clicked == true {
+                                        if bouton.clicked {
                                             bouton.set_clicked(false);
                                             sudoku_display.player_pboard[y1][x1].remove(&value);
                                         } else {
@@ -258,7 +250,7 @@ impl<'a> SudokuDisplay<'a> {
                             } else if !sudoku_display.note {
                                 if sudoku_display.sudoku.get_board()[y1][x1] != value {
                                     sudoku_display.sudoku.set_value(x1, y1, value);
-                                    for (i, j) in sudoku_display.sudoku.get_cell_group(x1, y1, ALL)
+                                    for (i, j) in sudoku_display.sudoku.get_cell_group(x1, y1, All)
                                     {
                                         sudoku_display.player_pboard[j][i].remove(&value);
                                     }
@@ -384,7 +376,7 @@ impl<'a> SudokuDisplay<'a> {
                     text_y + self.y_offset,
                     TextParams {
                         font: Some(&font),
-                        font_size: font_size,
+                        font_size,
                         color: Color::from_hex(0x000000),
                         ..Default::default()
                     },
@@ -393,19 +385,19 @@ impl<'a> SudokuDisplay<'a> {
         }
 
         let mut pb = self.sudoku.get_possibility_board();
-        if self.mode == "play".to_string() {
+        if self.mode == *"play" {
             pb = self.player_pboard.clone();
         }
         for x in 0..n2 {
-            for y in 0..n2 {
-                if pb[y][x].len() == 0 {
+            for (y, pby) in pb.iter().enumerate() {
+                if pby[x].is_empty() {
                     continue;
                 }
                 let font_size = self.pixel_per_cell as u16 * 2 / (3 * n as u16);
                 for i in 0..n {
                     for j in 0..n {
                         let number = i * n + j + 1;
-                        if !pb[y][x].contains(&number) {
+                        if !pby[x].contains(&number) {
                             continue;
                         }
                         let text = number.to_string();
@@ -424,7 +416,7 @@ impl<'a> SudokuDisplay<'a> {
                             text_y + self.y_offset,
                             TextParams {
                                 font: Some(&font),
-                                font_size: font_size,
+                                font_size,
                                 color: Color::from_hex(0x000000),
                                 ..Default::default()
                             },
@@ -457,10 +449,10 @@ impl<'a> SudokuDisplay<'a> {
         //si on clique dans le sudoku
         let sudoku_x = mouse_x - self.x_offset;
         let sudoku_y = mouse_y - self.y_offset;
-        if (sudoku_x as f32) < self.grid_size
-            && (sudoku_x as f32) > 0.0
-            && (sudoku_y as f32) < self.grid_size
-            && (sudoku_y as f32) > 0.0
+        if sudoku_x < self.grid_size
+            && sudoku_x > 0.0
+            && sudoku_y < self.grid_size
+            && sudoku_y > 0.0
         {
             if is_mouse_button_pressed(MouseButton::Left) {
                 if self.selected_cell.is_some() && self.selected_cell.unwrap() == (x, y) {
@@ -478,7 +470,7 @@ impl<'a> SudokuDisplay<'a> {
 
                 if self.selected_cell.is_some() && self.selected_cell.unwrap() == (x, y) {
                     let mut pb: &HashSet<usize> = &self.sudoku.get_possibility_board()[y][x];
-                    if self.mode == "play".to_string() {
+                    if self.mode == *"play" {
                         pb = &self.player_pboard[y][x];
                     }
 
@@ -495,14 +487,14 @@ impl<'a> SudokuDisplay<'a> {
         }
 
         if let Some((x, y)) = self.selected_cell {
-            for (x, y) in self.sudoku.get_cell_group(x, y, ALL) {
+            for (x, y) in self.sudoku.get_cell_group(x, y, All) {
                 self.draw_cell(x, y, Color::from_hex(0xe4ebf2));
             }
             self.draw_cell(x, y, Color::from_hex(0xc2ddf8));
         }
 
         self.draw_sudoku(font.clone()).await;
-        let mut action: Option<Rc<Box<dyn Fn(&mut SudokuDisplay)>>> = None;
+        let mut action: Option<ButtonFunction> = None;
         for bouton in self.button_list.iter_mut() {
             bouton.set_scale_factor(self.scale_factor);
             if !bouton.enabled() {

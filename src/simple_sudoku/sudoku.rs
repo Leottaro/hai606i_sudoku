@@ -1,6 +1,7 @@
 use super::{
-    Sudoku,
+    Coords, Sudoku,
     SudokuGroups::{self, *},
+    SudokuRule,
 };
 #[cfg(debug_assertions)]
 use log::debug;
@@ -40,16 +41,11 @@ impl Sudoku {
         &self.possibility_board[y][x]
     }
 
-    pub fn get_groups(&self, groups: SudokuGroups) -> Vec<HashSet<(usize, usize)>> {
+    pub fn get_groups(&self, groups: SudokuGroups) -> Vec<HashSet<Coords>> {
         self.groups.get(&groups).unwrap().to_owned()
     }
 
-    pub fn get_cell_group(
-        &self,
-        x: usize,
-        y: usize,
-        groups: SudokuGroups,
-    ) -> HashSet<(usize, usize)> {
+    pub fn get_cell_group(&self, x: usize, y: usize, groups: SudokuGroups) -> HashSet<Coords> {
         self.cell_groups.get(&(x, y, groups)).unwrap().to_owned()
     }
 
@@ -58,7 +54,7 @@ impl Sudoku {
         x: usize,
         y: usize,
         groups: Vec<SudokuGroups>,
-    ) -> Vec<HashSet<(usize, usize)>> {
+    ) -> Vec<HashSet<Coords>> {
         groups
             .iter()
             .map(|&group| self.get_cell_group(x, y, group))
@@ -68,7 +64,7 @@ impl Sudoku {
     pub fn set_value(&mut self, x: usize, y: usize, value: usize) {
         self.board[y][x] = value;
         self.possibility_board[y][x].clear();
-        for &(x, y) in self.cell_groups.get(&(x, y, ALL)).unwrap() {
+        for &(x, y) in self.cell_groups.get(&(x, y, All)).unwrap() {
             self.possibility_board[y][x].remove(&value);
         }
     }
@@ -77,9 +73,9 @@ impl Sudoku {
         let removed_value = self.board[y][x];
 
         self.board[y][x] = 0;
-        self.possibility_board[y][x] = (1..=self.n2).into_iter().collect();
+        self.possibility_board[y][x] = (1..=self.n2).collect();
 
-        for &(x1, y1) in self.cell_groups.get(&(x, y, ALL)).unwrap() {
+        for &(x1, y1) in self.cell_groups.get(&(x, y, All)).unwrap() {
             if self.board[y1][x1] != 0 {
                 self.possibility_board[y][x].remove(&self.board[y1][x1]);
                 continue;
@@ -87,7 +83,7 @@ impl Sudoku {
 
             if self
                 .cell_groups
-                .get(&(x1, y1, ALL))
+                .get(&(x1, y1, All))
                 .unwrap()
                 .iter()
                 .all(|&(x2, y2)| self.board[y2][x2] != removed_value)
@@ -103,15 +99,15 @@ impl Sudoku {
         x1 == x2 || y1 == y2 || (x1 / self.n == x2 / self.n && y1 / self.n == y2 / self.n)
     }
 
-    pub fn get_strong_links(&self, value: usize) -> Vec<((usize, usize), (usize, usize))> {
-        let mut strong_links: Vec<((usize, usize), (usize, usize))> = Vec::new();
-        for group in self.groups.get(&ALL).unwrap() {
-            let value_cells: Vec<&(usize, usize)> = group
+    pub fn get_strong_links(&self, value: usize) -> Vec<(Coords, Coords)> {
+        let mut strong_links: Vec<(Coords, Coords)> = Vec::new();
+        for group in self.groups.get(&All).unwrap() {
+            let value_cells: Vec<&Coords> = group
                 .iter()
                 .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
                 .collect();
             if value_cells.len() == 2 {
-                strong_links.push((value_cells[0].clone(), value_cells[1].clone()));
+                strong_links.push((*value_cells[0], *value_cells[1]));
             }
         }
         strong_links
@@ -163,20 +159,20 @@ impl Sudoku {
                 let square = squares[(y / n) * n + (x / n)].clone();
                 let lines = row.union(&col).cloned().collect::<HashSet<_>>();
                 let all = lines.union(&square).cloned().collect::<HashSet<_>>();
-                cell_groups.insert((x, y, ROW), row);
-                cell_groups.insert((x, y, COLUMN), col);
-                cell_groups.insert((x, y, SQUARE), square);
-                cell_groups.insert((x, y, LINES), lines);
-                cell_groups.insert((x, y, ALL), all);
+                cell_groups.insert((x, y, Row), row);
+                cell_groups.insert((x, y, Column), col);
+                cell_groups.insert((x, y, Square), square);
+                cell_groups.insert((x, y, Lines), lines);
+                cell_groups.insert((x, y, All), all);
             }
         }
 
         let mut groups = HashMap::new();
-        groups.insert(ROW, rows);
-        groups.insert(COLUMN, cols);
-        groups.insert(LINES, lines);
-        groups.insert(SQUARE, squares);
-        groups.insert(ALL, all);
+        groups.insert(Row, rows);
+        groups.insert(Column, cols);
+        groups.insert(Lines, lines);
+        groups.insert(Square, squares);
+        groups.insert(All, all);
 
         Self {
             n,
@@ -337,8 +333,8 @@ impl Sudoku {
     pub fn rule_solve(
         &mut self,
         specific_rules: Option<Range<usize>>,
-    ) -> Result<Option<usize>, ((usize, usize), (usize, usize))> {
-        let rules: Vec<(usize, &fn(&mut Sudoku) -> bool)> = Sudoku::RULES
+    ) -> Result<Option<usize>, (Coords, Coords)> {
+        let rules: Vec<(usize, &SudokuRule)> = Sudoku::RULES
             .iter()
             .enumerate()
             .filter(|(i, _rule)| {
@@ -365,15 +361,12 @@ impl Sudoku {
             }
 
             rule_used = Some(rule_id);
-            if self.difficulty == None {
+            if self.difficulty.is_none() {
                 self.difficulty = Some(rule_id);
             } else {
                 self.difficulty = Some(max(self.difficulty.unwrap(), rule_id))
             }
-            let is_valid = self.is_valid();
-            if is_valid.is_err() {
-                return Err(is_valid.unwrap_err());
-            }
+            self.is_valid()?;
             break;
         }
 
@@ -397,11 +390,11 @@ impl Sudoku {
         }
 
         let possible_values = self.possibility_board[y][x].clone();
-        let cell_group: HashSet<(usize, usize)> = self.get_cell_group(x, y, ALL).clone();
+        let cell_group: HashSet<Coords> = self.get_cell_group(x, y, All).clone();
         self.possibility_board[y][x].clear();
         for value in possible_values.clone().into_iter() {
             self.board[y][x] = value;
-            let changing_cells: HashSet<&(usize, usize)> = cell_group
+            let changing_cells: HashSet<&Coords> = cell_group
                 .iter()
                 .filter(|(x, y)| self.possibility_board[*y][*x].contains(&value))
                 .collect();
@@ -418,87 +411,14 @@ impl Sudoku {
         }
         self.possibility_board[y][x] = possible_values;
 
-        return false;
-    }
-
-    // DISPLAY
-
-    const BASE_64: [char; 65] = [
-        '·', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
-        'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
-        's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'α', 'β', 'δ',
-    ];
-    pub fn to_string(&self) -> String {
-        let mut lines: Vec<String> = Vec::new();
-        for y in 0..self.n2 {
-            if y != 0 && y % self.n == 0 {
-                let temp = "━".repeat(2 * self.n2 + 4 * self.n + 1);
-                lines.push(format!("━{}", vec![temp; self.n].join("╋")));
-            }
-            let mut this_row_lines: Vec<String> = vec![" ".to_string(); self.n];
-            for x in 0..self.n2 {
-                if x != 0 && x % self.n == 0 {
-                    for line in this_row_lines.iter_mut() {
-                        line.push_str(" ┃");
-                    }
-                }
-                if self.board[y][x] != 0 {
-                    for (i, line) in this_row_lines.iter_mut().enumerate() {
-                        if i == self.n / 2 {
-                            line.push_str(&format!(
-                                " {}{}{}",
-                                " ".repeat(self.n + 1),
-                                Sudoku::BASE_64[self.board[y][x]],
-                                " ".repeat(self.n + 1)
-                            ));
-                        } else {
-                            line.push_str(&" ".repeat(2 * (self.n + 2)));
-                        }
-                    }
-                    continue;
-                }
-
-                this_row_lines.get_mut(0).unwrap().push_str(" ⎧");
-                for line in this_row_lines.iter_mut().skip(1).take(self.n - 2) {
-                    line.push_str(" ⎪");
-                }
-                this_row_lines.get_mut(self.n - 1).unwrap().push_str(" ⎩");
-
-                for i in 0..self.n {
-                    for j in 0..self.n {
-                        let value = i * self.n + j + 1;
-                        let displayed_char = if self.possibility_board[y][x].contains(&value) {
-                            Sudoku::BASE_64[value]
-                        } else {
-                            '·'
-                        };
-                        this_row_lines
-                            .get_mut(i)
-                            .unwrap()
-                            .push_str(&format!(" {displayed_char}"));
-                    }
-                }
-
-                this_row_lines.get_mut(0).unwrap().push_str(" ⎫");
-                for line in this_row_lines.iter_mut().skip(1).take(self.n - 2) {
-                    line.push_str(" ⎪");
-                }
-                this_row_lines.get_mut(self.n - 1).unwrap().push_str(" ⎭");
-            }
-
-            for line in this_row_lines.into_iter() {
-                lines.push(line);
-            }
-        }
-        lines.join("\n")
+        false
     }
 
     // UTILITY
 
-    pub fn is_valid(&self) -> Result<(), ((usize, usize), (usize, usize))> {
+    pub fn is_valid(&self) -> Result<(), (Coords, Coords)> {
         // check si un groupe contient 2 fois la même valeur
-        for group in self.groups.get(&ALL).unwrap() {
+        for group in self.groups.get(&All).unwrap() {
             for (i, &(x1, y1)) in group.iter().enumerate() {
                 if self.board[y1][x1] == 0 {
                     continue;
@@ -535,9 +455,77 @@ impl Sudoku {
     }
 }
 
+const BASE_64: [char; 65] = [
+    '·', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I',
+    'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b',
+    'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u',
+    'v', 'w', 'x', 'y', 'z', 'α', 'β', 'δ',
+];
+
 impl std::fmt::Display for Sudoku {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.to_string())
+        let mut lines: Vec<String> = Vec::new();
+        for y in 0..self.n2 {
+            if y != 0 && y % self.n == 0 {
+                let temp = "━".repeat(2 * self.n2 + 4 * self.n + 1);
+                lines.push(format!("━{}", vec![temp; self.n].join("╋")));
+            }
+            let mut this_row_lines: Vec<String> = vec![" ".to_string(); self.n];
+            for x in 0..self.n2 {
+                if x != 0 && x % self.n == 0 {
+                    for line in this_row_lines.iter_mut() {
+                        line.push_str(" ┃");
+                    }
+                }
+                if self.board[y][x] != 0 {
+                    for (i, line) in this_row_lines.iter_mut().enumerate() {
+                        if i == self.n / 2 {
+                            line.push_str(&format!(
+                                " {}{}{}",
+                                " ".repeat(self.n + 1),
+                                BASE_64[self.board[y][x]],
+                                " ".repeat(self.n + 1)
+                            ));
+                        } else {
+                            line.push_str(&" ".repeat(2 * (self.n + 2)));
+                        }
+                    }
+                    continue;
+                }
+
+                this_row_lines.get_mut(0).unwrap().push_str(" ⎧");
+                for line in this_row_lines.iter_mut().skip(1).take(self.n - 2) {
+                    line.push_str(" ⎪");
+                }
+                this_row_lines.get_mut(self.n - 1).unwrap().push_str(" ⎩");
+
+                for i in 0..self.n {
+                    for j in 0..self.n {
+                        let value = i * self.n + j + 1;
+                        let displayed_char = if self.possibility_board[y][x].contains(&value) {
+                            BASE_64[value]
+                        } else {
+                            '·'
+                        };
+                        this_row_lines
+                            .get_mut(i)
+                            .unwrap()
+                            .push_str(&format!(" {displayed_char}"));
+                    }
+                }
+
+                this_row_lines.get_mut(0).unwrap().push_str(" ⎫");
+                for line in this_row_lines.iter_mut().skip(1).take(self.n - 2) {
+                    line.push_str(" ⎪");
+                }
+                this_row_lines.get_mut(self.n - 1).unwrap().push_str(" ⎭");
+            }
+
+            for line in this_row_lines.into_iter() {
+                lines.push(line);
+            }
+        }
+        write!(f, "{}", lines.join("\n"))
     }
 }
 

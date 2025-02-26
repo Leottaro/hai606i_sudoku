@@ -8,7 +8,6 @@ impl Button {
         y: f32,
         width: f32,
         height: f32,
-        enabled: bool,
         text: String,
         clicked: bool,
         scale_factor: f32,
@@ -18,7 +17,7 @@ impl Button {
             y,
             width,
             height,
-            enabled,
+            enabled: true,
             clickable: true,
             text,
             clicked,
@@ -74,7 +73,7 @@ impl Button {
         let clicked_hovered_color = Color::from_hex(0x9ac5f8);
         let blocked_color = Color::from_hex(0xababab);
 
-        let actual_color = if self.clickable{
+        let actual_color = if self.clickable {
             if self.clicked {
                 if self.hover {
                     clicked_hovered_color
@@ -89,7 +88,7 @@ impl Button {
         } else {
             blocked_color
         };
-        
+
         draw_rectangle(
             self.x * self.scale_factor,
             self.y * self.scale_factor,
@@ -110,7 +109,7 @@ impl Button {
             text_y,
             TextParams {
                 font: Some(&font),
-                font_size: font_size,
+                font_size,
                 color: Color::from_hex(0x000000),
                 ..Default::default()
             },

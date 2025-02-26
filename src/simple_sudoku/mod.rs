@@ -1,3 +1,5 @@
+pub type Coords = (usize, usize);
+
 use std::{
     collections::{HashMap, HashSet},
     rc::Rc,
@@ -10,22 +12,22 @@ pub mod sudoku;
 
 #[derive(Debug, Clone, Copy)]
 pub enum SudokuGroups {
-    ROW,
-    COLUMN,
-    LINES,
-    SQUARE,
-    ALL,
+    Row,
+    Column,
+    Lines,
+    Square,
+    All,
 }
 
 impl PartialEq for SudokuGroups {
     fn eq(&self, other: &Self) -> bool {
         matches!(
             (self, other),
-            (SudokuGroups::ROW, SudokuGroups::ROW)
-                | (SudokuGroups::COLUMN, SudokuGroups::COLUMN)
-                | (SudokuGroups::LINES, SudokuGroups::LINES)
-                | (SudokuGroups::SQUARE, SudokuGroups::SQUARE)
-                | (SudokuGroups::ALL, SudokuGroups::ALL)
+            (SudokuGroups::Row, SudokuGroups::Row)
+                | (SudokuGroups::Column, SudokuGroups::Column)
+                | (SudokuGroups::Lines, SudokuGroups::Lines)
+                | (SudokuGroups::Square, SudokuGroups::Square)
+                | (SudokuGroups::All, SudokuGroups::All)
         )
     }
 }
@@ -38,25 +40,27 @@ impl std::hash::Hash for SudokuGroups {
     }
 }
 
+pub type SudokuRule = fn(&mut Sudoku) -> bool;
 #[derive(Debug)]
 pub struct Sudoku {
     n: usize,
     n2: usize,
-    groups: HashMap<SudokuGroups, Vec<HashSet<(usize, usize)>>>,
-    cell_groups: HashMap<(usize, usize, SudokuGroups), HashSet<(usize, usize)>>,
+    groups: HashMap<SudokuGroups, Vec<HashSet<Coords>>>,
+    cell_groups: HashMap<(usize, usize, SudokuGroups), HashSet<Coords>>,
 
     board: Vec<Vec<usize>>,
     possibility_board: Vec<Vec<HashSet<usize>>>,
     difficulty: Option<usize>,
 }
 
+pub type ButtonFunction = Rc<Box<dyn Fn(&mut SudokuDisplay)>>;
 pub struct SudokuDisplay<'a> {
     sudoku: &'a mut Sudoku,
     max_scale: f32,
     scale_factor: f32,
     grid_size: f32,
     pixel_per_cell: f32,
-    selected_cell: Option<(usize, usize)>,
+    selected_cell: Option<Coords>,
     x_offset: f32,
     y_offset: f32,
     bx_offset: f32,
@@ -66,7 +70,7 @@ pub struct SudokuDisplay<'a> {
     note: bool,
     button_list: Vec<Button>,
     font: macroquad::text::Font,
-    actions_boutons: std::collections::HashMap<String, Rc<Box<dyn Fn(&mut SudokuDisplay)>>>,
+    actions_boutons: HashMap<String, ButtonFunction>,
 }
 
 pub struct Button {

@@ -2,7 +2,7 @@ use graph::prelude::{Graph, GraphBuilder, UndirectedCsrGraph, UndirectedNeighbor
 use log::warn;
 use std::collections::HashSet;
 
-use super::{Sudoku, SudokuGroups::*};
+use super::{Coords, Sudoku, SudokuGroups::*};
 
 macro_rules! debug_only {
     ($($arg:tt)*) => {
@@ -94,9 +94,9 @@ impl Sudoku {
 
     // règle 1: http://www.taupierbw.be/SudokuCoach/SC_Singles.shtml
     pub(super) fn hidden_singles(&mut self) -> bool {
-        for group in self.groups.get(&ALL).unwrap() {
+        for group in self.groups.get(&All).unwrap() {
             for value in 1..=self.n2 {
-                let cells_with_value: Vec<&(usize, usize)> = group
+                let cells_with_value: Vec<&Coords> = group
                     .iter()
                     .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
                     .collect();
@@ -114,8 +114,8 @@ impl Sudoku {
     // règle 2: http://www.taupierbw.be/SudokuCoach/SC_NakedPairs.shtml
     pub(super) fn naked_pairs(&mut self) -> bool {
         let mut modified = false;
-        for group in self.groups.get(&ALL).unwrap() {
-            let pairs: Vec<&(usize, usize)> = group
+        for group in self.groups.get(&All).unwrap() {
+            let pairs: Vec<&Coords> = group
                 .iter()
                 .filter(|&&(x, y)| self.possibility_board[y][x].len() == 2)
                 .collect();
@@ -149,8 +149,8 @@ impl Sudoku {
     // règle 3: http://www.taupierbw.be/SudokuCoach/SC_NakedTriples.shtml
     pub(super) fn naked_triples(&mut self) -> bool {
         let mut modified = false;
-        for group in self.groups.get(&ALL).unwrap() {
-            let pairs_or_triples: Vec<&(usize, usize)> = group
+        for group in self.groups.get(&All).unwrap() {
+            let pairs_or_triples: Vec<&Coords> = group
                 .iter()
                 .filter(|&&(x, y)| {
                     self.possibility_board[y][x].len() == 2
@@ -200,9 +200,9 @@ impl Sudoku {
 
     // règle 4: http://www.taupierbw.be/SudokuCoach/SC_HiddenPairs.shtml
     pub(super) fn hidden_pairs(&mut self) -> bool {
-        for group in self.groups.get(&ALL).unwrap() {
+        for group in self.groups.get(&All).unwrap() {
             for value1 in 1..self.n2 {
-                let occurences_value1: HashSet<&(usize, usize)> = group
+                let occurences_value1: HashSet<&Coords> = group
                     .iter()
                     .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value1))
                     .collect();
@@ -210,7 +210,7 @@ impl Sudoku {
                     continue;
                 }
                 for value2 in (value1 + 1)..=self.n2 {
-                    let occurences_value2: HashSet<&(usize, usize)> = group
+                    let occurences_value2: HashSet<&Coords> = group
                         .iter()
                         .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value2))
                         .collect();
@@ -240,9 +240,9 @@ impl Sudoku {
 
     // règle 5: http://www.taupierbw.be/SudokuCoach/SC_HiddenTriples.shtml
     pub(super) fn hidden_triples(&mut self) -> bool {
-        for group in self.groups.get(&ALL).unwrap() {
+        for group in self.groups.get(&All).unwrap() {
             for value1 in 1..self.n2 {
-                let occurences_value1: HashSet<&(usize, usize)> = group
+                let occurences_value1: HashSet<&Coords> = group
                     .iter()
                     .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value1))
                     .collect();
@@ -250,7 +250,7 @@ impl Sudoku {
                     continue;
                 }
                 for value2 in (value1 + 1)..=self.n2 {
-                    let occurences_value2: HashSet<&(usize, usize)> = group
+                    let occurences_value2: HashSet<&Coords> = group
                         .iter()
                         .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value2))
                         .collect();
@@ -258,7 +258,7 @@ impl Sudoku {
                         continue;
                     }
                     for value3 in (value2 + 1)..=self.n2 {
-                        let occurences_value3: HashSet<&(usize, usize)> = group
+                        let occurences_value3: HashSet<&Coords> = group
                             .iter()
                             .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value3))
                             .collect();
@@ -267,7 +267,7 @@ impl Sudoku {
                             continue;
                         }
 
-                        let common_occurences: HashSet<&&(usize, usize)> = occurences_value1
+                        let common_occurences: HashSet<&&Coords> = occurences_value1
                             .union(&occurences_value2)
                             .chain(&occurences_value3)
                             .collect();
@@ -301,8 +301,8 @@ impl Sudoku {
     // règle 6: http://www.taupierbw.be/SudokuCoach/SC_NakedQuads.shtml
     pub(super) fn naked_quads(&mut self) -> bool {
         let mut modified = false;
-        for group in self.groups.get(&ALL).unwrap() {
-            let pairs_or_triples_or_quads: Vec<&(usize, usize)> = group
+        for group in self.groups.get(&All).unwrap() {
+            let pairs_or_triples_or_quads: Vec<&Coords> = group
                 .iter()
                 .filter(|&&(x, y)| {
                     self.possibility_board[y][x].len() >= 2
@@ -360,9 +360,9 @@ impl Sudoku {
 
     // règle 7: http://www.taupierbw.be/SudokuCoach/SC_HiddenQuads.shtml
     pub(super) fn hidden_quads(&mut self) -> bool {
-        for group in self.groups.get(&ALL).unwrap() {
+        for group in self.groups.get(&All).unwrap() {
             for value1 in 1..self.n2 {
-                let occurences_value1: HashSet<&(usize, usize)> = group
+                let occurences_value1: HashSet<&Coords> = group
                     .iter()
                     .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value1))
                     .collect();
@@ -370,7 +370,7 @@ impl Sudoku {
                     continue;
                 }
                 for value2 in (value1 + 1)..=self.n2 {
-                    let occurences_value2: HashSet<&(usize, usize)> = group
+                    let occurences_value2: HashSet<&Coords> = group
                         .iter()
                         .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value2))
                         .collect();
@@ -378,7 +378,7 @@ impl Sudoku {
                         continue;
                     }
                     for value3 in (value2 + 1)..=self.n2 {
-                        let occurences_value3: HashSet<&(usize, usize)> = group
+                        let occurences_value3: HashSet<&Coords> = group
                             .iter()
                             .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value3))
                             .collect();
@@ -386,7 +386,7 @@ impl Sudoku {
                             continue;
                         }
                         for value4 in (value3 + 1)..=self.n2 {
-                            let occurences_value4: HashSet<&(usize, usize)> = group
+                            let occurences_value4: HashSet<&Coords> = group
                                 .iter()
                                 .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value4))
                                 .collect();
@@ -394,7 +394,7 @@ impl Sudoku {
                                 continue;
                             }
 
-                            let common_occurences: HashSet<&&(usize, usize)> = occurences_value1
+                            let common_occurences: HashSet<&&Coords> = occurences_value1
                                 .union(&occurences_value2)
                                 .chain(occurences_value3.union(&occurences_value4))
                                 .collect();
@@ -431,9 +431,9 @@ impl Sudoku {
 
     // règle 8: http://www.taupierbw.be/SudokuCoach/SC_PointingPair.shtml
     pub(super) fn pointing_pair(&mut self) -> bool {
-        for square in self.groups.get(&SQUARE).unwrap() {
+        for square in self.groups.get(&Square).unwrap() {
             for value in 1..=self.n2 {
-                let occurences: Vec<&(usize, usize)> = square
+                let occurences: Vec<&Coords> = square
                     .iter()
                     .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
                     .collect();
@@ -476,9 +476,9 @@ impl Sudoku {
 
     // règle 9: http://www.taupierbw.be/SudokuCoach/SC_PointingTriple.shtml
     pub(super) fn pointing_triple(&mut self) -> bool {
-        for square in self.groups.get(&SQUARE).unwrap() {
+        for square in self.groups.get(&Square).unwrap() {
             for value in 1..=self.n2 {
-                let occurences: Vec<&(usize, usize)> = square
+                let occurences: Vec<&Coords> = square
                     .iter()
                     .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
                     .collect();
@@ -523,9 +523,9 @@ impl Sudoku {
     // règle 10: http://www.taupierbw.be/SudokuCoach/SC_BoxReduction.shtml
     pub(super) fn box_reduction(&mut self) -> bool {
         let mut modified = false;
-        for rows in self.groups.get(&ROW).unwrap() {
+        for rows in self.groups.get(&Row).unwrap() {
             for value in 1..=self.n2 {
-                let mut occurences: Vec<&(usize, usize)> = rows
+                let mut occurences: Vec<&Coords> = rows
                     .iter()
                     .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
                     .collect();
@@ -534,7 +534,7 @@ impl Sudoku {
                 }
                 let &(x1, y1) = occurences.pop().unwrap();
                 if occurences.iter().all(|&(x, _)| x / self.n == x1 / self.n) {
-                    for (x, y) in self.get_cell_group(x1, y1, SQUARE) {
+                    for (x, y) in self.get_cell_group(x1, y1, Square) {
                         if y == y1 {
                             continue;
                         }
@@ -550,9 +550,9 @@ impl Sudoku {
             }
         }
 
-        for cols in self.groups.get(&COLUMN).unwrap() {
+        for cols in self.groups.get(&Column).unwrap() {
             for value in 1..=self.n2 {
-                let mut occurences: Vec<&(usize, usize)> = cols
+                let mut occurences: Vec<&Coords> = cols
                     .iter()
                     .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
                     .collect();
@@ -561,7 +561,7 @@ impl Sudoku {
                 }
                 let &(x1, y1) = occurences.pop().unwrap();
                 if occurences.iter().all(|&(_, y)| y / self.n == y1 / self.n) {
-                    for (x, y) in self.get_cell_group(x1, y1, SQUARE) {
+                    for (x, y) in self.get_cell_group(x1, y1, Square) {
                         if x == x1 {
                             continue;
                         }
@@ -586,40 +586,37 @@ impl Sudoku {
         for value in 1..self.n2 {
             for i1 in 0..(self.n2 - 1) {
                 let row1_positions: HashSet<usize> = (0..self.n2)
-                    .into_iter()
                     .filter(|x| self.possibility_board[i1][*x].contains(&value))
                     .collect();
                 let row1_pos = if row1_positions.len() == 2 {
                     let row1_vec: Vec<&usize> = row1_positions.iter().collect();
-                    Some((row1_vec[0].clone(), row1_vec[1].clone()))
+                    Some((row1_vec[0], row1_vec[1]))
                 } else {
                     None
                 };
 
                 let col1_positions: HashSet<usize> = (0..self.n2)
-                    .into_iter()
                     .filter(|y| self.possibility_board[*y][i1].contains(&value))
                     .collect();
-                let col1_pos: Option<(usize, usize)> = if col1_positions.len() == 2 {
+                let col1_pos: Option<Coords> = if col1_positions.len() == 2 {
                     let col1_vec: Vec<&usize> = col1_positions.iter().collect();
-                    Some((col1_vec[0].clone(), col1_vec[1].clone()))
+                    Some((*col1_vec[0], *col1_vec[1]))
                 } else {
                     None
                 };
 
                 for i2 in (i1 + 1)..self.n2 {
-                    let mut picked_cells: Vec<(bool, (usize, usize))> = Vec::new();
+                    let mut picked_cells: Vec<(bool, Coords)> = Vec::new();
 
                     let row2_positions: HashSet<usize> = (0..self.n2)
-                        .into_iter()
                         .filter(|x| self.possibility_board[i2][*x].contains(&value))
                         .collect();
 
                     if row1_pos.is_some() && row2_positions == row1_positions {
                         let (x1, x2) = row1_pos.unwrap();
 
-                        let col1 = self.get_cell_group(x1, i1, COLUMN);
-                        let col2 = self.get_cell_group(x2, i1, COLUMN);
+                        let col1 = self.get_cell_group(*x1, i1, Column);
+                        let col2 = self.get_cell_group(*x2, i1, Column);
                         for &(x, y) in col1.union(&col2) {
                             if y == i1 || y == i2 {
                                 continue;
@@ -629,15 +626,14 @@ impl Sudoku {
                     }
 
                     let col2_positions: HashSet<usize> = (0..self.n2)
-                        .into_iter()
                         .filter(|y| self.possibility_board[*y][i2].contains(&value))
                         .collect();
 
                     if col1_pos.is_some() && col1_positions == col2_positions {
                         let (y1, y2) = col1_pos.unwrap();
 
-                        let row1 = self.get_cell_group(i1, y1, ROW);
-                        let row2 = self.get_cell_group(i1, y2, ROW);
+                        let row1 = self.get_cell_group(i1, y1, Row);
+                        let row2 = self.get_cell_group(i1, y2, Row);
                         for &(x, y) in row1.union(&row2) {
                             if x == i1 || x == i2 {
                                 continue;
@@ -668,12 +664,10 @@ impl Sudoku {
         for value in 1..self.n2 {
             for i1 in 0..(self.n2 - 1) {
                 let row1_positions: HashSet<usize> = (0..self.n2)
-                    .into_iter()
                     .filter(|x| self.possibility_board[i1][*x].contains(&value))
                     .collect();
 
                 let col1_positions: HashSet<usize> = (0..self.n2)
-                    .into_iter()
                     .filter(|y| self.possibility_board[*y][i1].contains(&value))
                     .collect();
 
@@ -681,10 +675,9 @@ impl Sudoku {
                     if i1 / self.n == i2 / self.n {
                         continue;
                     }
-                    let mut picked_cells: Vec<(bool, (usize, usize), (usize, usize))> = Vec::new();
+                    let mut picked_cells: Vec<(bool, Coords, Coords)> = Vec::new();
 
                     let row2_positions: HashSet<usize> = (0..self.n2)
-                        .into_iter()
                         .filter(|x| self.possibility_board[i2][*x].contains(&value))
                         .collect();
 
@@ -712,7 +705,6 @@ impl Sudoku {
                     }
 
                     let col2_positions: HashSet<usize> = (0..self.n2)
-                        .into_iter()
                         .filter(|y| self.possibility_board[*y][i2].contains(&value))
                         .collect();
 
@@ -740,8 +732,8 @@ impl Sudoku {
                     }
 
                     for (_is_row, (x1, y1), (fin_x, fin_y)) in picked_cells {
-                        let removed_cells: Vec<(usize, usize)> = self
-                            .get_cell_group(fin_x, fin_y, SQUARE)
+                        let removed_cells: Vec<Coords> = self
+                            .get_cell_group(fin_x, fin_y, Square)
                             .into_iter()
                             .filter(|(x, y)| {
                                 (y1 == fin_y && *x == x1 && *y != y1)
@@ -768,8 +760,8 @@ impl Sudoku {
     pub(super) fn franken_x_wing(&mut self) -> bool {
         let mut modified = false;
         for value in 1..=self.n2 {
-            for line in self.groups.get(&LINES).unwrap() {
-                let occurences: Vec<&(usize, usize)> = line
+            for line in self.groups.get(&Lines).unwrap() {
+                let occurences: Vec<&Coords> = line
                     .iter()
                     .filter(|(x, y)| self.possibility_board[*y][*x].contains(&value))
                     .collect();
@@ -781,34 +773,32 @@ impl Sudoku {
                 }
                 let (&(x1, y1), &(x2, y2)) = (occurences[0], occurences[1]);
 
-                for square in self.groups.get(&SQUARE).unwrap() {
-                    if !line.is_disjoint(&square) {
+                for square in self.groups.get(&Square).unwrap() {
+                    if !line.is_disjoint(square) {
                         continue;
                     }
 
-                    let (mut yellow_cells1, mut yellow_cells2): (
-                        HashSet<(usize, usize)>,
-                        HashSet<(usize, usize)>,
-                    ) = if y1 == y2 {
-                        (
-                            self.get_cell_group(x1, y1, COLUMN).clone(),
-                            self.get_cell_group(x2, y2, COLUMN).clone(),
-                        )
-                    } else {
-                        (
-                            self.get_cell_group(x1, y1, ROW).clone(),
-                            self.get_cell_group(x2, y2, ROW).clone(),
-                        )
-                    };
+                    let (mut yellow_cells1, mut yellow_cells2): (HashSet<Coords>, HashSet<Coords>) =
+                        if y1 == y2 {
+                            (
+                                self.get_cell_group(x1, y1, Column).clone(),
+                                self.get_cell_group(x2, y2, Column).clone(),
+                            )
+                        } else {
+                            (
+                                self.get_cell_group(x1, y1, Row).clone(),
+                                self.get_cell_group(x2, y2, Row).clone(),
+                            )
+                        };
                     yellow_cells1.remove(&(x1, y1));
                     yellow_cells2.remove(&(x2, y2));
 
                     let red_cells_1_value_count = yellow_cells1
-                        .intersection(&square)
+                        .intersection(square)
                         .filter(|(x, y)| self.possibility_board[*y][*x].contains(&value))
                         .count();
                     let red_cells_2_value_count = yellow_cells2
-                        .intersection(&square)
+                        .intersection(square)
                         .filter(|(x, y)| self.possibility_board[*y][*x].contains(&value))
                         .count();
 
@@ -826,9 +816,8 @@ impl Sudoku {
                     }
 
                     for &(x, y) in yellow_cells1
-                        .difference(&square)
-                        .into_iter()
-                        .chain(yellow_cells2.difference(&square).into_iter())
+                        .difference(square)
+                        .chain(yellow_cells2.difference(square))
                     {
                         if self.possibility_board[y][x].remove(&value) {
                             debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}");
@@ -857,31 +846,28 @@ impl Sudoku {
         for value in 1..=self.n2 {
             for i1 in 0..(self.n2 - 1) {
                 let row1_positions: Vec<usize> = (0..self.n2)
-                    .into_iter()
                     .filter(|x| self.possibility_board[i1][*x].contains(&value))
                     .collect();
                 let row1_pos = if row1_positions.len() == 2 {
-                    Some((row1_positions[0].clone(), row1_positions[1].clone()))
+                    Some((row1_positions[0], row1_positions[1]))
                 } else {
                     None
                 };
 
                 let col1_positions: Vec<usize> = (0..self.n2)
-                    .into_iter()
                     .filter(|y| self.possibility_board[*y][i1].contains(&value))
                     .collect();
                 let col1_pos = if col1_positions.len() == 2 {
-                    Some((col1_positions[0].clone(), col1_positions[1].clone()))
+                    Some((col1_positions[0], col1_positions[1]))
                 } else {
                     None
                 };
 
                 for i2 in (i1 + 1)..self.n2 {
                     // i1 and i2 represents rows or columns
-                    let mut picked_cells: Vec<(bool, (usize, usize), (usize, usize))> = Vec::new();
+                    let mut picked_cells: Vec<(bool, Coords, Coords)> = Vec::new();
 
                     let row2_positions: Vec<usize> = (0..self.n2)
-                        .into_iter()
                         .filter(|x| self.possibility_board[i2][*x].contains(&value))
                         .collect();
                     if row1_pos.is_some() && row2_positions.len() == 2 {
@@ -895,7 +881,6 @@ impl Sudoku {
                     }
 
                     let col2_positions: Vec<usize> = (0..self.n2)
-                        .into_iter()
                         .filter(|y| self.possibility_board[*y][i2].contains(&value))
                         .collect();
                     if col1_pos.is_some() && col2_positions.len() == 2 {
@@ -909,9 +894,9 @@ impl Sudoku {
                     }
 
                     for (_is_row, (x1, y1), (x2, y2)) in picked_cells {
-                        let cell_group1: HashSet<(usize, usize)> = self.get_cell_group(x1, y1, ALL);
-                        let cell_group2: HashSet<(usize, usize)> = self.get_cell_group(x2, y2, ALL);
-                        let common_cells: HashSet<&(usize, usize)> =
+                        let cell_group1: HashSet<Coords> = self.get_cell_group(x1, y1, All);
+                        let cell_group2: HashSet<Coords> = self.get_cell_group(x2, y2, All);
+                        let common_cells: HashSet<&Coords> =
                             cell_group1.intersection(&cell_group2).collect();
 
                         for &(x, y) in common_cells {
@@ -978,7 +963,7 @@ impl Sudoku {
             chains_hashset.sort_by(|(chain1, _), (chain2, _)| chain2.len().cmp(&chain1.len()));
 
             let mut keeped_hashsets: Vec<&HashSet<usize>> = Vec::new();
-            let mut keeped_chains: Vec<Vec<(usize, usize)>> = Vec::new();
+            let mut keeped_chains: Vec<Vec<Coords>> = Vec::new();
 
             for (chain1, hash1) in chains_hashset.iter() {
                 if chain1.len() < 3 || keeped_hashsets.contains(&hash1) {
@@ -1003,12 +988,12 @@ impl Sudoku {
 
             for chain in keeped_chains {
                 let chain_len = chain.len();
-                let &(x1, y1) = chain.get(0).unwrap();
+                let &(x1, y1) = chain.first().unwrap();
                 let &(x2, y2) = chain.get(chain_len - 1).unwrap();
                 if chain_len % 2 == 0 {
-                    let cell_group1: HashSet<(usize, usize)> = self.get_cell_group(x1, y1, ALL);
-                    let cell_group2: HashSet<(usize, usize)> = self.get_cell_group(x2, y2, ALL);
-                    let common_cells: HashSet<&(usize, usize)> =
+                    let cell_group1: HashSet<Coords> = self.get_cell_group(x1, y1, All);
+                    let cell_group2: HashSet<Coords> = self.get_cell_group(x2, y2, All);
+                    let common_cells: HashSet<&Coords> =
                         cell_group1.intersection(&cell_group2).collect();
                     for &(x3, y3) in common_cells {
                         if (x3 == x1 && y3 == y1) || (x3 == x2 && y3 == y2) {
@@ -1019,13 +1004,11 @@ impl Sudoku {
                             modified = true;
                         }
                     }
-                } else {
-                    if self.is_same_group(x1, y1, x2, y2) {
-                        for &(x, y) in chain.iter().step_by(2) {
-                            if self.possibility_board[y][x].remove(&value) {
-                                debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}");
-                                modified = true;
-                            }
+                } else if self.is_same_group(x1, y1, x2, y2) {
+                    for &(x, y) in chain.iter().step_by(2) {
+                        if self.possibility_board[y][x].remove(&value) {
+                            debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}");
+                            modified = true;
                         }
                     }
                 }
@@ -1048,33 +1031,32 @@ impl Sudoku {
                 }
                 let (value1, value2) = {
                     let temp = self.possibility_board[y][x].iter().collect::<Vec<_>>();
-                    (temp[0].clone(), temp[1].clone())
+                    (temp[0], temp[1])
                 };
-                let cell_groups: HashSet<(usize, usize)> = self.get_cell_group(x, y, ALL);
+                let cell_groups: HashSet<Coords> = self.get_cell_group(x, y, All);
 
                 let b1_values = cell_groups.iter().filter(|(x1, y1)| {
                     let possibilities = &self.possibility_board[*y1][*x1];
                     possibilities.len() == 2
-                        && possibilities.contains(&value1)
-                        && !possibilities.contains(&value2)
+                        && possibilities.contains(value1)
+                        && !possibilities.contains(value2)
                 });
 
-                let b2_values: Vec<&(usize, usize)> = cell_groups
+                let b2_values: Vec<&Coords> = cell_groups
                     .iter()
                     .filter(|(x2, y2)| {
                         let possibilities = &self.possibility_board[*y2][*x2];
                         possibilities.len() == 2
-                            && possibilities.contains(&value2)
-                            && !possibilities.contains(&value1)
+                            && possibilities.contains(value2)
+                            && !possibilities.contains(value1)
                     })
                     .collect();
 
-                let mut bi_values: Vec<(usize, (usize, usize), (usize, usize))> = Vec::new();
+                let mut bi_values: Vec<(usize, Coords, Coords)> = Vec::new();
                 for (x1, y1) in b1_values {
                     for (x2, y2) in b2_values.iter() {
                         let possible_value3: Option<&usize> = self.possibility_board[*y1][*x1]
                             .intersection(&self.possibility_board[*y2][*x2])
-                            .into_iter()
                             .next();
                         if let Some(value3) = possible_value3 {
                             bi_values.push((*value3, (*x1, *y1), (*x2, *y2)));
@@ -1083,9 +1065,9 @@ impl Sudoku {
                 }
 
                 for (value, (x1, y1), (x2, y2)) in bi_values {
-                    let cell_group1: HashSet<(usize, usize)> = self.get_cell_group(x1, y1, ALL);
-                    let cell_group2: HashSet<(usize, usize)> = self.get_cell_group(x2, y2, ALL);
-                    let common_cells: HashSet<&(usize, usize)> =
+                    let cell_group1: HashSet<Coords> = self.get_cell_group(x1, y1, All);
+                    let cell_group2: HashSet<Coords> = self.get_cell_group(x2, y2, All);
+                    let common_cells: HashSet<&Coords> =
                         cell_group1.intersection(&cell_group2).collect();
                     for &(x3, y3) in common_cells {
                         if (x3 == x1 && y3 == y1) || (x3 == x2 && y3 == y2) {
@@ -1114,9 +1096,9 @@ impl Sudoku {
                 if self.possibility_board[y][x].len() != 2 {
                     continue;
                 }
-                let cell_groups: HashSet<(usize, usize)> = self.get_cell_group(x, y, ALL);
+                let cell_groups: HashSet<Coords> = self.get_cell_group(x, y, All);
 
-                let possible_values: Vec<(usize, usize)> = {
+                let possible_values: Vec<Coords> = {
                     let possible_values: Vec<usize> =
                         self.possibility_board[y][x].clone().into_iter().collect();
                     vec![
@@ -1131,12 +1113,12 @@ impl Sudoku {
                             continue;
                         }
 
-                        let cell1_groups = self.get_cell_groups(x1, y1, vec![ROW, COLUMN, SQUARE]);
+                        let cell1_groups = self.get_cell_groups(x1, y1, vec![Row, Column, Square]);
                         for group in cell1_groups {
                             if group.contains(&(x, y)) {
                                 continue;
                             }
-                            let strong_link: HashSet<(usize, usize)> = group
+                            let strong_link: HashSet<Coords> = group
                                 .into_iter()
                                 .filter(|&(x2, y2)| {
                                     (x2 != x1 || y2 != y1)
@@ -1148,10 +1130,10 @@ impl Sudoku {
                             }
                             let (x2, y2) = strong_link.into_iter().next().unwrap();
 
-                            let mut picked_cells: Vec<(usize, usize)> = Vec::new();
+                            let mut picked_cells: Vec<Coords> = Vec::new();
 
                             let cell2_groups =
-                                self.get_cell_groups(x2, y2, vec![ROW, COLUMN, SQUARE]);
+                                self.get_cell_groups(x2, y2, vec![Row, Column, Square]);
                             for group in cell2_groups {
                                 if group.contains(&(x1, y1)) {
                                     continue;
@@ -1196,29 +1178,23 @@ impl Sudoku {
         for value in 1..=self.n2 {
             for i1 in 0..(self.n2 - 1) {
                 let row1_positions: HashSet<usize> = (0..self.n2)
-                    .into_iter()
                     .filter(|x| self.possibility_board[i1][*x].contains(&value))
                     .collect();
                 let col1_positions: HashSet<usize> = (0..self.n2)
-                    .into_iter()
                     .filter(|y| self.possibility_board[*y][i1].contains(&value))
                     .collect();
                 for i2 in (i1 + 1)..self.n2 {
                     let row2_positions: HashSet<usize> = (0..self.n2)
-                        .into_iter()
                         .filter(|x| self.possibility_board[i2][*x].contains(&value))
                         .collect();
                     let col2_positions: HashSet<usize> = (0..self.n2)
-                        .into_iter()
                         .filter(|y| self.possibility_board[*y][i2].contains(&value))
                         .collect();
                     for i3 in (i2 + 1)..self.n2 {
                         let row3_positions: HashSet<usize> = (0..self.n2)
-                            .into_iter()
                             .filter(|x| self.possibility_board[i3][*x].contains(&value))
                             .collect();
                         let col3_positions: HashSet<usize> = (0..self.n2)
-                            .into_iter()
                             .filter(|y| self.possibility_board[*y][i3].contains(&value))
                             .collect();
 
@@ -1256,23 +1232,23 @@ impl Sudoku {
                         }
 
                         for (_is_row, j1, j2, j3) in picked_cells {
-                            let mut common_cells: HashSet<&(usize, usize)>;
-                            let cell_groupe1: HashSet<(usize, usize)>;
-                            let cell_groupe2: HashSet<(usize, usize)>;
-                            let cell_groupe3: HashSet<(usize, usize)>;
+                            let mut common_cells: HashSet<&Coords>;
+                            let cell_groupe1: HashSet<Coords>;
+                            let cell_groupe2: HashSet<Coords>;
+                            let cell_groupe3: HashSet<Coords>;
                             if _is_row {
-                                cell_groupe1 = self.get_cell_group(j1, i1, COLUMN);
-                                cell_groupe2 = self.get_cell_group(j2, i2, COLUMN);
-                                cell_groupe3 = self.get_cell_group(j3, i3, COLUMN);
+                                cell_groupe1 = self.get_cell_group(j1, i1, Column);
+                                cell_groupe2 = self.get_cell_group(j2, i2, Column);
+                                cell_groupe3 = self.get_cell_group(j3, i3, Column);
                                 common_cells = cell_groupe1
                                     .union(&cell_groupe2)
                                     .chain(&cell_groupe3)
                                     .collect();
                                 common_cells.retain(|&&(_, y)| y != i1 && y != i2 && y != i3);
                             } else {
-                                cell_groupe1 = self.get_cell_group(i1, j1, ROW);
-                                cell_groupe2 = self.get_cell_group(i2, j2, ROW);
-                                cell_groupe3 = self.get_cell_group(i3, j3, ROW);
+                                cell_groupe1 = self.get_cell_group(i1, j1, Row);
+                                cell_groupe2 = self.get_cell_group(i2, j2, Row);
+                                cell_groupe3 = self.get_cell_group(i3, j3, Row);
                                 common_cells = cell_groupe1
                                     .union(&cell_groupe2)
                                     .chain(&cell_groupe3)
@@ -1304,34 +1280,28 @@ impl Sudoku {
         for value in 1..=self.n2 {
             for i1 in 0..(self.n2 - 1) {
                 let row1_positions: HashSet<usize> = (0..self.n2)
-                    .into_iter()
                     .filter(|x| self.possibility_board[i1][*x].contains(&value))
                     .collect();
                 let col1_positions: HashSet<usize> = (0..self.n2)
-                    .into_iter()
                     .filter(|y| self.possibility_board[*y][i1].contains(&value))
                     .collect();
                 for i2 in (i1 + 1)..self.n2 {
                     let row2_positions: HashSet<usize> = (0..self.n2)
-                        .into_iter()
                         .filter(|x| self.possibility_board[i2][*x].contains(&value))
                         .collect();
                     let col2_positions: HashSet<usize> = (0..self.n2)
-                        .into_iter()
                         .filter(|y| self.possibility_board[*y][i2].contains(&value))
                         .collect();
                     for i3 in (i2 + 1)..self.n2 {
                         let row3_positions: HashSet<usize> = (0..self.n2)
-                            .into_iter()
                             .filter(|x| self.possibility_board[i3][*x].contains(&value))
                             .collect();
                         let col3_positions: HashSet<usize> = (0..self.n2)
-                            .into_iter()
                             .filter(|y| self.possibility_board[*y][i3].contains(&value))
                             .collect();
 
                         // i1, i2 and i3 represents rows or columns
-                        let mut picked_cells: Vec<(bool, (usize, usize))> = Vec::new();
+                        let mut picked_cells: Vec<(bool, Coords)> = Vec::new();
 
                         if (2 <= row1_positions.len() && row1_positions.len() <= 3)
                             && (2 <= row2_positions.len() && row2_positions.len() <= 3)
@@ -1495,7 +1465,7 @@ impl Sudoku {
 
     // règle 29: http://www.taupierbw.be/SudokuCoach/SC_BUG.shtml
     pub(super) fn bi_value_universal_grave(&mut self) -> bool {
-        let mut unique_triple: Option<(usize, usize)> = None;
+        let mut unique_triple: Option<Coords> = None;
         for y in 0..self.n2 {
             for x in 0..self.n2 {
                 let possibilities_number = self.possibility_board[y][x].len();
@@ -1518,7 +1488,7 @@ impl Sudoku {
 
         let (x0, y0) = unique_triple.unwrap();
         let mut appearing_value: Vec<usize> = vec![0; self.n2];
-        for (x, y) in self.get_cell_group(x0, y0, ALL) {
+        for (x, y) in self.get_cell_group(x0, y0, All) {
             for value in self.possibility_board[y][x].iter() {
                 appearing_value[*value - 1] += 1;
             }
@@ -1538,7 +1508,7 @@ impl Sudoku {
             x0,
             y0
         );
-        return true;
+        true
     }
 
     // règle 30: http://www.taupierbw.be/SudokuCoach/SC_XYChain.shtml

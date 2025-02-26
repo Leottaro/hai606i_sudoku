@@ -21,7 +21,7 @@ mod tests {
 				"Sudoku isn't valid ! \n the cells ({},{}) and ({},{}) contains the same value\nThere must be an error in a rule",
 				x1, y1, x2, y2
 			);
-            assert!(false);
+            panic!();
         } else {
             let mut expected_sudoku = Sudoku::new(3);
             expected_sudoku.set_value(0, 0, 6);
@@ -162,8 +162,6 @@ mod tests {
                 .collect::<Vec<String>>()
                 .join("\n")
         );
-
-        assert!(true);
     }
 
     #[test]
@@ -177,14 +175,12 @@ mod tests {
                     "Generated sudoku that was unsolved: \n{sudoku}"
                 );
                 if let Err(((x1, y1), (x2, y2))) = sudoku.is_valid() {
-                    assert!(
-                        false,
+                    panic!(
                         "Gererated an invalid sudoku in ({x1},{y1}) and ({x2},{y2}): \n{sudoku}"
                     );
                 }
             }
         }
-        assert!(true);
     }
 
     #[test]
@@ -211,7 +207,7 @@ mod tests {
                     assert_eq!(Some(difficulty), sudoku.get_difficulty());
                 } else {
                     eprintln!("unsolved...");
-                    assert!(false);
+                    panic!();
                 }
             }
 
@@ -225,6 +221,5 @@ mod tests {
                 difficulty, average_duration
             );
         }
-        assert!(true);
     }
 }
