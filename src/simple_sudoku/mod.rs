@@ -60,8 +60,6 @@ pub struct SudokuDisplay<'a> {
     selected_cell: Option<(usize, usize)>,
     x_offset: f32,
     y_offset: f32,
-    bx_offset: f32,
-    solvex_offset: f32,
     mode: String,
     player_pboard: Vec<Vec<HashSet<usize>>>,
     note: bool,

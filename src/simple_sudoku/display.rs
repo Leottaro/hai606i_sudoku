@@ -13,9 +13,7 @@ impl<'a> SudokuDisplay<'a> {
         let pixel_per_cell = grid_size / sudoku.get_n2() as f32;
         let x_offset = 250.0 * scale_factor;
         let y_offset = 150.0 * scale_factor;
-        let bx_offset = 150.0 * scale_factor;
-        let solvex_offset = 50.0 * scale_factor;
-        let choosey_offset = (y_offset - 100.0) / 2.0;
+        
         let mode = "play".to_string();
         let player_pboard: Vec<Vec<HashSet<usize>>> =
             vec![vec![HashSet::new(); sudoku.get_n2()]; sudoku.get_n2()];
@@ -23,18 +21,20 @@ impl<'a> SudokuDisplay<'a> {
         let mut button_list: Vec<Button> = Vec::new();
         let mut actions_boutons: HashMap<String, Rc<Box<dyn Fn(&mut SudokuDisplay) -> ()>>> =
             HashMap::new();
-        let background = load_texture("./res/bg/ow-bg.png").await.unwrap();
+        let background = load_texture("./res/bg/bg-blanc.png").await.unwrap();
 
         // ================== Buttons ==================
-        let choose_sizex = 150.0 * scale_factor;
-        let choose_sizey = 100.0 * scale_factor;
-        let choose_xpadding = 10.0 * scale_factor;
+        let button_sizex = 150.0 * scale_factor;
+        let button_sizey = 100.0 * scale_factor;
+        let button_xpadding = 10.0 * scale_factor;
+        
+        let choosey_offset = (y_offset - 100.0) / 2.0;
 
         let bouton_play = Button::new(
-            x_offset + (grid_size - choose_sizex * 2.0 - choose_xpadding) / 2.0,
-            y_offset - choosey_offset - choose_sizey,
-            choose_sizex,
-            choose_sizey,
+            x_offset + (grid_size - button_sizex * 2.0 - button_xpadding) / 2.0,
+            y_offset - choosey_offset - button_sizey,
+            button_sizex,
+            button_sizey,
             true,
             "Play".to_string(),
             true,
@@ -79,12 +79,12 @@ impl<'a> SudokuDisplay<'a> {
 
         let button_analyse: Button = Button::new(
             x_offset
-                + (grid_size - choose_sizex * 2.0 - choose_xpadding) / 2.0
-                + choose_sizex
-                + choose_xpadding,
-            y_offset - choosey_offset - choose_sizey,
-            choose_sizex,
-            choose_sizey,
+                + (grid_size - button_sizex * 2.0 - button_xpadding) / 2.0
+                + button_sizex
+                + button_xpadding,
+            y_offset - choosey_offset - button_sizey,
+            button_sizex,
+            button_sizey,
             true,
             "Analyse".to_string(),
             false,
@@ -120,17 +120,16 @@ impl<'a> SudokuDisplay<'a> {
 
         button_list.push(button_analyse);
 
-        let solve_sizex = 150.0 * scale_factor;
-        let solve_sizey = 100.0 * scale_factor;
+        let solvex_offset = 50.0 * scale_factor;
         let solve_ypadding = 10.0 * scale_factor;
-        let solve1_x = x_offset - solvex_offset - solve_sizex;
-        let solve1_y = y_offset + (grid_size - solve_sizey * 2.0 - solve_ypadding) / 2.0;
+        let solve1_x = x_offset - solvex_offset - button_sizex;
+        let solve1_y = y_offset + (grid_size - button_sizey * 2.0 - solve_ypadding) / 2.0;
 
         let button_solve_once = Button::new(
             solve1_x,
             solve1_y,
-            solve_sizex,
-            solve_sizey,
+            button_sizex,
+            button_sizey,
             true,
             "Solve once".to_string(),
             false,
@@ -146,16 +145,16 @@ impl<'a> SudokuDisplay<'a> {
 
         button_list.push(button_solve_once);
 
-        let solve2_x = x_offset - solvex_offset - solve_sizex;
+        let solve2_x = x_offset - solvex_offset - button_sizex;
         let solve2_y = y_offset
-            + (grid_size - (solve_sizey) * 2.0 - solve_ypadding) / 2.0
-            + solve_sizey
+            + (grid_size - (button_sizey) * 2.0 - solve_ypadding) / 2.0
+            + button_sizey
             + solve_ypadding;
         let button_solve = Button::new(
             solve2_x,
             solve2_y,
-            solve_sizex,
-            solve_sizey,
+            button_sizex,
+            button_sizey,
             true,
             "Solve".to_string(),
             false,
@@ -170,15 +169,17 @@ impl<'a> SudokuDisplay<'a> {
 
         button_list.push(button_solve);
 
+        let bx_offset = 150.0 * scale_factor;
+
         let b_size = pixel_per_cell * 3.0 / 2.0;
         let b_padding = 10.0;
         let button_note = Button::new(
             x_offset + grid_size + bx_offset,
             y_offset + (grid_size - (b_size + b_padding) * (sudoku.get_n() as f32)) / 2.0
-                - solve_sizey
+                - button_sizey
                 - solve_ypadding,
-            b_size * 1.5 + b_padding * 0.5,
-            solve_sizey,
+            button_sizex,
+            button_sizey,
             true,
             "Note".to_string(),
             false,
@@ -199,13 +200,52 @@ impl<'a> SudokuDisplay<'a> {
 
         button_list.push(button_note);
 
-        let button_undo = Button::new(
-            x_offset + grid_size + bx_offset + 1.5 * b_size + b_padding * 1.5,
+        let button_note_fill = Button::new(
+            x_offset + grid_size + bx_offset + b_padding + button_sizex,
             y_offset + (grid_size - (b_size + b_padding) * (sudoku.get_n() as f32)) / 2.0
-                - solve_sizey
+                - button_sizey
                 - solve_ypadding,
-            b_size * 1.5 + b_padding * 0.5,
-            solve_sizey,
+            button_sizex,
+            button_sizey,
+            true,
+            "Fill Notes".to_string(),
+            false,
+            scale_factor,
+        );
+
+        actions_boutons.insert(
+            button_note_fill.text.to_string(),
+            Rc::new(Box::new(|sudoku_display| {
+                for x in 0..sudoku_display.sudoku.get_n2(){
+                    for y in 0..sudoku_display.sudoku.get_n2(){
+                        if sudoku_display.player_pboard[y][x].is_empty() && sudoku_display.sudoku.get_board()[y][x]==0{
+                            for i in 1..=sudoku_display.sudoku.get_n2(){
+                                sudoku_display.player_pboard[y][x].insert(i);
+                            }
+                            if sudoku_display.selected_cell.is_some() && sudoku_display.selected_cell.unwrap() == (x, y){
+                                for i in 1..=sudoku_display.sudoku.get_n2(){
+                                    for button in sudoku_display.button_list.iter_mut(){
+                                        if button.text == i.to_string(){
+                                            button.set_clicked(true);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            })),
+        );
+
+        button_list.push(button_note_fill);
+
+        let button_undo = Button::new(
+            x_offset + grid_size + bx_offset + (b_padding + button_sizex) * 2.0,
+            y_offset + (grid_size - (b_size + b_padding) * (sudoku.get_n() as f32)) / 2.0
+                - button_sizey
+                - solve_ypadding,
+            b_size,
+            button_sizey,
             true,
             "Undo".to_string(),
             false,
@@ -298,8 +338,6 @@ impl<'a> SudokuDisplay<'a> {
             selected_cell: None,
             x_offset,
             y_offset,
-            bx_offset,
-            solvex_offset,
             mode,
             player_pboard,
             note,
@@ -319,11 +357,30 @@ impl<'a> SudokuDisplay<'a> {
     }
 
     pub fn solve_once(&mut self) {
+        let previous_board = self.sudoku.get_board().clone();
         loop {
             match self.sudoku.rule_solve(None) {
                 Ok(0 | 1 | 2) => break,
                 Ok(_) => (),
                 Err(((x1, y1), (x2, y2))) => eprintln!("Error: {x1},{y1} == {x2},{y2}"),
+            }
+        }
+        let board = self.sudoku.get_board().clone();
+        for x in 0..self.sudoku.get_n2(){
+            for y in 0..self.sudoku.get_n2(){
+                if previous_board[y][x]!=board[y][x]{
+                    self.player_pboard[y][x].clear();
+                    if self.selected_cell.is_some() && self.selected_cell.unwrap() == (x, y){
+                        for i in 1..=self.sudoku.get_n2(){
+                            for button in self.button_list.iter_mut(){
+                                if button.text == i.to_string(){
+                                    button.set_clicked(false);
+                                    button.set_clickable(false);
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -448,7 +505,6 @@ impl<'a> SudokuDisplay<'a> {
     pub fn update_scale(&mut self) {
         let ratio = screen_width() / screen_height();
         let ratio_voulu = 411. / 245.;
-        println!("{}/{} = {}", screen_width(), screen_height(), ratio);
         if ratio <= ratio_voulu {
             self.scale_factor = screen_width() / self.max_width;
         } else {
@@ -459,8 +515,6 @@ impl<'a> SudokuDisplay<'a> {
         self.pixel_per_cell = self.grid_size / self.sudoku.get_n2() as f32;
         self.x_offset = 250.0 * self.scale_factor;
         self.y_offset = 150.0 * self.scale_factor;
-        self.bx_offset = 50.0 * self.scale_factor;
-        self.solvex_offset = 50.0 * self.scale_factor;
     }
 
     pub async fn run(&mut self, font: Font) {
