@@ -1,12 +1,15 @@
 #[cfg(test)]
+#[allow(dead_code)] // no warning due to unused functions
 mod tests {
     use std::{
-        fs::ReadDir,
+        fs::{File, ReadDir},
+        io::BufReader,
         sync::{Arc, Mutex},
         time::Instant,
     };
 
-    use crate::simple_sudoku::Sudoku;
+    use crate::simple_sudoku::{Sudoku, SudokuDifficulty};
+    use std::io::BufRead;
 
     #[test]
     fn test_parse_file() {
@@ -16,7 +19,7 @@ mod tests {
             temp.unwrap()
         };
         println!("parsed_sudoku: \n{}", parsed_sudoku);
-        if let Err(((x1, y1), (x2, y2))) = parsed_sudoku.is_valid() {
+        if let Some(((x1, y1), (x2, y2))) = parsed_sudoku.get_error() {
             println!(
 				"Sudoku isn't valid ! \n the cells ({},{}) and ({},{}) contains the same value\nThere must be an error in a rule",
 				x1, y1, x2, y2
@@ -50,7 +53,7 @@ mod tests {
     #[test]
     fn rule_solving() {
         let files: ReadDir = std::fs::read_dir("res/sudoku_samples").unwrap();
-        println!("collecting file_names");
+        println!("collecting sudokus");
         let sudokus: Vec<String> = files
             .map(|file| {
                 file.unwrap()
@@ -64,7 +67,7 @@ mod tests {
             .take(1000)
             .collect();
 
-        println!("collected file_names");
+        println!("collected sudokus");
 
         let n_finished: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
         let mut join_handles = Vec::new();
@@ -83,8 +86,8 @@ mod tests {
             let thread_n_finished = Arc::clone(&n_finished);
             let join_handle = std::thread::spawn(move || {
                 let mut sudoku_rule_usage: Vec<usize> = vec![0; Sudoku::RULES.len()];
-                while sudoku.is_valid().is_ok() && !sudoku.is_solved() {
-                    match sudoku.rule_solve(None) {
+                while sudoku.get_error().is_none() && !sudoku.is_solved() {
+                    match sudoku.rule_solve(None, None) {
                         Ok(None) => break,
                         Ok(Some(rule_used)) => sudoku_rule_usage[rule_used] += 1,
                         Err(((x1, y1), (x2, y2))) => {
@@ -117,7 +120,7 @@ mod tests {
             join_handles.push(join_handle);
         }
 
-        let mut sudoku_solved: Vec<(String, Option<usize>)> = Vec::new();
+        let mut sudoku_solved: Vec<(String, SudokuDifficulty)> = Vec::new();
         let mut sudoku_unsolved: Vec<String> = Vec::new();
         let mut sudoku_rules_usage: Vec<usize> = vec![0; Sudoku::RULES.len()];
 
@@ -165,6 +168,144 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "test too long: run it with `cargo test -- tests::simple_sudoku_test::tests::rule_analyse --exact --nocapture --ignored`"]
+    fn rule_analyse() {
+        let sudoku_data = File::open("res/sudoku_cluewise.csv");
+        if sudoku_data.is_err() {
+            println!("\n\n#################### MESSAGE DE LEO ####################\nres/sudoku_cluewise.csv not found ! Try executing: \ncurl -L -o res/sudoku_cluewise.zip https://www.kaggle.com/api/v1/datasets/download/informoney/4-million-sudoku-puzzles-easytohard && unzip res/sudoku_data.zip -d res\n#################### MESSAGE DE LEO ####################\n\n");
+            panic!();
+        }
+        let sudoku_data = sudoku_data.unwrap();
+
+        let max_sudoku_per_zeros = 10000;
+        let mut reader = BufReader::new(sudoku_data);
+        let mut line = String::new();
+
+        // skip the header
+        reader.read_line(&mut line).unwrap();
+        line.clear();
+
+        let n_finished: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
+        let mut join_handles = Vec::new();
+
+        let mut total_zeroes: Vec<usize> = vec![0; 82];
+        while let Ok(len) = reader.read_line(&mut line) {
+            if len == 0 {
+                break;
+            }
+            let zeros = line.chars().take(81).filter(|char| char.eq(&'0')).count();
+            if total_zeroes[zeros] >= max_sudoku_per_zeros {
+                line.clear();
+                continue;
+            }
+
+            total_zeroes[zeros] += 1;
+
+            let sudoku_string = line
+                .split_at(81)
+                .0
+                .chars()
+                .enumerate()
+                .flat_map(|(index, char)| {
+                    if index % 9 == 0 {
+                        vec!['\n', char].into_iter()
+                    } else {
+                        vec![' ', char].into_iter()
+                    }
+                })
+                .collect::<String>();
+            let sudoku_string = format!("3{sudoku_string}\n");
+
+            let mut sudoku = Sudoku::parse_string(&sudoku_string).unwrap();
+            let thread_n_finished = Arc::clone(&n_finished);
+
+            let join_handle = std::thread::spawn(move || {
+                let mut sudoku_rule_usage: Vec<(bool, u128)> =
+                    vec![(false, 0); Sudoku::RULES.len()];
+                while sudoku.get_error().is_none() && !sudoku.is_solved() {
+                    let start = Instant::now();
+                    let rule_solve_result = sudoku.rule_solve(None, None);
+                    let elapsed = start.elapsed().as_millis();
+                    match rule_solve_result {
+                        Ok(None) => break,
+                        Ok(Some(rule_used)) => {
+                            sudoku_rule_usage[rule_used].0 = true;
+                            sudoku_rule_usage[rule_used].1 += elapsed;
+                        }
+                        Err(_) => {
+                            eprintln!("\nError: sudoku isn't valid: \n{sudoku_string}\n");
+                            return (false, sudoku_rule_usage);
+                        }
+                    }
+                }
+                let mut n_finished = thread_n_finished.lock().unwrap();
+                *n_finished += 1;
+
+                print!(
+                    "\r{} sudoku • {}",
+                    n_finished,
+                    if sudoku.is_solved() {
+                        "solved"
+                    } else {
+                        "unsolved"
+                    },
+                );
+                (sudoku.is_solved(), sudoku_rule_usage)
+            });
+
+            join_handles.push(join_handle);
+            line.clear();
+        }
+
+        println!("\nwaiting for threads",);
+
+        let mut sudoku_solved: usize = 0;
+        let mut sudoku_total: usize = 0;
+        let mut sudoku_rules_info: Vec<(u128, u128)> = vec![(0, 0); Sudoku::RULES.len()];
+
+        for join_handle in join_handles {
+            let (solved, rule_usage) = join_handle.join().unwrap();
+            sudoku_total += 1;
+            if solved {
+                sudoku_solved += 1;
+            }
+            for (rule_id, (used, total_time)) in rule_usage.into_iter().enumerate() {
+                if used {
+                    sudoku_rules_info[rule_id].0 += 1;
+                }
+                sudoku_rules_info[rule_id].1 += total_time;
+            }
+        }
+        println!();
+
+        let mut sudoku_rules_info: Vec<_> = sudoku_rules_info.into_iter().enumerate().collect();
+        sudoku_rules_info.sort_by(|(_, (usage1, _)), (_, (usage2, _))| usage2.cmp(usage1));
+
+        let trailing_zeroes = sudoku_rules_info[0].1 .0.to_string().len() + 1;
+
+        println!(
+            "rules info: \n{}",
+            sudoku_rules_info
+                .into_iter()
+                .map(|(rule_id, (n, time))| format!(
+                    "rule {:2}: used {:0>trailing_zeroes$} times ({:.3}ms avg)",
+                    rule_id,
+                    n,
+                    time as f64 / n as f64
+                ))
+                .collect::<Vec<String>>()
+                .join("\n")
+        );
+
+        println!(
+            "\n{}/{} = {:.3}% sudoku solved",
+            sudoku_solved,
+            sudoku_total,
+            100. * sudoku_solved as f64 / sudoku_total as f64
+        );
+    }
+
+    #[test]
     fn generate_full() {
         for size in 2..=4 {
             println!("testing size {size}");
@@ -174,7 +315,7 @@ mod tests {
                     sudoku.is_solved(),
                     "Generated sudoku that was unsolved: \n{sudoku}"
                 );
-                if let Err(((x1, y1), (x2, y2))) = sudoku.is_valid() {
+                if let Some(((x1, y1), (x2, y2))) = sudoku.get_error() {
                     panic!(
                         "Gererated an invalid sudoku in ({x1},{y1}) and ({x2},{y2}): \n{sudoku}"
                     );
@@ -184,41 +325,53 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "test too long: run it with `cargo test -- tests::simple_sudoku_test::tests::generate --exact --nocapture --ignored`"]
     fn generate() {
-        for difficulty in 0..Sudoku::RULES.len() {
+        let mut average_durations = SudokuDifficulty::iter()
+            .map(|diff| (diff, 0.))
+            .collect::<Vec<_>>();
+        let iterations = 100;
+
+        for (i, difficulty) in SudokuDifficulty::iter().enumerate() {
             let mut total_duration = 0;
-            let iterations = 100;
-
             println!("testing difficulty {difficulty}");
-            eprintln!("testing difficulty {difficulty}");
 
-            for i in 0..iterations {
-                println!("iteration {i}");
-                eprint!("iteration {i}: ");
+            for j in 0..iterations {
+                println!("iteration {j}: ");
+
                 let start = Instant::now();
-                let mut sudoku = Sudoku::generate(3, difficulty);
-                let duration = start.elapsed();
-                total_duration += duration.as_millis();
-                while !sudoku.is_solved() && sudoku.is_valid().is_ok() {
-                    sudoku.rule_solve(None).unwrap();
+                let original_sudoku = Sudoku::generate(3, difficulty);
+                total_duration += start.elapsed().as_millis();
+
+                let mut sudoku = original_sudoku.clone();
+                while !sudoku.is_solved() {
+                    sudoku.rule_solve(None, None).unwrap();
+                    if let Some(((x1, y1), (x2, y2))) = sudoku.get_error() {
+                        eprintln!("ERROR IN SUDOKU: cells ({x1},{y1}) == ({x2},{y2}): \nORIGINAL SUDOKU:\n{original_sudoku}\nFINISHED SUDOKU: \n{sudoku}");
+                        panic!();
+                    }
                 }
+
                 if sudoku.is_solved() {
-                    eprintln!("solved !");
-                    assert_eq!(Some(difficulty), sudoku.get_difficulty());
+                    // println!("ORIGINAL SUDOKU:\n{original_sudoku}\nFINISHED SUDOKU: \n{sudoku}");
+                    assert_eq!(difficulty, sudoku.get_difficulty());
                 } else {
-                    eprintln!("unsolved...");
                     panic!();
                 }
             }
 
-            let average_duration = total_duration as f64 / iterations as f64;
+            average_durations[i].1 = total_duration as f64 / iterations as f64;
+
             println!(
                 "Average time for difficulty {}: {:.2} ms",
-                difficulty, average_duration
+                difficulty, average_durations[i].1
             );
-            eprintln!(
+        }
+
+        for (difficulty, duration) in average_durations {
+            println!(
                 "Average time for difficulty {}: {:.2} ms",
-                difficulty, average_duration
+                difficulty, duration
             );
         }
     }

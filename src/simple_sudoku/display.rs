@@ -302,7 +302,7 @@ impl<'a> SudokuDisplay<'a> {
 
     pub fn solve_once(&mut self) {
         loop {
-            match self.sudoku.rule_solve(None) {
+            match self.sudoku.rule_solve(None, None) {
                 Ok(None | Some(0) | Some(1)) => break,
                 Ok(_) => (),
                 Err(((x1, y1), (x2, y2))) => eprintln!("Error: {x1},{y1} == {x2},{y2}"),

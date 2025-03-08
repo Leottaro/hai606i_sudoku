@@ -10,47 +10,79 @@ pub mod display;
 pub mod rules;
 pub mod sudoku;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub enum SudokuGroups {
-    Row,
-    Column,
-    Lines,
-    Square,
-    All,
+    Row = 0,
+    Column = 1,
+    Lines = 2,
+    Square = 3,
+    All = 4,
 }
 
-impl PartialEq for SudokuGroups {
-    fn eq(&self, other: &Self) -> bool {
-        matches!(
-            (self, other),
-            (SudokuGroups::Row, SudokuGroups::Row)
-                | (SudokuGroups::Column, SudokuGroups::Column)
-                | (SudokuGroups::Lines, SudokuGroups::Lines)
-                | (SudokuGroups::Square, SudokuGroups::Square)
-                | (SudokuGroups::All, SudokuGroups::All)
-        )
+impl std::fmt::Display for SudokuGroups {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SudokuGroups::Row => write!(f, "ROW"),
+            SudokuGroups::Column => write!(f, "COLUMN"),
+            SudokuGroups::Lines => write!(f, "LINES"),
+            SudokuGroups::Square => write!(f, "SQUARE"),
+            SudokuGroups::All => write!(f, "ALL"),
+        }
     }
 }
 
-impl Eq for SudokuGroups {}
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+pub enum SudokuDifficulty {
+    Unknown = u8::MIN as isize,
+    Easy = 1,
+    Medium = 2,
+    Hard = 3,
+    Master = 4,
+    Extreme = 5,
+    Unimplemented = u8::MAX as isize,
+}
 
-impl std::hash::Hash for SudokuGroups {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        std::mem::discriminant(self).hash(state);
+impl std::fmt::Display for SudokuDifficulty {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SudokuDifficulty::Unknown => write!(f, "UNKNOWN"),
+            SudokuDifficulty::Easy => write!(f, "EASY"),
+            SudokuDifficulty::Medium => write!(f, "MEDIUM"),
+            SudokuDifficulty::Hard => write!(f, "HARD"),
+            SudokuDifficulty::Master => write!(f, "MASTER"),
+            SudokuDifficulty::Extreme => write!(f, "EXTREME"),
+            SudokuDifficulty::Unimplemented => write!(f, "UNIMPLEMENTED"),
+        }
+    }
+}
+
+#[allow(dead_code)]
+impl SudokuDifficulty {
+    pub fn iter() -> impl Iterator<Item = SudokuDifficulty> {
+        vec![
+            SudokuDifficulty::Easy,
+            SudokuDifficulty::Medium,
+            SudokuDifficulty::Hard,
+            SudokuDifficulty::Master,
+            SudokuDifficulty::Extreme,
+        ]
+        .into_iter()
     }
 }
 
 pub type SudokuRule = fn(&mut Sudoku) -> bool;
+type GroupMap = HashMap<SudokuGroups, Vec<HashSet<Coords>>>;
+type CellGroupMap = HashMap<(Coords, SudokuGroups), HashSet<Coords>>;
+
 #[derive(Debug)]
 pub struct Sudoku {
     n: usize,
     n2: usize,
-    groups: HashMap<SudokuGroups, Vec<HashSet<Coords>>>,
-    cell_groups: HashMap<(usize, usize, SudokuGroups), HashSet<Coords>>,
 
     board: Vec<Vec<usize>>,
     possibility_board: Vec<Vec<HashSet<usize>>>,
-    difficulty: Option<usize>,
+    difficulty: SudokuDifficulty,
+    error: Option<(Coords, Coords)>,
 }
 
 pub type ButtonFunction = Rc<Box<dyn Fn(&mut SudokuDisplay)>>;

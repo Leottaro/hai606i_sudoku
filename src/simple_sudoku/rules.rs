@@ -2,7 +2,12 @@ use graph::prelude::{Graph, GraphBuilder, UndirectedCsrGraph, UndirectedNeighbor
 use log::warn;
 use std::collections::HashSet;
 
-use super::{Coords, Sudoku, SudokuGroups::*};
+use super::{
+    Coords, Sudoku,
+    SudokuDifficulty::{self, *},
+    SudokuGroups::*,
+    SudokuRule,
+};
 
 macro_rules! debug_only {
     ($($arg:tt)*) => {
@@ -13,63 +18,94 @@ macro_rules! debug_only {
     };
 }
 
+/*
+rules info:
+rule  0: used in 0561120 sudokus (0.031ms avg)
+rule  1: used in 0192951 sudokus (0.191ms avg)
+rule  8: used in 0095349 sudokus (90.673ms avg)
+rule  2: used in 0065314 sudokus (0.107ms avg)
+
+rule  3: used in 0031991 sudokus (0.152ms avg)
+rule  9: used in 0025122 sudokus (96.584ms avg)
+rule 10: used in 0021918 sudokus (66.023ms avg)
+rule  4: used in 0011633 sudokus (1.098ms avg)
+
+rule 12: used in 0009708 sudokus (57.038ms avg)
+rule 29: used in 0009017 sudokus (13.371ms avg)
+rule 18: used in 0004359 sudokus (42.829ms avg)
+rule 17: used in 0003112 sudokus (42.702ms avg)
+
+rule 15: used in 0002514 sudokus (45.785ms avg)
+rule 16: used in 0001804 sudokus (80.014ms avg)
+rule  5: used in 0001477 sudokus (6.415ms avg)
+rule 20: used in 0001435 sudokus (102.028ms avg)
+
+rule 11: used in 0001084 sudokus (27.369ms avg)
+rule  6: used in 0000173 sudokus (12.480ms avg)
+rule 19: used in 0000087 sudokus (68.448ms avg)
+rule  7: used in 0000014 sudokus (40.929ms avg)
+rule 13: used in 0000000 sudokus (0ms avg)
+...
+*/
+
 impl Sudoku {
-    pub const RULES: &'static [fn(&mut Sudoku) -> bool] = &[
-        Sudoku::naked_singles,
-        Sudoku::hidden_singles,
-        Sudoku::naked_pairs,
-        Sudoku::naked_triples,
-        Sudoku::hidden_pairs,
-        Sudoku::hidden_triples,
-        Sudoku::naked_quads,
-        Sudoku::hidden_quads,
-        Sudoku::pointing_pair,
-        Sudoku::pointing_triple,
-        Sudoku::box_reduction,
-        Sudoku::x_wing,
-        Sudoku::finned_x_wing,
-        Sudoku::franken_x_wing,
-        Sudoku::finned_mutant_x_wing,
-        Sudoku::skyscraper,
-        Sudoku::simple_coloring,
-        Sudoku::y_wing,
-        Sudoku::w_wing,
-        Sudoku::swordfish,
-        Sudoku::finned_swordfish,
-        Sudoku::sashimi_finned_swordfish,
-        Sudoku::franken_swordfish,
-        Sudoku::mutant_swordfish,
-        Sudoku::finned_mutant_swordfish,
-        Sudoku::sashimi_finned_mutant_swordfish,
-        Sudoku::sue_de_coq,
-        Sudoku::xyz_wing,
-        Sudoku::x_cycle,
-        Sudoku::bi_value_universal_grave,
-        Sudoku::xy_chain,
-        Sudoku::three_d_medusa,
-        Sudoku::jellyfish,
-        Sudoku::finned_jellyfish,
-        Sudoku::sashimi_finned_jellyfish,
-        Sudoku::avoidable_rectangle,
-        Sudoku::unique_rectangle,
-        Sudoku::hidden_unique_rectangle,
-        Sudoku::wxyz_wing,
-        Sudoku::firework,
-        Sudoku::subset_exclusion,
-        Sudoku::empty_rectangle,
-        Sudoku::sue_de_coq_extended,
-        Sudoku::sk_loop,
-        Sudoku::exocet,
-        Sudoku::almost_locked_sets,
-        Sudoku::alternating_inference_chain,
-        Sudoku::digit_forcing_chains,
-        Sudoku::nishio_forcing_chains,
-        Sudoku::cell_forcing_chains,
-        Sudoku::unit_forcing_chains,
-        Sudoku::almost_locked_set_forcing_chain,
-        Sudoku::death_blossom,
-        Sudoku::pattern_overlay,
-        Sudoku::bowmans_bingo,
+    pub const RULES: &'static [(usize, SudokuDifficulty, SudokuRule)] = &[
+        (0, Easy, Sudoku::naked_singles),
+        (1, Easy, Sudoku::hidden_singles),
+        (8, Easy, Sudoku::pointing_pair),
+        (2, Easy, Sudoku::naked_pairs),
+        (3, Medium, Sudoku::naked_triples),
+        (9, Medium, Sudoku::pointing_triple),
+        (10, Medium, Sudoku::box_reduction),
+        (4, Medium, Sudoku::hidden_pairs),
+        (12, Hard, Sudoku::finned_x_wing),
+        (29, Hard, Sudoku::bi_value_universal_grave),
+        (18, Hard, Sudoku::w_wing),
+        (17, Hard, Sudoku::y_wing),
+        (15, Master, Sudoku::skyscraper),
+        (16, Master, Sudoku::simple_coloring),
+        (5, Master, Sudoku::hidden_triples),
+        (20, Master, Sudoku::finned_swordfish),
+        (11, Extreme, Sudoku::x_wing),
+        (6, Extreme, Sudoku::naked_quads),
+        (19, Extreme, Sudoku::swordfish),
+        (7, Extreme, Sudoku::hidden_quads),
+        (13, Extreme, Sudoku::franken_x_wing),
+        // unimplemented rules
+        (14, Unimplemented, Sudoku::finned_mutant_x_wing),
+        (21, Unimplemented, Sudoku::sashimi_finned_swordfish),
+        (22, Unimplemented, Sudoku::franken_swordfish),
+        (23, Unimplemented, Sudoku::mutant_swordfish),
+        (24, Unimplemented, Sudoku::finned_mutant_swordfish),
+        (25, Unimplemented, Sudoku::sashimi_finned_mutant_swordfish),
+        (26, Unimplemented, Sudoku::sue_de_coq),
+        (27, Unimplemented, Sudoku::xyz_wing),
+        (28, Unimplemented, Sudoku::x_cycle),
+        (30, Unimplemented, Sudoku::xy_chain),
+        (31, Unimplemented, Sudoku::three_d_medusa),
+        (32, Unimplemented, Sudoku::jellyfish),
+        (33, Unimplemented, Sudoku::finned_jellyfish),
+        (34, Unimplemented, Sudoku::sashimi_finned_jellyfish),
+        (35, Unimplemented, Sudoku::avoidable_rectangle),
+        (36, Unimplemented, Sudoku::unique_rectangle),
+        (37, Unimplemented, Sudoku::hidden_unique_rectangle),
+        (38, Unimplemented, Sudoku::wxyz_wing),
+        (39, Unimplemented, Sudoku::firework),
+        (40, Unimplemented, Sudoku::subset_exclusion),
+        (41, Unimplemented, Sudoku::empty_rectangle),
+        (42, Unimplemented, Sudoku::sue_de_coq_extended),
+        (43, Unimplemented, Sudoku::sk_loop),
+        (44, Unimplemented, Sudoku::exocet),
+        (45, Unimplemented, Sudoku::almost_locked_sets),
+        (46, Unimplemented, Sudoku::alternating_inference_chain),
+        (47, Unimplemented, Sudoku::digit_forcing_chains),
+        (48, Unimplemented, Sudoku::nishio_forcing_chains),
+        (49, Unimplemented, Sudoku::cell_forcing_chains),
+        (50, Unimplemented, Sudoku::unit_forcing_chains),
+        (51, Unimplemented, Sudoku::almost_locked_set_forcing_chain),
+        (52, Unimplemented, Sudoku::death_blossom),
+        (53, Unimplemented, Sudoku::pattern_overlay),
+        (54, Unimplemented, Sudoku::bowmans_bingo),
     ];
 
     // RULES SOLVING
@@ -94,7 +130,7 @@ impl Sudoku {
 
     // règle 1: http://www.taupierbw.be/SudokuCoach/SC_Singles.shtml
     pub(super) fn hidden_singles(&mut self) -> bool {
-        for group in self.groups.get(&All).unwrap() {
+        for group in self.get_group(All) {
             for value in 1..=self.n2 {
                 let cells_with_value: Vec<&Coords> = group
                     .iter()
@@ -114,7 +150,7 @@ impl Sudoku {
     // règle 2: http://www.taupierbw.be/SudokuCoach/SC_NakedPairs.shtml
     pub(super) fn naked_pairs(&mut self) -> bool {
         let mut modified = false;
-        for group in self.groups.get(&All).unwrap() {
+        for group in self.get_group(All) {
             let pairs: Vec<&Coords> = group
                 .iter()
                 .filter(|&&(x, y)| self.possibility_board[y][x].len() == 2)
@@ -149,7 +185,7 @@ impl Sudoku {
     // règle 3: http://www.taupierbw.be/SudokuCoach/SC_NakedTriples.shtml
     pub(super) fn naked_triples(&mut self) -> bool {
         let mut modified = false;
-        for group in self.groups.get(&All).unwrap() {
+        for group in self.get_group(All) {
             let pairs_or_triples: Vec<&Coords> = group
                 .iter()
                 .filter(|&&(x, y)| {
@@ -200,7 +236,7 @@ impl Sudoku {
 
     // règle 4: http://www.taupierbw.be/SudokuCoach/SC_HiddenPairs.shtml
     pub(super) fn hidden_pairs(&mut self) -> bool {
-        for group in self.groups.get(&All).unwrap() {
+        for group in self.get_group(All) {
             for value1 in 1..self.n2 {
                 let occurences_value1: HashSet<&Coords> = group
                     .iter()
@@ -240,7 +276,7 @@ impl Sudoku {
 
     // règle 5: http://www.taupierbw.be/SudokuCoach/SC_HiddenTriples.shtml
     pub(super) fn hidden_triples(&mut self) -> bool {
-        for group in self.groups.get(&All).unwrap() {
+        for group in self.get_group(All) {
             for value1 in 1..self.n2 {
                 let occurences_value1: HashSet<&Coords> = group
                     .iter()
@@ -301,7 +337,7 @@ impl Sudoku {
     // règle 6: http://www.taupierbw.be/SudokuCoach/SC_NakedQuads.shtml
     pub(super) fn naked_quads(&mut self) -> bool {
         let mut modified = false;
-        for group in self.groups.get(&All).unwrap() {
+        for group in self.get_group(All) {
             let pairs_or_triples_or_quads: Vec<&Coords> = group
                 .iter()
                 .filter(|&&(x, y)| {
@@ -360,7 +396,7 @@ impl Sudoku {
 
     // règle 7: http://www.taupierbw.be/SudokuCoach/SC_HiddenQuads.shtml
     pub(super) fn hidden_quads(&mut self) -> bool {
-        for group in self.groups.get(&All).unwrap() {
+        for group in self.get_group(All) {
             for value1 in 1..self.n2 {
                 let occurences_value1: HashSet<&Coords> = group
                     .iter()
@@ -431,7 +467,7 @@ impl Sudoku {
 
     // règle 8: http://www.taupierbw.be/SudokuCoach/SC_PointingPair.shtml
     pub(super) fn pointing_pair(&mut self) -> bool {
-        for square in self.groups.get(&Square).unwrap() {
+        for square in self.get_group(Square) {
             for value in 1..=self.n2 {
                 let occurences: Vec<&Coords> = square
                     .iter()
@@ -476,7 +512,7 @@ impl Sudoku {
 
     // règle 9: http://www.taupierbw.be/SudokuCoach/SC_PointingTriple.shtml
     pub(super) fn pointing_triple(&mut self) -> bool {
-        for square in self.groups.get(&Square).unwrap() {
+        for square in self.get_group(Square) {
             for value in 1..=self.n2 {
                 let occurences: Vec<&Coords> = square
                     .iter()
@@ -523,7 +559,7 @@ impl Sudoku {
     // règle 10: http://www.taupierbw.be/SudokuCoach/SC_BoxReduction.shtml
     pub(super) fn box_reduction(&mut self) -> bool {
         let mut modified = false;
-        for rows in self.groups.get(&Row).unwrap() {
+        for rows in self.get_group(Row) {
             for value in 1..=self.n2 {
                 let mut occurences: Vec<&Coords> = rows
                     .iter()
@@ -550,7 +586,7 @@ impl Sudoku {
             }
         }
 
-        for cols in self.groups.get(&Column).unwrap() {
+        for cols in self.get_group(Column) {
             for value in 1..=self.n2 {
                 let mut occurences: Vec<&Coords> = cols
                     .iter()
@@ -760,7 +796,7 @@ impl Sudoku {
     pub(super) fn franken_x_wing(&mut self) -> bool {
         let mut modified = false;
         for value in 1..=self.n2 {
-            for line in self.groups.get(&Lines).unwrap() {
+            for line in self.get_group(Lines) {
                 let occurences: Vec<&Coords> = line
                     .iter()
                     .filter(|(x, y)| self.possibility_board[*y][*x].contains(&value))
@@ -773,8 +809,8 @@ impl Sudoku {
                 }
                 let (&(x1, y1), &(x2, y2)) = (occurences[0], occurences[1]);
 
-                for square in self.groups.get(&Square).unwrap() {
-                    if !line.is_disjoint(square) {
+                for square in self.get_group(Square) {
+                    if !line.is_disjoint(&square) {
                         continue;
                     }
 
@@ -794,11 +830,11 @@ impl Sudoku {
                     yellow_cells2.remove(&(x2, y2));
 
                     let red_cells_1_value_count = yellow_cells1
-                        .intersection(square)
+                        .intersection(&square)
                         .filter(|(x, y)| self.possibility_board[*y][*x].contains(&value))
                         .count();
                     let red_cells_2_value_count = yellow_cells2
-                        .intersection(square)
+                        .intersection(&square)
                         .filter(|(x, y)| self.possibility_board[*y][*x].contains(&value))
                         .count();
 
@@ -816,8 +852,8 @@ impl Sudoku {
                     }
 
                     for &(x, y) in yellow_cells1
-                        .difference(square)
-                        .chain(yellow_cells2.difference(square))
+                        .difference(&square)
+                        .chain(yellow_cells2.difference(&square))
                     {
                         if self.possibility_board[y][x].remove(&value) {
                             debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}");

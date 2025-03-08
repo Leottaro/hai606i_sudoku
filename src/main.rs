@@ -27,16 +27,6 @@ async fn main() {
     let mut sudoku_display = SudokuDisplay::new(&mut sudoku, font.clone());
 
     loop {
-        // match sudoku_display.rule_solve() {
-        //     Ok(0) => {
-        //         println!("Sudoku solved!");
-        //     }
-        //     Ok(_) => (),
-        //     Err(((x1, y1), (x2, y2))) => {
-        //         println!("Error: ({}, {}) and ({}, {})", x1, y1, x2, y2);
-        //     }
-        // }
-
         sudoku_display.run(font.clone()).await;
         next_frame().await;
     }
