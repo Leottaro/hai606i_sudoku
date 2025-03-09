@@ -1523,28 +1523,24 @@ impl Sudoku {
         }
 
         let (x0, y0) = unique_triple.unwrap();
-        let mut appearing_value: Vec<usize> = vec![0; self.n2];
-        for (x, y) in self.get_cell_group(x0, y0, All) {
-            for value in self.possibility_board[y][x].iter() {
-                appearing_value[*value - 1] += 1;
+        for value in self.possibility_board[y0][x0].iter() {
+            if self
+                .get_cell_groups(x0, y0, vec![Row, Column, Square])
+                .iter()
+                .all(|group| {
+                    group
+                        .iter()
+                        .filter(|(x, y)| self.possibility_board[*y][*x].contains(value))
+                        .count()
+                        == 2
+                })
+            {
+                debug_only!("valeur {} fixée en x: {}, y: {}", value, x0, y0);
+                self.set_value(x0, y0, *value);
+                return true;
             }
         }
-
-        let max_appearing_value = appearing_value
-            .iter()
-            .enumerate()
-            .max_by_key(|&(_, count)| count)
-            .map(|(index, _)| index + 1)
-            .unwrap();
-
-        self.set_value(x0, y0, max_appearing_value);
-        debug_only!(
-            "valeur {} fixée en x: {}, y: {}",
-            max_appearing_value,
-            x0,
-            y0
-        );
-        true
+        false
     }
 
     // règle 30: http://www.taupierbw.be/SudokuCoach/SC_XYChain.shtml
