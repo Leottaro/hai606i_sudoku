@@ -8,15 +8,7 @@ use super::{
     SudokuGroups::*,
     SudokuRule,
 };
-
-macro_rules! debug_only {
-    ($($arg:tt)*) => {
-        #[cfg(debug_assertions)]
-        {
-            log::debug!($($arg)*);
-        }
-    };
-}
+use crate::debug_only;
 
 /*
 rules info:
@@ -215,7 +207,6 @@ impl Sudoku {
                                 }
                                 for &value in common_possibilities.iter() {
                                     if self.possibility_board[y][x].remove(&value) {
-                                        #[cfg(debug_assertions)]
                                         debug_only!(
                                             "possibilitée {value} supprimée de x: {x}, y: {y}"
                                         );

@@ -5,6 +5,13 @@ use simple_sudoku::{Sudoku, SudokuDisplay};
 mod simple_sudoku;
 mod tests;
 
+#[macro_export]
+macro_rules! debug_only {
+    ($($arg:tt)*) => {
+        log::debug!($($arg)*);
+    };
+}
+
 fn window_conf() -> Conf {
     Conf {
         window_title: "Sudoku".to_owned(),
