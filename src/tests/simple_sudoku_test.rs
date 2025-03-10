@@ -330,7 +330,24 @@ mod tests {
         let mut time_samples = SudokuDifficulty::iter()
             .map(|diff| (diff, Vec::new()))
             .collect::<Vec<_>>();
-        let iterations = 100;
+        let iterations: usize = 100;
+
+        let end_function = |time_samples: Vec<(SudokuDifficulty, Vec<u128>)>, iterations: usize| {
+            for (difficulty, mut samples) in time_samples {
+                samples.sort();
+
+                let min = samples.first().unwrap_or(&0);
+                let max = samples.last().unwrap_or(&0);
+
+                let average = samples.iter().sum::<u128>() as f32 / iterations as f32;
+                let median = samples.get(samples.len() / 2).unwrap_or(&0);
+
+                println!(
+                    "Difficulty {}:\n\tmin: {}ms\n\tmax: {}ms\n\taverage {:.2} ms\n\tmedian: {}ms",
+                    difficulty, min, max, average, median
+                );
+            }
+        };
 
         for (i, difficulty) in SudokuDifficulty::iter().enumerate() {
             println!("testing difficulty {difficulty}");
@@ -356,7 +373,10 @@ mod tests {
                                 .init();
                                 loop {
                                     match original_sudoku.rule_solve(None, None) {
-                                        Ok(None) | Err(_) => panic!(),
+                                        Ok(None) | Err(_) => {
+                                            end_function(time_samples, iterations);
+                                            panic!();
+                                        }
                                         _ => (),
                                     }
                                 }
@@ -371,6 +391,7 @@ mod tests {
                                 match original_sudoku.rule_solve(None, None) {
                                     Ok(None) | Err(_) => {
                                         eprintln!("MAXIMUM SUDOKU:{original_sudoku}");
+                                        end_function(time_samples, iterations);
                                         panic!();
                                     }
                                     _ => (),
@@ -383,19 +404,6 @@ mod tests {
             }
         }
 
-        for (difficulty, mut samples) in time_samples {
-            samples.sort();
-
-            let min = samples.first().unwrap();
-            let max = samples.last().unwrap();
-
-            let average = samples.iter().sum::<u128>() as f32 / iterations as f32;
-            let median = samples.get(samples.len() / 2).unwrap();
-
-            println!(
-                "Difficulty {}:\n\tmin: {}ms\n\tmax: {}ms\n\taverage {:.2} ms\n\tmedian: {}ms",
-                difficulty, min, max, average, median
-            );
-        }
+        end_function(time_samples, iterations);
     }
 }
