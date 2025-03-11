@@ -51,7 +51,7 @@ rule 13: used in 0000000 sudokus (0ms avg)
 impl Sudoku {
     pub const RULES: &'static [(usize, SudokuDifficulty, SudokuRule)] = &[
         (29, Mandatory, Sudoku::bi_value_universal_grave),
-        (35, Unimplemented, Sudoku::avoidable_rectangle),
+        (35, Mandatory, Sudoku::avoidable_rectangle),
         (36, Unimplemented, Sudoku::unique_rectangle),
         (37, Unimplemented, Sudoku::hidden_unique_rectangle),
         (44, Unimplemented, Sudoku::exocet),
@@ -1575,7 +1575,102 @@ impl Sudoku {
 
     // règle 35: https://www.taupierbw.be/SudokuCoach/SC_AvoidableRectangle.shtml
     pub(super) fn avoidable_rectangle(&mut self) -> bool {
-        warn!("avoidable_rectangle not yet implemented");
+        let mut modified = false;
+        for y0 in 0..self.n2 {
+            for x0 in 0..self.n2 {
+                for y1 in (y0 + 1)..self.n2 {
+                    for x1 in (x0 + 1)..self.n2 {
+                        let rectangle = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)];
+
+                        let values = rectangle
+                            .iter()
+                            .filter_map(|(x, y)| {
+                                if self.board[*y][*x] != 0 {
+                                    Some(self.board[*y][*x])
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<HashSet<_>>();
+                        if values.len() != 2 {
+                            continue;
+                        }
+                        let (val1, val2) = {
+                            let mut values_iter = values.into_iter();
+                            (values_iter.next().unwrap(), values_iter.next().unwrap())
+                        };
+
+                        let mut empty_cells = rectangle
+                            .iter()
+                            .filter(|&&(x, y)| self.board[y][x] == 0)
+                            .collect::<Vec<_>>();
+
+                        if empty_cells.len() == 1 {
+                            // TYPE 1
+                            let &(x, y) = empty_cells.pop().unwrap();
+
+                            if self.possibility_board[y][x].remove(&val1)
+                                || self.possibility_board[y][x].remove(&val2)
+                            {
+                                return true;
+                            }
+                        } else if empty_cells.len() == 2 {
+                            let &(x2, y2) = empty_cells.pop().unwrap();
+                            let &(x3, y3) = empty_cells.pop().unwrap();
+                            if x2 != x3 && y2 != y3 {
+                                continue;
+                            }
+
+                            if self.possibility_board[y2][x2].len() != 2
+                                || self.possibility_board[y3][x3].len() != 2
+                            {
+                                continue;
+                            }
+
+                            let mut possibilities = self.possibility_board[y2][x2]
+                                .union(&self.possibility_board[y3][x3])
+                                .cloned()
+                                .collect::<HashSet<_>>();
+                            if possibilities.len() != 3 {
+                                continue;
+                            }
+
+                            possibilities.remove(&val1);
+                            possibilities.remove(&val2);
+
+                            if possibilities.len() != 1 {
+                                continue;
+                            }
+                            let common_possibility = possibilities.into_iter().next().unwrap();
+
+                            if x2 == x3 {
+                                for y in 0..self.n2 {
+                                    if y == y2 || y == y3 {
+                                        continue;
+                                    }
+                                    if self.possibility_board[y][x2].remove(&common_possibility) {
+                                        modified = true;
+                                    }
+                                }
+                            } else {
+                                for x in 0..self.n2 {
+                                    if x == x2 || x == x3 {
+                                        continue;
+                                    }
+                                    if self.possibility_board[y2][x].remove(&common_possibility) {
+                                        modified = true;
+                                    }
+                                }
+                            }
+
+                            if modified {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
         false
     }
 
