@@ -3,20 +3,20 @@ use super::{
     SudokuDifficulty::{self, *},
     SudokuGroups::{self, *},
 };
-#[cfg(debug_assertions)]
-use log::debug;
+use crate::debug_only;
 use rand::seq::SliceRandom;
 use std::{
     cmp::max,
     collections::{HashMap, HashSet},
     env::current_dir,
     ops::{AddAssign, Range},
-    sync::{mpsc, Arc, LazyLock, Mutex},
+    sync::{mpsc, Arc, LazyLock, Mutex, RwLock},
     thread::{available_parallelism, JoinHandle},
 };
 
-static GROUPS: LazyLock<Mutex<HashMap<usize, GroupMap>>> = LazyLock::new(Default::default);
-static CELL_GROUPS: LazyLock<Mutex<HashMap<usize, CellGroupMap>>> = LazyLock::new(Default::default);
+static GROUPS: LazyLock<RwLock<HashMap<usize, GroupMap>>> = LazyLock::new(Default::default);
+static CELL_GROUPS: LazyLock<RwLock<HashMap<usize, CellGroupMap>>> =
+    LazyLock::new(Default::default);
 
 #[allow(dead_code)] // no warning due to unused functions
 impl Sudoku {
@@ -48,24 +48,24 @@ impl Sudoku {
 
     pub fn get_group(&self, groups: SudokuGroups) -> Vec<HashSet<Coords>> {
         GROUPS
-            .lock()
+            .read()
             .unwrap()
             .get(&self.n)
             .unwrap()
             .get(&groups)
             .unwrap()
-            .to_owned()
+            .clone()
     }
 
     pub fn get_cell_group(&self, x: usize, y: usize, groups: SudokuGroups) -> HashSet<Coords> {
         CELL_GROUPS
-            .lock()
+            .read()
             .unwrap()
             .get(&self.n)
             .unwrap()
             .get(&((x, y), groups))
             .unwrap()
-            .to_owned()
+            .clone()
     }
 
     pub fn get_cell_groups(
@@ -154,7 +154,7 @@ impl Sudoku {
         let difficulty = Unknown;
         let error = None;
 
-        if GROUPS.lock().unwrap().contains_key(&n) && CELL_GROUPS.lock().unwrap().contains_key(&n) {
+        if GROUPS.read().unwrap().contains_key(&n) && CELL_GROUPS.read().unwrap().contains_key(&n) {
             return Self {
                 n,
                 n2,
@@ -218,8 +218,8 @@ impl Sudoku {
         groups.insert(Square, squares);
         groups.insert(All, all);
 
-        GROUPS.lock().unwrap().insert(n, groups);
-        CELL_GROUPS.lock().unwrap().insert(n, cell_groups);
+        GROUPS.write().unwrap().insert(n, groups);
+        CELL_GROUPS.write().unwrap().insert(n, cell_groups);
 
         Self {
             n,
@@ -247,180 +247,180 @@ impl Sudoku {
         let start = std::time::Instant::now();
         let max_threads: usize = available_parallelism().unwrap().get();
         let (tx, rx) = mpsc::channel();
-
         type SudokuFilledCells = (Sudoku, Vec<bool>);
-        let to_explore: Arc<Mutex<Vec<SudokuFilledCells>>> = Arc::new(Mutex::new(Vec::new()));
-        let explored_filled_cells: Arc<Mutex<HashSet<Vec<bool>>>> =
-            Arc::new(Mutex::new(HashSet::new()));
-        let total: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
-        let skipped: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
 
-        let mut threads_infos: Vec<(JoinHandle<()>, mpsc::Sender<()>)> = Vec::new();
-        for _ in 0..max_threads {
-            let thread_to_explore = Arc::clone(&to_explore);
-            let thread_explored_filled_cells = Arc::clone(&explored_filled_cells);
-            let thread_total = Arc::clone(&total);
-            let thread_skipped = Arc::clone(&skipped);
-            let thread_tx = tx.clone();
+        loop {
+            let to_explore: Arc<Mutex<Vec<SudokuFilledCells>>> = Arc::new(Mutex::new(Vec::new()));
+            let explored_filled_cells: Arc<Mutex<HashSet<Vec<bool>>>> =
+                Arc::new(Mutex::new(HashSet::new()));
+            let total: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
+            let skipped: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
 
-            let (main_tx, thread_rx) = mpsc::channel();
+            let mut threads_infos: Vec<(JoinHandle<()>, mpsc::Sender<()>)> = Vec::new();
+            for _ in 0..max_threads {
+                let thread_to_explore = Arc::clone(&to_explore);
+                let thread_explored_filled_cells = Arc::clone(&explored_filled_cells);
+                let thread_total = Arc::clone(&total);
+                let thread_skipped = Arc::clone(&skipped);
+                let thread_tx = tx.clone();
 
-            let join_handle = std::thread::spawn(move || {
-                let mut rng = rand::thread_rng();
-                while thread_rx.try_recv().is_err() {
-                    let (sudoku, mut filled_cells) = thread_to_explore
-                        .lock()
-                        .unwrap()
-                        .pop()
-                        .unwrap_or((Self::generate_full(n), vec![true; n2 * n2]));
+                let (main_tx, thread_rx) = mpsc::channel();
 
-                    (*thread_total.lock().unwrap()).add_assign(1);
-                    // print!("\x1B[2J\x1B[1;1H");
-                    // print!(
-                    //     "DIFFICULTY {}\n{}\nSkipped {skipped}/{total} instances with {} filled cells ",
-                    //     sudoku.difficulty,
-                    //     sudoku,
-                    //     filled_cells.iter().filter(|b| **b).count()
-                    // );
-
-                    let mut shuffled_filled_cells: Vec<(usize, Coords)> = filled_cells
-                        .iter()
-                        .enumerate()
-                        .filter_map(|(i, b)| {
-                            if *b {
-                                Some((i, (i % sudoku.n2, i / sudoku.n2)))
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
-                    shuffled_filled_cells.shuffle(&mut rng);
-                    for (i, (x, y)) in shuffled_filled_cells.into_iter().take(2) {
-                        let mut testing_sudoku = sudoku.clone();
-                        let removed_value = testing_sudoku.remove_value(x, y);
-                        filled_cells[i] = false;
-
-                        if thread_explored_filled_cells
+                let join_handle = std::thread::spawn(move || {
+                    let mut rng = rand::thread_rng();
+                    while thread_rx.try_recv().is_err() {
+                        let (sudoku, mut filled_cells) = thread_to_explore
                             .lock()
                             .unwrap()
-                            .contains(&filled_cells)
-                        {
-                            (*thread_skipped.lock().unwrap()).add_assign(1);
-                            (*thread_total.lock().unwrap()).add_assign(1);
-                            print!(
-                                "Skipped {}/{} instances with {} filled cells            \r",
-                                thread_skipped.lock().unwrap(),
-                                thread_total.lock().unwrap(),
-                                filled_cells.iter().filter(|b| **b).count()
-                            );
-                            std::io::Write::flush(&mut std::io::stdout()).unwrap();
-                            filled_cells[i] = true;
-                            continue;
-                        }
+                            .pop()
+                            .unwrap_or((Self::generate_full(n), vec![true; n2 * n2]));
 
-                        let mut can_solve: bool = false;
-                        loop {
-                            match testing_sudoku.rule_solve(None, Some(aimed_difficulty)) {
-                                Ok(Some(0 | 1)) => {
-                                    if testing_sudoku.board[y][x] == removed_value {
-                                        can_solve = true;
-                                        break;
-                                    }
+                        (*thread_total.lock().unwrap()).add_assign(1);
+                        // print!("\x1B[2J\x1B[1;1H");
+                        // print!(
+                        //     "DIFFICULTY {}\n{}\nSkipped {skipped}/{total} instances with {} filled cells ",
+                        //     sudoku.difficulty,
+                        //     sudoku,
+                        //     filled_cells.iter().filter(|b| **b).count()
+                        // );
 
-                                    let testing_filled_cells: Vec<bool> = (0..sudoku.n2
-                                        * sudoku.n2)
-                                        .map(|i| {
-                                            testing_sudoku.board[i / sudoku.n2][i % sudoku.n2]
-                                                .ne(&0)
-                                        })
-                                        .collect();
-                                    if thread_explored_filled_cells
-                                        .lock()
-                                        .unwrap()
-                                        .contains(&testing_filled_cells)
-                                    {
-                                        (*thread_skipped.lock().unwrap()).add_assign(1);
-                                        (*thread_total.lock().unwrap()).add_assign(1);
-                                        print!(
+                        let mut shuffled_filled_cells: Vec<(usize, Coords)> = filled_cells
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(i, b)| {
+                                if *b {
+                                    Some((i, (i % sudoku.n2, i / sudoku.n2)))
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+                        shuffled_filled_cells.shuffle(&mut rng);
+                        for (i, (x, y)) in shuffled_filled_cells.into_iter().take(n) {
+                            let mut testing_sudoku = sudoku.clone();
+                            let removed_value = testing_sudoku.remove_value(x, y);
+                            filled_cells[i] = false;
+
+                            if thread_explored_filled_cells
+                                .lock()
+                                .unwrap()
+                                .contains(&filled_cells)
+                            {
+                                (*thread_skipped.lock().unwrap()).add_assign(1);
+                                (*thread_total.lock().unwrap()).add_assign(1);
+                                print!(
+                                    "Skipped {}/{} instances with {} filled cells            \r",
+                                    thread_skipped.lock().unwrap(),
+                                    thread_total.lock().unwrap(),
+                                    filled_cells.iter().filter(|b| **b).count()
+                                );
+                                std::io::Write::flush(&mut std::io::stdout()).unwrap();
+                                filled_cells[i] = true;
+                                continue;
+                            }
+
+                            let mut can_solve: bool = false;
+                            loop {
+                                match testing_sudoku.rule_solve(None, Some(aimed_difficulty)) {
+                                    Ok(Some(0 | 1)) => {
+                                        if testing_sudoku.board[y][x] == removed_value {
+                                            can_solve = true;
+                                            break;
+                                        }
+
+                                        let testing_filled_cells: Vec<bool> = (0..sudoku.n2
+                                            * sudoku.n2)
+                                            .map(|i| {
+                                                testing_sudoku.board[i / sudoku.n2][i % sudoku.n2]
+                                                    .ne(&0)
+                                            })
+                                            .collect();
+                                        if thread_explored_filled_cells
+                                            .lock()
+                                            .unwrap()
+                                            .contains(&testing_filled_cells)
+                                        {
+                                            (*thread_skipped.lock().unwrap()).add_assign(1);
+                                            (*thread_total.lock().unwrap()).add_assign(1);
+                                            print!(
                     						"Skipped {}/{} instances with {} filled cells            \r",
                     						thread_skipped.lock().unwrap(),
                     						thread_total.lock().unwrap(),
                     						filled_cells.iter().filter(|b| **b).count()
                     					);
-                                        std::io::Write::flush(&mut std::io::stdout()).unwrap();
+                                            std::io::Write::flush(&mut std::io::stdout()).unwrap();
+                                            break;
+                                        }
+                                    }
+                                    Ok(Some(_rule_used)) => (),
+                                    _ => {
                                         break;
                                     }
                                 }
-                                Ok(Some(_rule_used)) => (),
-                                _ => {
-                                    break;
-                                }
                             }
-                        }
-                        if !can_solve {
+                            if !can_solve {
+                                filled_cells[i] = true;
+                                continue;
+                            }
+
+                            let mut passed_sudoku = sudoku.clone();
+                            passed_sudoku.remove_value(x, y);
+                            passed_sudoku.difficulty = testing_sudoku.difficulty;
+
+                            if passed_sudoku.difficulty == aimed_difficulty {
+                                passed_sudoku.difficulty = Unknown;
+                                let _ = thread_tx.send(Some(passed_sudoku));
+                                return;
+                            } else if filled_cells.len() < n2 * 2 - 1
+                                || passed_sudoku.difficulty > aimed_difficulty
+                            {
+                                thread_explored_filled_cells
+                                    .lock()
+                                    .unwrap()
+                                    .insert(filled_cells.clone());
+                            } else {
+                                // EXPLORATION EN LARGEUR (annulé car ça prends beaucoup trop de mémoire)
+                                // thread_to_explore
+                                //     .lock()
+                                //     .unwrap()
+                                //     .insert(0, (passed_sudoku, filled_cells.clone()));
+
+                                // EXPLORATION EN PROFONDEUR
+                                thread_to_explore
+                                    .lock()
+                                    .unwrap()
+                                    .push((passed_sudoku, filled_cells.clone()));
+                            }
+
                             filled_cells[i] = true;
-                            continue;
                         }
 
-                        let mut passed_sudoku = sudoku.clone();
-                        passed_sudoku.remove_value(x, y);
-                        passed_sudoku.difficulty = testing_sudoku.difficulty;
-
-                        if passed_sudoku.difficulty == aimed_difficulty {
-                            passed_sudoku.difficulty = Unknown;
-                            let _ = thread_tx.send(Some(passed_sudoku));
-                            return;
-                        } else if filled_cells.len() < n2 * 2 - 1
-                            || passed_sudoku.difficulty > aimed_difficulty
-                        {
-                            thread_explored_filled_cells
-                                .lock()
-                                .unwrap()
-                                .insert(filled_cells.clone());
-                        } else {
-                            // EXPLORATION EN LARGEUR (annulé car ça prends beaucoup trop de mémoire)
-                            // thread_to_explore
-                            //     .lock()
-                            //     .unwrap()
-                            //     .insert(0, (passed_sudoku, filled_cells.clone()));
-
-                            // EXPLORATION EN PROFONDEUR
-                            thread_to_explore
-                                .lock()
-                                .unwrap()
-                                .push((passed_sudoku, filled_cells.clone()));
-                        }
-
-                        filled_cells[i] = true;
+                        thread_explored_filled_cells
+                            .lock()
+                            .unwrap()
+                            .insert(filled_cells);
                     }
-
-                    thread_explored_filled_cells
-                        .lock()
-                        .unwrap()
-                        .insert(filled_cells);
-                }
-            });
-            threads_infos.push((join_handle, main_tx));
-        }
-
-        let sudoku = rx.recv().unwrap();
-
-        if let Some(sudoku) = sudoku {
-            for (handle, tx) in threads_infos {
-                let _ = tx.send(());
-                handle.join().unwrap();
+                });
+                threads_infos.push((join_handle, main_tx));
             }
 
-            println!(
-                "Skipped {} sudokus, Explored {} possibilities, in {} seconds",
-                skipped.lock().unwrap(),
-                explored_filled_cells.lock().unwrap().len(),
-                start.elapsed().as_secs_f32()
-            );
+            let sudoku = rx.recv().unwrap();
 
-            sudoku
-        } else {
-            todo!()
+            if let Some(sudoku) = sudoku {
+                for (handle, tx) in threads_infos {
+                    let _ = tx.send(());
+                    handle.join().unwrap();
+                }
+
+                println!(
+                    "Skipped {} sudokus, Explored {} possibilities, in {} seconds",
+                    skipped.lock().unwrap(),
+                    explored_filled_cells.lock().unwrap().len(),
+                    start.elapsed().as_secs_f32()
+                );
+
+                return sudoku;
+            }
         }
     }
 
@@ -478,7 +478,7 @@ impl Sudoku {
                 let difficulty_filter = if let Some(max_difficulty) = max_difficulty {
                     *difficulty <= max_difficulty
                 } else {
-                    true
+                    *difficulty < Unimplemented
                 };
                 range_filter && difficulty_filter && *difficulty != Unimplemented
             })
@@ -492,11 +492,8 @@ impl Sudoku {
                 continue;
             }
 
-            #[cfg(debug_assertions)]
-            {
-                debug!("règle {} appliquée", rule_id);
-                debug!("Sudoku actuel:\n{}", self);
-            }
+            debug_only!("règle {} appliquée", rule_id);
+            debug_only!("Sudoku actuel:\n{}", self);
 
             rule_used = Some(rule_id);
             self.difficulty = max(self.difficulty, difficulty);

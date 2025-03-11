@@ -1,58 +1,40 @@
-
-use std::time::Instant;
-
+use env_logger::Env;
 use macroquad::prelude::*;
-use simple_sudoku::{Sudoku, SudokuDifficulty};
+use simple_sudoku::{Sudoku, SudokuDisplay};
 
 mod simple_sudoku;
 mod tests;
 
-fn main() {
-    let mut average_durations = SudokuDifficulty::iter()
-        .map(|diff| (diff, 0.))
-        .collect::<Vec<_>>();
-    let iterations = 100;
+#[macro_export]
+macro_rules! debug_only {
+    ($($arg:tt)*) => {
+        log::debug!($($arg)*);
+    };
+}
 
-    for (i, difficulty) in SudokuDifficulty::iter().enumerate() {
-        let mut total_duration = 0;
-        println!("testing difficulty {difficulty}");
-
-        for j in 0..iterations {
-            println!("iteration {j}: ");
-
-            let start = Instant::now();
-            let original_sudoku = Sudoku::generate(3, difficulty);
-            total_duration += start.elapsed().as_millis();
-
-            let mut sudoku = original_sudoku.clone();
-            while !sudoku.is_solved() {
-                sudoku.rule_solve(None, None).unwrap();
-                if let Some(((x1, y1), (x2, y2))) = sudoku.get_error() {
-                    eprintln!("ERROR IN SUDOKU: cells ({x1},{y1}) == ({x2},{y2}): \nORIGINAL SUDOKU:\n{original_sudoku}\nFINISHED SUDOKU: \n{sudoku}");
-                    panic!();
-                }
-            }
-
-            if sudoku.is_solved() {
-                // println!("ORIGINAL SUDOKU:\n{original_sudoku}\nFINISHED SUDOKU: \n{sudoku}");
-                assert_eq!(difficulty, sudoku.get_difficulty());
-            } else {
-                panic!();
-            }
-        }
-
-        average_durations[i].1 = total_duration as f64 / iterations as f64;
-
-        println!(
-            "Average time for difficulty {}: {:.2} ms",
-            difficulty, average_durations[i].1
-        );
+fn window_conf() -> Conf {
+    Conf {
+        window_title: "Sudoku".to_owned(),
+        window_width: 1920,
+        window_height: 1080,
+        ..Default::default()
     }
+}
 
-    for (difficulty, duration) in average_durations {
-        println!(
-            "Average time for difficulty {}: {:.2} ms",
-            difficulty, duration
-        );
+#[macroquad::main(window_conf)]
+async fn main() {
+    env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
+    #[cfg(debug_assertions)]
+    debug!("Debug activé");
+    let mut sudoku = Sudoku::parse_file("sudoku-rule-21-1.txt").unwrap();
+    println!("{}", sudoku);
+    let font = load_ttf_font("./res/font/RobotoMono-Thin.ttf")
+        .await
+        .unwrap();
+    let mut sudoku_display = SudokuDisplay::new(&mut sudoku, font.clone());
+
+    loop {
+        sudoku_display.run(font.clone()).await;
+        next_frame().await;
     }
 }

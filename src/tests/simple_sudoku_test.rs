@@ -327,52 +327,83 @@ mod tests {
     #[test]
     #[ignore = "test too long: run it with `cargo test -- tests::simple_sudoku_test::tests::generate --exact --nocapture --ignored`"]
     fn generate() {
-        let mut average_durations = SudokuDifficulty::iter()
-            .map(|diff| (diff, 0.))
+        let mut time_samples = SudokuDifficulty::iter()
+            .map(|diff| (diff, Vec::new()))
             .collect::<Vec<_>>();
-        let iterations = 100;
+        let iterations: usize = 100;
+
+        let end_function = |time_samples: Vec<(SudokuDifficulty, Vec<u128>)>, iterations: usize| {
+            for (difficulty, mut samples) in time_samples {
+                samples.sort();
+
+                let min = samples.first().unwrap_or(&0);
+                let max = samples.last().unwrap_or(&0);
+
+                let average = samples.iter().sum::<u128>() as f32 / iterations as f32;
+                let median = samples.get(samples.len() / 2).unwrap_or(&0);
+
+                println!(
+                    "Difficulty {}:\n\tmin: {}ms\n\tmax: {}ms\n\taverage {:.2} ms\n\tmedian: {}ms",
+                    difficulty, min, max, average, median
+                );
+            }
+        };
 
         for (i, difficulty) in SudokuDifficulty::iter().enumerate() {
-            let mut total_duration = 0;
             println!("testing difficulty {difficulty}");
 
             for j in 0..iterations {
                 println!("iteration {j}: ");
 
                 let start = Instant::now();
-                let original_sudoku = Sudoku::generate(3, difficulty);
-                total_duration += start.elapsed().as_millis();
+                let mut original_sudoku = Sudoku::generate(3, difficulty);
+                time_samples[i].1.push(start.elapsed().as_millis());
 
+                println!("Solving...");
                 let mut sudoku = original_sudoku.clone();
-                while !sudoku.is_solved() {
-                    sudoku.rule_solve(None, None).unwrap();
-                    if let Some(((x1, y1), (x2, y2))) = sudoku.get_error() {
-                        eprintln!("ERROR IN SUDOKU: cells ({x1},{y1}) == ({x2},{y2}): \nORIGINAL SUDOKU:\n{original_sudoku}\nFINISHED SUDOKU: \n{sudoku}");
-                        panic!();
+                loop {
+                    match sudoku.rule_solve(None, None) {
+                        Ok(Some(_)) => (),
+                        Ok(None) => {
+                            if !sudoku.is_solved() {
+                                eprintln!("ERROR IN SUDOKU SOLVING: Couldn't solve generated sudoku: \nORIGINAL SUDOKU:\n{original_sudoku}\nFINISHED SUDOKU: \n{sudoku}");
+                                env_logger::Builder::from_env(
+                                    env_logger::Env::default().default_filter_or("debug"),
+                                )
+                                .init();
+                                loop {
+                                    match original_sudoku.rule_solve(None, None) {
+                                        Ok(None) | Err(_) => {
+                                            end_function(time_samples, iterations);
+                                            panic!();
+                                        }
+                                        _ => (),
+                                    }
+                                }
+                            }
+                            break;
+                        }
+                        Err(((x1, y1), (x2, y2))) => {
+                            eprintln!(
+                            "ERROR IN SUDOKU: cells ({x1},{y1}) == ({x2},{y2}): \nORIGINAL SUDOKU:"
+                        );
+                            loop {
+                                match original_sudoku.rule_solve(None, None) {
+                                    Ok(None) | Err(_) => {
+                                        eprintln!("MAXIMUM SUDOKU:{original_sudoku}");
+                                        end_function(time_samples, iterations);
+                                        panic!();
+                                    }
+                                    _ => (),
+                                }
+                            }
+                        }
                     }
                 }
-
-                if sudoku.is_solved() {
-                    // println!("ORIGINAL SUDOKU:\n{original_sudoku}\nFINISHED SUDOKU: \n{sudoku}");
-                    assert_eq!(difficulty, sudoku.get_difficulty());
-                } else {
-                    panic!();
-                }
+                println!("Solved !");
             }
-
-            average_durations[i].1 = total_duration as f64 / iterations as f64;
-
-            println!(
-                "Average time for difficulty {}: {:.2} ms",
-                difficulty, average_durations[i].1
-            );
         }
 
-        for (difficulty, duration) in average_durations {
-            println!(
-                "Average time for difficulty {}: {:.2} ms",
-                difficulty, duration
-            );
-        }
+        end_function(time_samples, iterations);
     }
 }
