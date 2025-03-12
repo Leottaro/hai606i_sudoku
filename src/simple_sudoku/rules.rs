@@ -42,11 +42,6 @@ Difficulty EXTREME:
 
 impl Sudoku {
     pub const RULES: &'static [(usize, SudokuDifficulty, SudokuRule)] = &[
-        (29, Unimplemented, Sudoku::bi_value_universal_grave),
-        (35, Unimplemented, Sudoku::avoidable_rectangle),
-        (36, Unimplemented, Sudoku::unique_rectangle),
-        (37, Unimplemented, Sudoku::hidden_unique_rectangle),
-        (44, Unimplemented, Sudoku::exocet),
         (0, Easy, Sudoku::naked_singles),
         (1, Easy, Sudoku::hidden_singles),
         (8, Easy, Sudoku::pointing_pair),
@@ -67,6 +62,9 @@ impl Sudoku {
         (19, Extreme, Sudoku::swordfish),
         (7, Extreme, Sudoku::hidden_quads),
         (13, Extreme, Sudoku::franken_x_wing),
+        (29, Useless, Sudoku::bi_value_universal_grave),
+        (35, Useless, Sudoku::avoidable_rectangle),
+        (36, Useless, Sudoku::unique_rectangle),
         // unimplemented rules
         (14, Unimplemented, Sudoku::finned_mutant_x_wing),
         (21, Unimplemented, Sudoku::sashimi_finned_swordfish),
@@ -82,12 +80,14 @@ impl Sudoku {
         (32, Unimplemented, Sudoku::jellyfish),
         (33, Unimplemented, Sudoku::finned_jellyfish),
         (34, Unimplemented, Sudoku::sashimi_finned_jellyfish),
+        (37, Unimplemented, Sudoku::hidden_unique_rectangle),
         (38, Unimplemented, Sudoku::wxyz_wing),
         (39, Unimplemented, Sudoku::firework),
         (40, Unimplemented, Sudoku::subset_exclusion),
         (41, Unimplemented, Sudoku::empty_rectangle),
         (42, Unimplemented, Sudoku::sue_de_coq_extended),
         (43, Unimplemented, Sudoku::sk_loop),
+        (44, Unimplemented, Sudoku::exocet),
         (45, Unimplemented, Sudoku::almost_locked_sets),
         (46, Unimplemented, Sudoku::alternating_inference_chain),
         (47, Unimplemented, Sudoku::digit_forcing_chains),
@@ -159,19 +159,16 @@ impl Sudoku {
                             }
                             for value in self.possibility_board[y1][x1].clone() {
                                 if self.possibility_board[y][x].remove(&value) {
-                                    debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}");
+                                    debug_only!("({}, {}): possibilité {} supprimée", x, y, value);
                                     modified = true;
                                 }
                             }
-                        }
-                        if modified {
-                            return true;
                         }
                     }
                 }
             }
         }
-        false
+        modified
     }
 
     // règle 3: http://www.taupierbw.be/SudokuCoach/SC_NakedTriples.shtml
@@ -208,25 +205,26 @@ impl Sudoku {
                                 for &value in common_possibilities.iter() {
                                     if self.possibility_board[y][x].remove(&value) {
                                         debug_only!(
-                                            "possibilitée {value} supprimée de x: {x}, y: {y}"
+                                            "({}, {}): possibilité {} supprimée",
+                                            x,
+                                            y,
+                                            value
                                         );
                                         modified = true;
                                     }
                                 }
-                            }
-                            if modified {
-                                return true;
                             }
                         }
                     }
                 }
             }
         }
-        false
+        modified
     }
 
     // règle 4: http://www.taupierbw.be/SudokuCoach/SC_HiddenPairs.shtml
     pub(super) fn hidden_pairs(&mut self) -> bool {
+        let mut modified = false;
         for group in self.get_group(All) {
             for value1 in 1..self.n2 {
                 let occurences_value1: HashSet<&Coords> = group
@@ -244,29 +242,26 @@ impl Sudoku {
                     if occurences_value1 != occurences_value2 {
                         continue;
                     }
-                    let mut modified = false;
                     for &&(x, y) in occurences_value1.iter() {
                         for value in 1..=self.n2 {
                             if value != value1
                                 && value != value2
                                 && self.possibility_board[y][x].remove(&value)
                             {
-                                debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}");
+                                debug_only!("({}, {}): possibilité {} supprimée", x, y, value);
                                 modified = true;
                             }
                         }
                     }
-                    if modified {
-                        return true;
-                    }
                 }
             }
         }
-        false
+        modified
     }
 
     // règle 5: http://www.taupierbw.be/SudokuCoach/SC_HiddenTriples.shtml
     pub(super) fn hidden_triples(&mut self) -> bool {
+        let mut modified = false;
         for group in self.get_group(All) {
             for value1 in 1..self.n2 {
                 let occurences_value1: HashSet<&Coords> = group
@@ -302,7 +297,7 @@ impl Sudoku {
                         if common_occurences.len() != 3 {
                             continue;
                         }
-                        let mut modified = false;
+
                         for &&(x, y) in common_occurences.into_iter() {
                             for value in 1..=self.n2 {
                                 if value != value1
@@ -310,19 +305,16 @@ impl Sudoku {
                                     && value != value3
                                     && self.possibility_board[y][x].remove(&value)
                                 {
-                                    debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}");
+                                    debug_only!("({}, {}): possibilité {} supprimée", x, y, value);
                                     modified = true;
                                 }
                             }
-                        }
-                        if modified {
-                            return true;
                         }
                     }
                 }
             }
         }
-        false
+        modified
     }
 
     // règle 6: http://www.taupierbw.be/SudokuCoach/SC_NakedQuads.shtml
@@ -367,14 +359,14 @@ impl Sudoku {
                                     for &value in common_possibilities.iter() {
                                         if self.possibility_board[y][x].remove(&value) {
                                             debug_only!(
-                                                "possibilitée {value} supprimée de x: {x}, y: {y}"
+                                                "({}, {}): possibilité {} supprimée",
+                                                x,
+                                                y,
+                                                value
                                             );
                                             modified = true;
                                         }
                                     }
-                                }
-                                if modified {
-                                    return true;
                                 }
                             }
                         }
@@ -382,11 +374,12 @@ impl Sudoku {
                 }
             }
         }
-        false
+        modified
     }
 
     // règle 7: http://www.taupierbw.be/SudokuCoach/SC_HiddenQuads.shtml
     pub(super) fn hidden_quads(&mut self) -> bool {
+        let mut modified = false;
         for group in self.get_group(All) {
             for value1 in 1..self.n2 {
                 let occurences_value1: HashSet<&Coords> = group
@@ -429,7 +422,6 @@ impl Sudoku {
                             if common_occurences.len() != 4 {
                                 continue;
                             }
-                            let mut modified = false;
                             for &&(x, y) in common_occurences.into_iter() {
                                 for value in 1..=self.n2 {
                                     if value != value1
@@ -439,25 +431,26 @@ impl Sudoku {
                                         && self.possibility_board[y][x].remove(&value)
                                     {
                                         debug_only!(
-                                            "possibilitée {value} supprimée de x: {x}, y: {y}"
+                                            "({}, {}): possibilité {} supprimée",
+                                            x,
+                                            y,
+                                            value
                                         );
                                         modified = true;
                                     }
                                 }
-                            }
-                            if modified {
-                                return true;
                             }
                         }
                     }
                 }
             }
         }
-        false
+        modified
     }
 
     // règle 8: http://www.taupierbw.be/SudokuCoach/SC_PointingPair.shtml
     pub(super) fn pointing_pair(&mut self) -> bool {
+        let mut modified = false;
         for square in self.get_group(Square) {
             for value in 1..=self.n2 {
                 let occurences: Vec<&Coords> = square
@@ -469,14 +462,13 @@ impl Sudoku {
                 }
                 let &(x1, y1) = occurences[0];
                 let &(x2, y2) = occurences[1];
-                let mut modified = false;
                 if x1 == x2 {
                     for y in 0..self.n2 {
                         if y == y1 || y == y2 {
                             continue;
                         }
                         if self.possibility_board[y][x1].remove(&value) {
-                            debug_only!("possibilitée {value} supprimée de x: {x1}, y: {y}");
+                            debug_only!("({}, {}): possibilité {} supprimée", x1, y, value);
                             modified = true;
                         }
                     }
@@ -486,23 +478,21 @@ impl Sudoku {
                             continue;
                         }
                         if self.possibility_board[y1][x].remove(&value) {
-                            debug_only!("possibilitée {value} supprimée de x: {x}, y: {y1}");
+                            debug_only!("({}, {}): possibilité {} supprimée", x, y1, value);
                             modified = true;
                         }
                     }
                 } else {
                     continue;
                 }
-                if modified {
-                    return true;
-                }
             }
         }
-        false
+        modified
     }
 
     // règle 9: http://www.taupierbw.be/SudokuCoach/SC_PointingTriple.shtml
     pub(super) fn pointing_triple(&mut self) -> bool {
+        let mut modified = false;
         for square in self.get_group(Square) {
             for value in 1..=self.n2 {
                 let occurences: Vec<&Coords> = square
@@ -515,14 +505,13 @@ impl Sudoku {
                 let &(x1, y1) = occurences[0];
                 let &(x2, y2) = occurences[1];
                 let &(x3, y3) = occurences[2];
-                let mut modified = false;
                 if x1 == x2 && x2 == x3 {
                     for y in 0..self.n2 {
                         if y == y1 || y == y2 || y == y3 {
                             continue;
                         }
                         if self.possibility_board[y][x1].remove(&value) {
-                            debug_only!("possibilitée {value} supprimée de x: {x1}, y: {y}");
+                            debug_only!("({}, {}): possibilité {} supprimée", x1, y, value);
                             modified = true;
                         }
                     }
@@ -532,19 +521,16 @@ impl Sudoku {
                             continue;
                         }
                         if self.possibility_board[y1][x].remove(&value) {
-                            debug_only!("possibilitée {value} supprimée de x: {x}, y: {y1}");
+                            debug_only!("({}, {}): possibilité {} supprimée", x, y1, value);
                             modified = true;
                         }
                     }
                 } else {
                     continue;
                 }
-                if modified {
-                    return true;
-                }
             }
         }
-        false
+        modified
     }
 
     // règle 10: http://www.taupierbw.be/SudokuCoach/SC_BoxReduction.shtml
@@ -556,7 +542,7 @@ impl Sudoku {
                     .iter()
                     .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
                     .collect();
-                if occurences.len() != 2 && occurences.len() != 3 {
+                if occurences.len() < 2 || occurences.len() > 3 {
                     continue;
                 }
                 let &(x1, y1) = occurences.pop().unwrap();
@@ -566,12 +552,17 @@ impl Sudoku {
                             continue;
                         }
                         if self.possibility_board[y][x].remove(&value) {
-                            debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}");
+                            debug_only!(
+                                "row x1:{x1} y1:{y1} x:{} y:{}: possibilité {} supprimée",
+                                x,
+                                y,
+                                value
+                            );
+                            if y1 == y {
+                                println!("AIE AIE AIE PROBLEME!!!");
+                            }
                             modified = true;
                         }
-                    }
-                    if modified {
-                        return true;
                     }
                 }
             }
@@ -583,7 +574,7 @@ impl Sudoku {
                     .iter()
                     .filter(|&&(x, y)| self.possibility_board[y][x].contains(&value))
                     .collect();
-                if occurences.len() != 2 && occurences.len() != 3 {
+                if occurences.len() < 2 || occurences.len() > 3 {
                     continue;
                 }
                 let &(x1, y1) = occurences.pop().unwrap();
@@ -593,18 +584,14 @@ impl Sudoku {
                             continue;
                         }
                         if self.possibility_board[y][x].remove(&value) {
-                            debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}");
+                            debug_only!("col {x1}: ({}, {}) possibilité {} supprimée", x, y, value);
                             modified = true;
                         }
-                    }
-                    if modified {
-                        return true;
                     }
                 }
             }
         }
-
-        false
+        modified
     }
 
     // règle 11: http://www.taupierbw.be/SudokuCoach/SC_XWing.shtml
@@ -671,18 +658,14 @@ impl Sudoku {
 
                     for (_is_row, (x, y)) in picked_cells {
                         if self.possibility_board[y][x].remove(&value) {
-                            debug_only!("{} {i1} and {i2}: possibilitée {value} supprimée de x: {x}, y: {y}", if _is_row {"rows"} else {"cols"});
+                            debug_only!("({}, {}): possibilité {} supprimée", x, y, value);
                             modified = true;
                         }
-                    }
-
-                    if modified {
-                        return true;
                     }
                 }
             }
         }
-        false
+        modified
     }
 
     // règle 12: http://www.taupierbw.be/SudokuCoach/SC_FinnedXWing.shtml
@@ -769,18 +752,15 @@ impl Sudoku {
                             .collect();
                         for (x, y) in removed_cells {
                             if self.possibility_board[y][x].remove(&value) {
-                                debug_only!("{} {i1} and {i2}: possibilitée {value} supprimée de x: {x}, y: {y}", if _is_row {"rows"} else {"cols"});
+                                debug_only!("({}, {}): possibilité {} supprimée", x, y, value);
                                 modified = true;
                             }
-                        }
-                        if modified {
-                            return true;
                         }
                     }
                 }
             }
         }
-        false
+        modified
     }
 
     // règle 13: http://www.taupierbw.be/SudokuCoach/SC_FrankenXWing.shtml
@@ -847,18 +827,14 @@ impl Sudoku {
                         .chain(yellow_cells2.difference(&square))
                     {
                         if self.possibility_board[y][x].remove(&value) {
-                            debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}");
+                            debug_only!("({}, {}): possibilité {} supprimée", x, y, value);
                             modified = true;
                         }
-                    }
-
-                    if modified {
-                        return true;
                     }
                 }
             }
         }
-        false
+        modified
     }
 
     // règle 14: https://www.taupierbw.be/SudokuCoach/SC_FinnedMutantXWing.shtml
@@ -932,19 +908,15 @@ impl Sudoku {
                             }
 
                             if self.possibility_board[y][x].remove(&value) {
-                                debug_only!("{} {i1} and {i2}: {x1},{y1} et {x2},{y2}: possibilitée {value} supprimée de x: {x}, y: {y}", if _is_row {"rows"} else {"cols"});
+                                debug_only!("({}, {}): possibilité {} supprimée", x, y, value);
                                 modified = true;
                             }
-                        }
-
-                        if modified {
-                            return true;
                         }
                     }
                 }
             }
         }
-        false
+        modified
     }
 
     // règle 16: http://www.taupierbw.be/SudokuCoach/SC_SimpleColoring.shtml
@@ -1027,25 +999,21 @@ impl Sudoku {
                             continue;
                         }
                         if self.possibility_board[y3][x3].remove(&value) {
-                            debug_only!("possibilitée {value} supprimée de x: {x3}, y: {y3}");
+                            debug_only!("({}, {}): possibilité {} supprimée", x3, y3, value);
                             modified = true;
                         }
                     }
                 } else if self.is_same_group(x1, y1, x2, y2) {
                     for &(x, y) in chain.iter().step_by(2) {
                         if self.possibility_board[y][x].remove(&value) {
-                            debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}");
+                            debug_only!("({}, {}): possibilité {} supprimée", x, y, value);
                             modified = true;
                         }
                     }
                 }
-
-                if modified {
-                    return true;
-                }
             }
         }
-        false
+        modified
     }
 
     // règle 17: http://www.taupierbw.be/SudokuCoach/SC_YWing.shtml
@@ -1101,18 +1069,14 @@ impl Sudoku {
                             continue;
                         }
                         if self.possibility_board[y3][x3].remove(&value) {
-                            debug_only!("possibilitée {value} supprimée de x: {x3}, y: {y3}");
+                            debug_only!("({}, {}): possibilité {} supprimée", x3, y3, value);
                             modified = true;
                         }
                     }
                 }
-
-                if modified {
-                    return true;
-                }
             }
         }
-        false
+        modified
     }
 
     // règle 18: http://www.taupierbw.be/SudokuCoach/SC_WWing.shtml
@@ -1182,21 +1146,20 @@ impl Sudoku {
                             for (x3, y3) in picked_cells {
                                 if self.possibility_board[y3][x3].remove(&value2) {
                                     debug_only!(
-                                        "({x},{y}) ({x1},{y1}) ({x2},{y2}) ({x3},{y3}) possibilitée {value2} supprimée de x: {x3}, y: {y3}"
+                                        "({}, {}): possibilité {} supprimée",
+                                        x3,
+                                        y3,
+                                        value2
                                     );
                                     modified = true;
                                 }
-                            }
-
-                            if modified {
-                                return true;
                             }
                         }
                     }
                 }
             }
         }
-        false
+        modified
     }
 
     // règle 19: http://www.taupierbw.be/SudokuCoach/SC_Swordfish.shtml
@@ -1285,20 +1248,16 @@ impl Sudoku {
 
                             for &(x, y) in common_cells {
                                 if self.possibility_board[y][x].remove(&value) {
-                                    debug_only!("possibilitée {value} supprimée de x: {x}, y: {y}");
+                                    debug_only!("({}, {}): possibilité {} supprimée", x, y, value);
                                     modified = true;
                                 }
-                            }
-
-                            if modified {
-                                return true;
                             }
                         }
                     }
                 }
             }
         }
-        false
+        modified
     }
 
     // règle 20: http://www.taupierbw.be/SudokuCoach/SC_FinnedSwordfish.shtml
@@ -1412,7 +1371,12 @@ impl Sudoku {
                                         continue;
                                     }
                                     if self.possibility_board[y][finned_cell_x].remove(&value) {
-                                        debug_only!("possibilitée {value} supprimée de x: {finned_cell_x}, y: {y}");
+                                        debug_only!(
+                                            "({}, {}): possibilité {} supprimée",
+                                            finned_cell_x,
+                                            y,
+                                            value
+                                        );
                                         modified = true;
                                     }
                                 }
@@ -1425,21 +1389,22 @@ impl Sudoku {
                                         continue;
                                     }
                                     if self.possibility_board[finned_cell_y][x].remove(&value) {
-                                        debug_only!("possibilitée {value} supprimée de x: {x}, y: {finned_cell_y}");
+                                        debug_only!(
+                                            "({}, {}): possibilité {} supprimée",
+                                            x,
+                                            finned_cell_y,
+                                            value
+                                        );
                                         modified = true;
                                     }
                                 }
-                            }
-
-                            if modified {
-                                return true;
                             }
                         }
                     }
                 }
             }
         }
-        false
+        modified
     }
 
     // règle 21: http://www.taupierbw.be/SudokuCoach/SC_SashimiFinnedSwordfish.shtml
@@ -1600,10 +1565,13 @@ impl Sudoku {
                             // TYPE 1
                             let &(x, y) = empty_cells.pop().unwrap();
 
-                            if self.possibility_board[y][x].remove(&val1)
-                                || self.possibility_board[y][x].remove(&val2)
-                            {
-                                return true;
+                            if self.possibility_board[y][x].remove(&val1) {
+                                debug_only!("({}, {}): possibilité {} supprimée", x, y, val1);
+                                modified = true;
+                            }
+                            if self.possibility_board[y][x].remove(&val2) {
+                                debug_only!("({}, {}): possibilité {} supprimée", x, y, val2);
+                                modified = true;
                             }
                         } else if empty_cells.len() == 2 {
                             let &(x2, y2) = empty_cells.pop().unwrap();
@@ -1640,6 +1608,12 @@ impl Sudoku {
                                         continue;
                                     }
                                     if self.possibility_board[y][x2].remove(&common_possibility) {
+                                        debug_only!(
+                                            "({}, {}): possibilité {} supprimée",
+                                            x2,
+                                            y,
+                                            common_possibility
+                                        );
                                         modified = true;
                                     }
                                 }
@@ -1649,26 +1623,154 @@ impl Sudoku {
                                         continue;
                                     }
                                     if self.possibility_board[y2][x].remove(&common_possibility) {
+                                        debug_only!(
+                                            "({}, {}): possibilité {} supprimée",
+                                            x,
+                                            y2,
+                                            common_possibility
+                                        );
                                         modified = true;
                                     }
                                 }
-                            }
-
-                            if modified {
-                                return true;
                             }
                         }
                     }
                 }
             }
         }
-        false
+        modified
     }
 
     // règle 36: https://www.taupierbw.be/SudokuCoach/SC_UniqueRectangle.shtml
     pub(super) fn unique_rectangle(&mut self) -> bool {
-        warn!("unique_rectangle not yet implemented");
-        false
+        let mut modified = false;
+        for y0 in 0..self.n2 {
+            for x0 in 0..self.n2 {
+                for y1 in (y0 + 1)..self.n2 {
+                    for x1 in (x0 + 1)..self.n2 {
+                        //For every rectangle possible
+                        let rectangle = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)];
+
+                        //Get the different possibilities of the rectangle corner
+                        let possval = rectangle
+                            .iter()
+                            .filter_map(|(x, y)| {
+                                let poss = &self.possibility_board[*y][*x];
+                                if !poss.is_empty() {
+                                    Some(poss.iter().cloned().collect::<Vec<usize>>())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<HashSet<Vec<usize>>>();
+
+                        if possval.len() == 2 {
+                            //Type 1 & 2
+                            let (val1, val2) = {
+                                let mut values_iter = possval.into_iter();
+                                (
+                                    values_iter
+                                        .next()
+                                        .unwrap()
+                                        .into_iter()
+                                        .collect::<HashSet<usize>>(),
+                                    values_iter
+                                        .next()
+                                        .unwrap()
+                                        .into_iter()
+                                        .collect::<HashSet<usize>>(),
+                                )
+                            };
+                            //Get the corners with same bi-values
+                            let bi_cell = rectangle
+                                .iter()
+                                .filter(|(x, y)| self.possibility_board[*y][*x].len() == 2)
+                                .collect::<HashSet<_>>();
+                            if bi_cell.len() == 3 {
+                                //Type 1
+                                //get the other corner
+                                let rectangle_refs: HashSet<_> = rectangle.iter().collect();
+                                let mut last_cell = rectangle_refs
+                                    .difference(&bi_cell)
+                                    .collect::<Vec<&&(usize, usize)>>();
+                                let (x2, y2) = last_cell.pop().unwrap();
+                                //remove the bi-value possibilities from the other corner
+                                if val1.len() == 2 {
+                                    for val in val1 {
+                                        if self.possibility_board[*y2][*x2].remove(&val) {
+                                            debug_only!(
+                                                "({}, {}): possibilité {} supprimée",
+                                                *x2,
+                                                *y2,
+                                                val
+                                            );
+                                            modified = true;
+                                        }
+                                    }
+                                } else if val2.len() == 2 {
+                                    for val in val2 {
+                                        if self.possibility_board[*y2][*x2].remove(&val) {
+                                            debug_only!(
+                                                "({}, {}): possibilité {} supprimée",
+                                                *x2,
+                                                *y2,
+                                                val
+                                            );
+                                            modified = true;
+                                        }
+                                    }
+                                }
+                            } else if bi_cell.len() == 2 {
+                                //Type 2
+                                //get 2 othercell
+                                let mut other_cells = rectangle
+                                    .iter()
+                                    .filter(|(x, y)| self.possibility_board[*y][*x].len() == 3)
+                                    .collect::<Vec<_>>();
+                                if other_cells.len() != 2 {
+                                    continue;
+                                }
+                                //get the cells that sees both three-value-cells
+                                let &(x2, y2) = other_cells.pop().unwrap();
+                                let &(x3, y3) = other_cells.pop().unwrap();
+                                let group1 = self.get_cell_group(x2, y2, All);
+                                let group2 = self.get_cell_group(x3, y3, All);
+                                let see_three_val =
+                                    group1.intersection(&group2).collect::<HashSet<_>>();
+                                //get the extra value of the three-value compared to the bi-value
+                                let xtraval = if val1.len() == 2 {
+                                    val2.difference(&val1).next().unwrap()
+                                } else {
+                                    val1.difference(&val2).next().unwrap()
+                                };
+                                //remove the extra value from the cells that sees both three-value-cells
+                                for &(x4, y4) in see_three_val {
+                                    if (x4 == x2 && y4 == y2) || (x4 == x3 && y4 == y3) {
+                                        continue;
+                                    }
+
+                                    if self.possibility_board[y4][x4].remove(xtraval) {
+                                        debug_only!(
+                                            "({}, {}): possibilité {} supprimée",
+                                            x4,
+                                            y4,
+                                            xtraval
+                                        );
+                                        modified = true;
+                                    }
+                                }
+                            }
+                        } else if possval.len() == 3 {
+                            //Type 3
+                            continue;
+                        } else {
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+        modified
     }
 
     // règle 37: https://www.taupierbw.be/SudokuCoach/SC_HiddenUniqueRectangle.shtml

@@ -34,25 +34,25 @@ impl std::fmt::Display for SudokuGroups {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub enum SudokuDifficulty {
     Unknown = u8::MIN as isize,
-    Mandatory = 1,
-    Easy = 2,
-    Medium = 3,
-    Hard = 4,
-    Master = 5,
-    Extreme = 6,
+    Easy = 1,
+    Medium = 2,
+    Hard = 3,
+    Master = 4,
+    Extreme = 5,
+    Useless = (u8::MAX - 1) as isize,
     Unimplemented = u8::MAX as isize,
 }
 
 impl std::fmt::Display for SudokuDifficulty {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SudokuDifficulty::Mandatory => write!(f, "MANDATORY"),
             SudokuDifficulty::Unknown => write!(f, "UNKNOWN"),
             SudokuDifficulty::Easy => write!(f, "EASY"),
             SudokuDifficulty::Medium => write!(f, "MEDIUM"),
             SudokuDifficulty::Hard => write!(f, "HARD"),
             SudokuDifficulty::Master => write!(f, "MASTER"),
             SudokuDifficulty::Extreme => write!(f, "EXTREME"),
+            SudokuDifficulty::Useless => write!(f, "USELESS"),
             SudokuDifficulty::Unimplemented => write!(f, "UNIMPLEMENTED"),
         }
     }
