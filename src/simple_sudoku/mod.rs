@@ -61,6 +61,7 @@ pub struct SudokuDisplay<'a> {
     x_offset: f32,
     y_offset: f32,
     mode: String,
+    player_pboard_history: Vec<Vec<Vec<HashSet<usize>>>>,
     player_pboard: Vec<Vec<HashSet<usize>>>,
     note: bool,
     button_list: Vec<Button>,

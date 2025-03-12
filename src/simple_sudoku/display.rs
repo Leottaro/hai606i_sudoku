@@ -14,6 +14,7 @@ impl<'a> SudokuDisplay<'a> {
         let y_offset = 150.0 * scale_factor;
 
         let mode = "play".to_string();
+        let player_pboard_history: Vec<Vec<Vec<HashSet<usize>>>> = Vec::new();
         let player_pboard: Vec<Vec<HashSet<usize>>> =
             vec![vec![HashSet::new(); sudoku.get_n2()]; sudoku.get_n2()];
         let correction_board: Vec<Vec<usize>> = vec![vec![1; sudoku.get_n2()]; sudoku.get_n2()];
@@ -341,6 +342,9 @@ impl<'a> SudokuDisplay<'a> {
         actions_boutons.insert(
             button_note_fill.text.to_string(),
             Rc::new(Box::new(|sudoku_display| {
+                sudoku_display
+                    .player_pboard_history
+                    .push(sudoku_display.player_pboard.clone());
                 for x in 0..sudoku_display.sudoku.get_n2() {
                     for y in 0..sudoku_display.sudoku.get_n2() {
                         if sudoku_display.player_pboard[y][x].is_empty()
@@ -384,10 +388,24 @@ impl<'a> SudokuDisplay<'a> {
         actions_boutons.insert(
             button_undo.text.to_string(),
             Rc::new(Box::new(|sudoku_display| {
-                sudoku_display.note = !sudoku_display.note;
-                for bouton in sudoku_display.button_list.iter_mut() {
-                    if bouton.text == "Note".to_string() {
-                        bouton.set_clicked(!bouton.clicked());
+                let last_pboard = sudoku_display.player_pboard_history.pop();
+                if last_pboard == None {
+                    warn!("No more undo available");
+                } else {
+                    sudoku_display.player_pboard = last_pboard.unwrap();
+                    if sudoku_display.selected_cell.is_some() {
+                        let (x, y) = sudoku_display.selected_cell.unwrap();
+                        for i in 1..=sudoku_display.sudoku.get_n2() {
+                            for button in sudoku_display.button_list.iter_mut() {
+                                if button.text == i.to_string() {
+                                    if sudoku_display.player_pboard[y][x].contains(&i) {
+                                        button.set_clicked(true);
+                                    } else {
+                                        button.set_clicked(false);
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             })),
@@ -399,13 +417,11 @@ impl<'a> SudokuDisplay<'a> {
             for y in 0..sudoku.get_n() {
                 let value1 = y * sudoku.get_n() + x + 1;
 
-                let b_x = x_offset + grid_size + bx_offset + (x as f32) * (b_size + b_padding);
-                let b_y = y_offset
-                    + (grid_size - (b_size + b_padding) * (sudoku.get_n() as f32)) / 2.0
-                    + (y as f32) * (b_size + b_padding);
                 let bouton_numero = Button::new(
-                    b_x,
-                    b_y,
+                    x_offset + grid_size + bx_offset + (x as f32) * (b_size + b_padding),
+                    y_offset
+                        + (grid_size - (b_size + b_padding) * (sudoku.get_n() as f32)) / 2.0
+                        + (y as f32) * (b_size + b_padding),
                     b_size,
                     b_size,
                     true,
@@ -422,6 +438,9 @@ impl<'a> SudokuDisplay<'a> {
                             let value = y * sudoku_display.sudoku.get_n() + x + 1;
                             if sudoku_display.note && sudoku_display.sudoku.get_board()[y1][x1] == 0
                             {
+                                sudoku_display
+                                    .player_pboard_history
+                                    .push(sudoku_display.player_pboard.clone());
                                 for bouton in sudoku_display.button_list.iter_mut() {
                                     if bouton.text == value.to_string() {
                                         if bouton.clicked == true {
@@ -435,6 +454,7 @@ impl<'a> SudokuDisplay<'a> {
                                 }
                             } else if !sudoku_display.note {
                                 if sudoku_display.correction_board[y1][x1] == value {
+                                    sudoku_display.player_pboard_history.clear();
                                     info!("Bonne réponse !");
                                     sudoku_display.sudoku.set_value(x1, y1, value);
                                     sudoku_display.player_pboard[y1][x1].clear();
@@ -445,6 +465,15 @@ impl<'a> SudokuDisplay<'a> {
                                             }
                                         }
                                     }
+                                    for x in 0..sudoku_display.sudoku.get_n2() {
+                                        for y in 0..sudoku_display.sudoku.get_n2() {
+                                            if sudoku_display.sudoku.get_board()[y][x] == 0 {
+                                                sudoku_display.player_pboard[y][x].remove(&value);
+                                                sudoku_display.sudoku.get_possibility_board()[y][x].remove(&value);
+                                            }
+                                        }
+                                    }
+
                                 } else {
                                     warn!(
                                         "Mauvaise réponse, il fallait mettre {} !",
@@ -495,6 +524,7 @@ impl<'a> SudokuDisplay<'a> {
             x_offset,
             y_offset,
             mode,
+            player_pboard_history,
             player_pboard,
             note,
             button_list,
@@ -763,6 +793,13 @@ impl<'a> SudokuDisplay<'a> {
         for bouton in self.button_list.iter_mut() {
             if bouton.text.contains("Lifes: ") {
                 bouton.text = format!("Lifes: {}", self.lifes);
+            }
+            if bouton.text == "Undo".to_string() {
+                if self.player_pboard_history.is_empty() {
+                    bouton.set_clickable(false);
+                } else {
+                    bouton.set_clickable(true);
+                }
             }
             bouton.set_scale_factor(self.scale_factor);
             if !bouton.enabled() {
