@@ -480,7 +480,10 @@ impl Sudoku {
                 } else {
                     true
                 };
-                range_filter && difficulty_filter && *difficulty != Unimplemented
+                range_filter
+                    && difficulty_filter
+                    && *difficulty != Unimplemented
+                    && *difficulty != Useless
             })
             .collect();
 
