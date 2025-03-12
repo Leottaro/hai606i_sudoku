@@ -31,7 +31,7 @@ async fn main() {
     let font = load_ttf_font("./res/font/RobotoMono-Thin.ttf")
         .await
         .unwrap();
-    let mut sudoku_display = SudokuDisplay::new(&mut sudoku, font.clone());
+    let mut sudoku_display = SudokuDisplay::new(&mut sudoku, font.clone()).await;
 
     loop {
         sudoku_display.run(font.clone()).await;

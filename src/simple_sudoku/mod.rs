@@ -5,6 +5,8 @@ use std::{
     rc::Rc,
 };
 
+use macroquad::texture::Texture2D;
+
 pub mod button;
 pub mod display;
 pub mod rules;
@@ -90,21 +92,25 @@ pub struct Sudoku {
 pub type ButtonFunction = Rc<Box<dyn Fn(&mut SudokuDisplay)>>;
 pub struct SudokuDisplay<'a> {
     sudoku: &'a mut Sudoku,
-    max_scale: f32,
+    max_height: f32,
+    max_width: f32,
     scale_factor: f32,
     grid_size: f32,
     pixel_per_cell: f32,
     selected_cell: Option<Coords>,
     x_offset: f32,
     y_offset: f32,
-    bx_offset: f32,
-    solvex_offset: f32,
     mode: String,
+    player_pboard_history: Vec<Vec<Vec<HashSet<usize>>>>,
     player_pboard: Vec<Vec<HashSet<usize>>>,
     note: bool,
     button_list: Vec<Button>,
     font: macroquad::text::Font,
     actions_boutons: HashMap<String, ButtonFunction>,
+    background: Texture2D,
+    lifes: usize,
+    new_game_available: bool,
+    correction_board: Vec<Vec<usize>>,
 }
 
 pub struct Button {
