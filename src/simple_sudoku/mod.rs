@@ -3,7 +3,7 @@ use std::{
     rc::Rc,
 };
 
-use macroquad::texture::{Image, Texture2D};
+use macroquad::texture::Texture2D;
 
 pub mod button;
 pub mod display;
@@ -67,6 +67,9 @@ pub struct SudokuDisplay<'a> {
     font: macroquad::text::Font,
     actions_boutons: std::collections::HashMap<String, Rc<Box<dyn Fn(&mut SudokuDisplay)>>>,
     background: Texture2D,
+    lifes: usize,
+    new_game_available: bool,
+    correction_board: Vec<Vec<usize>>,
 }
 
 pub struct Button {
