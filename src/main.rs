@@ -1,3 +1,5 @@
+#![allow(dead_code)] // no warning due to unused code
+
 use env_logger::Env;
 use macroquad::prelude::*;
 use simple_sudoku::{Sudoku, SudokuDisplay};

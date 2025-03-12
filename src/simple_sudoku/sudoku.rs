@@ -18,7 +18,6 @@ static GROUPS: LazyLock<RwLock<HashMap<usize, GroupMap>>> = LazyLock::new(Defaul
 static CELL_GROUPS: LazyLock<RwLock<HashMap<usize, CellGroupMap>>> =
     LazyLock::new(Default::default);
 
-#[allow(dead_code)] // no warning due to unused functions
 impl Sudoku {
     // GETTERS / SETTERS
     pub fn get_n(&self) -> usize {
@@ -271,7 +270,7 @@ impl Sudoku {
                 let join_handle = std::thread::spawn(move || {
                     let mut rng = rand::thread_rng();
                     while thread_rx.try_recv().is_err() {
-                        let (sudoku, mut filled_cells) = thread_to_explore
+                        let (mut sudoku, mut filled_cells) = thread_to_explore
                             .lock()
                             .unwrap()
                             .pop()
@@ -303,6 +302,8 @@ impl Sudoku {
                             }
                             break;
                         }
+
+                        let mut working_sub_sudokus = 0;
                         for i in [i1, i2] {
                             let x = i % n2;
                             let y = i / n2;
@@ -372,30 +373,32 @@ impl Sudoku {
                                 continue;
                             }
 
-                            let mut passed_sudoku = sudoku.clone();
-                            passed_sudoku.remove_value(x, y);
-                            passed_sudoku.difficulty = testing_sudoku.difficulty;
-
-                            if passed_sudoku.difficulty == aimed_difficulty {
-                                passed_sudoku.difficulty = Unknown;
-                                let _ = thread_tx.send(Some(passed_sudoku));
-                                return;
-                            } else if filled_cells.len() < n2 * 2 - 1
-                                || passed_sudoku.difficulty > aimed_difficulty
-                            {
+                            if filled_cells.len() < n2 * 2 - 1 {
                                 thread_explored_filled_cells
                                     .lock()
                                     .unwrap()
                                     .insert(filled_cells.clone());
                             } else {
                                 // EXPLORATION EN PROFONDEUR
+                                let mut passed_sudoku = sudoku.clone();
+                                passed_sudoku.remove_value(x, y);
+                                passed_sudoku.difficulty = testing_sudoku.difficulty;
+
                                 thread_to_explore
                                     .lock()
                                     .unwrap()
                                     .push((passed_sudoku, filled_cells.clone()));
+
+                                working_sub_sudokus += 1;
                             }
 
                             filled_cells[i] = true;
+                        }
+
+                        if working_sub_sudokus == 0 && sudoku.difficulty == aimed_difficulty {
+                            sudoku.difficulty = Unknown;
+                            let _ = thread_tx.send(Some(sudoku));
+                            return;
                         }
 
                         thread_explored_filled_cells
@@ -413,17 +416,17 @@ impl Sudoku {
                 unwrapped_sudoku += 1;
 
                 if sudoku.is_unique() {
+                    for (handle, tx) in threads_infos {
+                        let _ = tx.send(());
+                        handle.join().unwrap();
+                    }
+
                     println!(
                         "Skipped {} sudokus, Explored {} possibilities, in {} seconds",
                         skipped.lock().unwrap(),
                         explored_filled_cells.lock().unwrap().len(),
                         start.elapsed().as_secs_f32()
                     );
-
-                    for (handle, tx) in threads_infos {
-                        let _ = tx.send(());
-                        handle.join().unwrap();
-                    }
 
                     return sudoku;
                 }
@@ -520,40 +523,29 @@ impl Sudoku {
     // BACKTRACK SOLVING
 
     pub fn backtrack_solve(&mut self, mut x: usize, mut y: usize) -> bool {
-        if y == self.n2 - 1 && x == self.n2 {
-            return true;
-        }
-
-        if x == self.n2 {
-            y += 1;
-            x = 0;
-        }
-
-        if self.board[y][x] != 0 {
-            return self.backtrack_solve(x + 1, y);
-        }
-
-        let possible_values = self.possibility_board[y][x].clone();
-        let cell_group: HashSet<Coords> = self.get_cell_group(x, y, All).clone();
-        self.possibility_board[y][x].clear();
-        for value in possible_values.clone().into_iter() {
-            self.board[y][x] = value;
-            let changing_cells: HashSet<&Coords> = cell_group
-                .iter()
-                .filter(|(x, y)| self.possibility_board[*y][*x].contains(&value))
-                .collect();
-            for &&(x, y) in changing_cells.iter() {
-                self.possibility_board[y][x].remove(&value);
+        loop {
+            if y == self.n2 - 1 && x == self.n2 {
+                return true;
             }
+
+            if x == self.n2 {
+                y += 1;
+                x = 0;
+            }
+
+            if self.board[y][x] == 0 {
+                break;
+            }
+            x += 1;
+        }
+
+        for value in self.possibility_board[y][x].clone() {
+            self.set_value(x, y, value);
             if self.backtrack_solve(x + 1, y) {
                 return true;
             }
-            self.board[y][x] = 0;
-            for &(x, y) in changing_cells {
-                self.possibility_board[y][x].insert(value);
-            }
+            self.remove_value(x, y);
         }
-        self.possibility_board[y][x] = possible_values;
 
         false
     }
@@ -578,14 +570,7 @@ impl Sudoku {
     }
 
     fn _is_unique(&mut self, mut x: usize, mut y: usize, solutions: &mut usize) {
-        if y == self.n2 - 1 && x == self.n2 {
-            solutions.add_assign(1);
-            return;
-        }
-
-        while self.board[y][x] != 0 {
-            x += 1;
-
+        loop {
             if y == self.n2 - 1 && x == self.n2 {
                 solutions.add_assign(1);
                 return;
@@ -595,6 +580,11 @@ impl Sudoku {
                 y += 1;
                 x = 0;
             }
+
+            if self.board[y][x] == 0 {
+                break;
+            }
+            x += 1;
         }
 
         let possible_values = self.possibility_board[y][x].clone();
@@ -622,6 +612,8 @@ const BASE_64: [char; 65] = [
 impl std::fmt::Display for Sudoku {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut lines: Vec<String> = Vec::new();
+        lines.push(format!("DIFFICULTY: {}", self.difficulty));
+
         for y in 0..self.n2 {
             if y != 0 && y % self.n == 0 {
                 let temp = "━".repeat(2 * self.n2 + 4 * self.n + 1);

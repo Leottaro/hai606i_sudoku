@@ -14,30 +14,30 @@ use crate::debug_only;
 difficulties info:
 
 Difficulty EASY:
-    min: 0ms
-    max: 2ms
-    average 0.23 ms
-    median: 0ms
+    min: 4ms
+    max: 39ms
+    average 10.22 ms
+    median: 10ms
 Difficulty MEDIUM:
-    min: 35ms
-    max: 1252ms
-    average 231.57 ms
-    median: 152ms
+    min: 22ms
+    max: 572ms
+    average 151.64 ms
+    median: 130ms
 Difficulty HARD:
-    min: 15ms
-    max: 582ms
-    average 74.49 ms
-    median: 64ms
+    min: 19ms
+    max: 2770ms
+    average 126.52 ms
+    median: 79ms
 Difficulty MASTER:
-    min: 25ms
-    max: 2779ms
-    average 389.73 ms
-    median: 253ms
+    min: 31ms
+    max: 2191ms
+    average 285.47 ms
+    median: 182ms
 Difficulty EXTREME:
-    min: 160ms
-    max: 81773ms
-    average 14154.77 ms
-    median: 8692ms
+    min: 163ms
+    max: 27531ms
+    average 5025.82 ms
+    median: 3794ms
 */
 
 impl Sudoku {

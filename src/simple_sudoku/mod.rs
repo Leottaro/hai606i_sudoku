@@ -60,7 +60,6 @@ impl std::fmt::Display for SudokuDifficulty {
     }
 }
 
-#[allow(dead_code)]
 impl SudokuDifficulty {
     pub fn iter() -> impl Iterator<Item = SudokuDifficulty> {
         vec![

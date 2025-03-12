@@ -1,15 +1,11 @@
 #[cfg(test)]
-#[allow(dead_code)] // no warning due to unused functions
 mod tests {
     use std::{
-        fs::{File, ReadDir},
-        io::BufReader,
+        io::BufRead,
         sync::{Arc, Mutex},
-        time::Instant,
     };
 
     use crate::simple_sudoku::{Sudoku, SudokuDifficulty};
-    use std::io::BufRead;
 
     #[test]
     fn test_parse_file() {
@@ -52,7 +48,7 @@ mod tests {
 
     #[test]
     fn rule_solving() {
-        let files: ReadDir = std::fs::read_dir("res/sudoku_samples").unwrap();
+        let files: std::fs::ReadDir = std::fs::read_dir("res/sudoku_samples").unwrap();
         println!("collecting sudokus");
         let sudokus: Vec<String> = files
             .map(|file| {
@@ -170,7 +166,7 @@ mod tests {
     #[test]
     #[ignore = "test too long: run it with `cargo test -- tests::simple_sudoku_test::tests::rule_analyse --exact --nocapture --ignored`"]
     fn rule_analyse() {
-        let sudoku_data = File::open("res/sudoku_cluewise.csv");
+        let sudoku_data = std::fs::File::open("res/sudoku_cluewise.csv");
         if sudoku_data.is_err() {
             println!("\n\n#################### MESSAGE DE LEO ####################\nres/sudoku_cluewise.csv not found ! Try executing: \ncurl -L -o res/sudoku_cluewise.zip https://www.kaggle.com/api/v1/datasets/download/informoney/4-million-sudoku-puzzles-easytohard && unzip res/sudoku_data.zip -d res\n#################### MESSAGE DE LEO ####################\n\n");
             panic!();
@@ -178,7 +174,7 @@ mod tests {
         let sudoku_data = sudoku_data.unwrap();
 
         let max_sudoku_per_zeros = 10000;
-        let mut reader = BufReader::new(sudoku_data);
+        let mut reader = std::io::BufReader::new(sudoku_data);
         let mut line = String::new();
 
         // skip the header
@@ -223,7 +219,7 @@ mod tests {
                 let mut sudoku_rule_usage: Vec<(bool, u128)> =
                     vec![(false, 0); Sudoku::RULES.len()];
                 while sudoku.get_error().is_none() && !sudoku.is_solved() {
-                    let start = Instant::now();
+                    let start = std::time::Instant::now();
                     let rule_solve_result = sudoku.rule_solve(None, None);
                     let elapsed = start.elapsed().as_millis();
                     match rule_solve_result {
@@ -355,7 +351,7 @@ mod tests {
             for j in 0..iterations {
                 println!("iteration {j}: ");
 
-                let start = Instant::now();
+                let start = std::time::Instant::now();
                 let mut original_sudoku = Sudoku::generate(3, difficulty);
                 time_samples[i].1.push(start.elapsed().as_millis());
 
