@@ -11,39 +11,39 @@ use super::{
 use crate::debug_only;
 
 /*
-rules info:
-rule  0: used in 0561120 sudokus (0.031ms avg)
-rule  1: used in 0192951 sudokus (0.191ms avg)
-rule  8: used in 0095349 sudokus (90.673ms avg)
-rule  2: used in 0065314 sudokus (0.107ms avg)
+difficulties info:
 
-rule  3: used in 0031991 sudokus (0.152ms avg)
-rule  9: used in 0025122 sudokus (96.584ms avg)
-rule 10: used in 0021918 sudokus (66.023ms avg)
-rule  4: used in 0011633 sudokus (1.098ms avg)
-
-rule 12: used in 0009708 sudokus (57.038ms avg)
-rule 29: used in 0009017 sudokus (13.371ms avg)
-rule 18: used in 0004359 sudokus (42.829ms avg)
-rule 17: used in 0003112 sudokus (42.702ms avg)
-
-rule 15: used in 0002514 sudokus (45.785ms avg)
-rule 16: used in 0001804 sudokus (80.014ms avg)
-rule  5: used in 0001477 sudokus (6.415ms avg)
-rule 20: used in 0001435 sudokus (102.028ms avg)
-
-rule 11: used in 0001084 sudokus (27.369ms avg)
-rule  6: used in 0000173 sudokus (12.480ms avg)
-rule 19: used in 0000087 sudokus (68.448ms avg)
-rule  7: used in 0000014 sudokus (40.929ms avg)
-rule 13: used in 0000000 sudokus (0ms avg)
-...
+Difficulty EASY:
+    min: 0ms
+    max: 2ms
+    average 0.23 ms
+    median: 0ms
+Difficulty MEDIUM:
+    min: 35ms
+    max: 1252ms
+    average 231.57 ms
+    median: 152ms
+Difficulty HARD:
+    min: 15ms
+    max: 582ms
+    average 74.49 ms
+    median: 64ms
+Difficulty MASTER:
+    min: 25ms
+    max: 2779ms
+    average 389.73 ms
+    median: 253ms
+Difficulty EXTREME:
+    min: 160ms
+    max: 81773ms
+    average 14154.77 ms
+    median: 8692ms
 */
 
 impl Sudoku {
     pub const RULES: &'static [(usize, SudokuDifficulty, SudokuRule)] = &[
-        (29, Mandatory, Sudoku::bi_value_universal_grave),
-        (35, Mandatory, Sudoku::avoidable_rectangle),
+        (29, Unimplemented, Sudoku::bi_value_universal_grave),
+        (35, Unimplemented, Sudoku::avoidable_rectangle),
         (36, Unimplemented, Sudoku::unique_rectangle),
         (37, Unimplemented, Sudoku::hidden_unique_rectangle),
         (44, Unimplemented, Sudoku::exocet),
