@@ -1676,7 +1676,110 @@ impl Sudoku {
 
     // règle 36: https://www.taupierbw.be/SudokuCoach/SC_UniqueRectangle.shtml
     pub(super) fn unique_rectangle(&mut self) -> bool {
-        warn!("unique_rectangle not yet implemented");
+        let mut modified = false;
+        for y0 in 0..self.n2 {
+            for x0 in 0..self.n2 {
+                for y1 in (y0 + 1)..self.n2 {
+                    for x1 in (x0 + 1)..self.n2 {
+                        //For every rectangle possible
+                        let rectangle = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)];
+
+                        //Get the different possibilities of the rectangle corner
+                        let possval = rectangle
+                            .iter()
+                            .filter_map(|(x, y)| {
+                                let poss = &self.possibility_board[*y][*x];
+                                if poss.len() != 0 {
+                                    Some(poss.into_iter().cloned().collect::<Vec<usize>>())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<HashSet<Vec<usize>>>();
+
+                        if possval.len() == 2 {
+                            //Type 1 & 2
+                            let (val1, val2) = {
+                                let mut values_iter = possval.into_iter();
+                                (values_iter.next().unwrap().into_iter().collect::<HashSet<usize>>(), values_iter.next().unwrap().into_iter().collect::<HashSet<usize>>())
+                            };
+                            //Get the corners with same bi-values
+                            let bi_cell = rectangle
+                                .iter()
+                                .filter(|(x, y)| self.possibility_board[*y][*x].len() == 2)
+                                .collect::<HashSet<_>>();
+                            if bi_cell.len() == 3 {
+                                //Type 1
+                                //get the other corner
+                                let rectangle_refs: HashSet<_> = rectangle.iter().collect();
+                                let mut last_cell = rectangle_refs
+                                    .difference(&bi_cell)
+                                    .collect::<Vec<&&(usize, usize)>>();
+                                let (x2, y2) = last_cell.pop().unwrap();
+                                //remove the bi-value possibilities from the other corner
+                                if val1.len() == 2 {
+                                    for val in val1 {
+                                        if self.possibility_board[*y2][*x2].remove(&val) {
+                                            debug_only!("possibilitée {val} supprimée de x: {x2}, y: {y2}");
+                                            modified = true;
+                                        }
+                                    }
+                                } else if val2.len() == 2 {
+                                    for val in val2 {
+                                        if self.possibility_board[*y2][*x2].remove(&val) {
+                                            debug_only!("possibilitée {val} supprimée de x: {x2}, y: {y2}");
+                                            modified = true;
+                                        }
+                                    }
+                                }
+                            } else if bi_cell.len() == 2 {
+                                //Type 2
+                                //get 2 othercell
+                                let mut other_cells = rectangle
+                                    .iter()
+                                    .filter(|(x, y)| self.possibility_board[*y][*x].len() == 3)
+                                    .collect::<Vec<_>>();
+                                if other_cells.len() != 2 {
+                                    continue;
+                                }
+                                //get the cells that sees both three-value-cells
+                                let &(x2, y2) = other_cells.pop().unwrap();
+                                let &(x3, y3) = other_cells.pop().unwrap();
+                                let group1 = self.get_cell_group(x2, y2, All);
+                                let group2 = self.get_cell_group(x3, y3, All);
+                                let see_three_val = group1.intersection(&group2).collect::<HashSet<_>>();
+                                //get the extra value of the three-value compared to the bi-value
+                                let xtraval = if val1.len() == 2 {
+                                    val2.difference(&val1).next().unwrap()
+                                } else {
+                                    val1.difference(&val2).next().unwrap()
+                                };
+                                //remove the extra value from the cells that sees both three-value-cells
+                                for &(x4,y4) in see_three_val{
+                                    if (x4 == x2 && y4 == y2) ||(x4 == x3 && y4 == y3) {
+                                        continue;
+                                    }
+                                    else{
+                                        if self.possibility_board[y4][x4].remove(xtraval){
+                                            debug_only!("possibilitée {xtraval} supprimée de x: {x4}, y: {y4}");
+                                            modified = true;
+                                        }
+                                    }
+                                }
+                            }
+                        } else if possval.len() == 3 {
+                            //Type 3
+                            continue;
+                        } else {
+                            continue;
+                        }
+                        if modified {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
         false
     }
 
