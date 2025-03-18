@@ -1,18 +1,8 @@
 #![allow(dead_code)] // no warning due to unused code
 
 use env_logger::Env;
+use hai606i_sudoku::simple_sudoku::{Sudoku, SudokuDisplay};
 use macroquad::prelude::*;
-use simple_sudoku::{Sudoku, SudokuDisplay};
-
-mod simple_sudoku;
-mod tests;
-
-#[macro_export]
-macro_rules! debug_only {
-    ($($arg:tt)*) => {
-        log::debug!($($arg)*);
-    };
-}
 
 fn window_conf() -> Conf {
     Conf {

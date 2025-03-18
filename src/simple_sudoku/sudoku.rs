@@ -3,7 +3,7 @@ use super::{
     SudokuDifficulty::{self, *},
     SudokuGroups::{self, *},
 };
-use crate::debug_only;
+use crate::{database, debug_only};
 use rand::Rng;
 use std::{
     cmp::max,
@@ -230,6 +230,22 @@ impl Sudoku {
         }
     }
 
+    pub fn from_db(simple_sudoku: &database::DBSimpleSudoku) -> Self {
+        let mut sudoku = Self::new(simple_sudoku.n as usize);
+        sudoku.difficulty = SudokuDifficulty::from(simple_sudoku.difficulty);
+        let mut board_iter = simple_sudoku
+            .board
+            .clone()
+            .into_iter()
+            .map(|cell| cell as usize);
+        for y in 0..sudoku.n2 {
+            for x in 0..sudoku.n2 {
+                sudoku.board[y][x] = board_iter.next().unwrap();
+            }
+        }
+        sudoku
+    }
+
     pub fn generate_full(n: usize) -> Self {
         let mut sudoku = Self::new(n);
         sudoku.backtrack_solve(0, 0);
@@ -244,7 +260,6 @@ impl Sudoku {
     */
     pub fn generate(n: usize, aimed_difficulty: SudokuDifficulty) -> Self {
         let n2 = n * n;
-        let start = std::time::Instant::now();
         let (tx, rx) = mpsc::channel();
         type SudokuFilledCells = (Sudoku, Vec<bool>);
 
@@ -279,10 +294,11 @@ impl Sudoku {
 
                         (*thread_total.lock().unwrap()).add_assign(1);
                         print!(
-                            "Skipped {}/{} instances with {} filled cells            \r",
+                            "Skipped {}/{} instances with {} filled cells{}\r",
                             thread_skipped.lock().unwrap(),
                             thread_total.lock().unwrap(),
-                            filled_cells.iter().filter(|b| **b).count()
+                            filled_cells.iter().filter(|b| **b).count(),
+                            " ".repeat(20)
                         );
                         std::io::Write::flush(&mut std::io::stdout()).unwrap();
 
@@ -321,10 +337,11 @@ impl Sudoku {
                                 (*thread_skipped.lock().unwrap()).add_assign(1);
                                 (*thread_total.lock().unwrap()).add_assign(1);
                                 print!(
-                                    "Skipped {}/{} instances with {} filled cells            \r",
+                                    "Skipped {}/{} instances with {} filled cells{}\r",
                                     thread_skipped.lock().unwrap(),
                                     thread_total.lock().unwrap(),
-                                    filled_cells.iter().filter(|b| **b).count()
+                                    filled_cells.iter().filter(|b| **b).count(),
+                                    " ".repeat(20)
                                 );
                                 std::io::Write::flush(&mut std::io::stdout()).unwrap();
                                 filled_cells[i] = true;
@@ -355,11 +372,12 @@ impl Sudoku {
                                             (*thread_skipped.lock().unwrap()).add_assign(1);
                                             (*thread_total.lock().unwrap()).add_assign(1);
                                             print!(
-                    						"Skipped {}/{} instances with {} filled cells            \r",
-                    						thread_skipped.lock().unwrap(),
-                    						thread_total.lock().unwrap(),
-                    						filled_cells.iter().filter(|b| **b).count()
-                    					);
+                                                "Skipped {}/{} instances with {} filled cells{}\r",
+                                                thread_skipped.lock().unwrap(),
+                                                thread_total.lock().unwrap(),
+                                                filled_cells.iter().filter(|b| **b).count(),
+                                                " ".repeat(20)
+                                            );
                                             std::io::Write::flush(&mut std::io::stdout()).unwrap();
                                             break;
                                         }
@@ -422,17 +440,8 @@ impl Sudoku {
                         let _ = tx.send(());
                         handle.join().unwrap();
                     }
-
-                    println!(
-                        "Skipped {} sudokus, Explored {} possibilities, in {} seconds",
-                        skipped.lock().unwrap(),
-                        explored_filled_cells.lock().unwrap().len(),
-                        start.elapsed().as_secs_f32()
-                    );
-
                     return sudoku;
                 }
-                println!("GENERATION HAD TO LOOP");
             }
         }
     }
