@@ -107,8 +107,10 @@ pub struct SudokuDisplay<'a> {
     font: macroquad::text::Font,
     actions_boutons: HashMap<String, ButtonFunction>,
     background: Texture2D,
+    background_defaite: Texture2D,
     lifes: usize,
     new_game_available: bool,
+    difficulty: SudokuDifficulty,
     correction_board: Vec<Vec<usize>>,
 }
 

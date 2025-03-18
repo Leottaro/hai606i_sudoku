@@ -21,9 +21,11 @@ impl<'a> SudokuDisplay<'a> {
         let note = false;
         let mut button_list: Vec<Button> = Vec::new();
         let mut actions_boutons: HashMap<String, ButtonFunction> = HashMap::new();
-        let background = load_texture("./res/bg/bg-blanc.png").await.unwrap();
+        let background = load_texture("./res/bg/bg-petit.png").await.unwrap();
+        let background_defaite = load_texture("./res/bg/bg-def.png").await.unwrap();
         let lifes = 3;
         let new_game_available = false;
+        let difficulty = SudokuDifficulty::Easy;
 
         // ================== Buttons ==================
         let button_sizex = 150.0 * scale_factor;
@@ -131,7 +133,7 @@ impl<'a> SudokuDisplay<'a> {
             button_sizex,
             button_sizey,
             "New Game".to_string(),
-            false,
+            new_game_available,
             scale_factor,
         );
 
@@ -148,7 +150,7 @@ impl<'a> SudokuDisplay<'a> {
                     sudoku_display.set_lifes(sudoku_display.lifes as i32 - 1);
                 }
                 for bouton in sudoku_display.button_list.iter_mut() {
-                    if nom_boutons.contains(&bouton.text) {
+                    if nom_boutons.contains(&bouton.text.to_uppercase()) {
                         bouton.set_enabled(sudoku_display.new_game_available);
                     } else if bouton.text == "New Game" {
                         bouton.set_clicked(sudoku_display.new_game_available);
@@ -159,7 +161,7 @@ impl<'a> SudokuDisplay<'a> {
 
         button_list.push(new_game_btn);
 
-        let bouton_easy = Button::new(
+        let mut bouton_easy = Button::new(
             x_offset + (button_sizex + button_xpadding) * 4.0,
             y_offset - choosey_offset - button_sizey,
             button_sizex,
@@ -169,9 +171,25 @@ impl<'a> SudokuDisplay<'a> {
             scale_factor,
         );
 
+        bouton_easy.set_enabled(new_game_available);
         button_list.push(bouton_easy);
+        actions_boutons.insert(
+            "Easy".to_string(),
+            Rc::new(Box::new(|sudoku_display| {
+                sudoku_display.difficulty = SudokuDifficulty::Easy;
+                for button in sudoku_display.button_list.iter_mut() {
+                    if button.text == "Create" || button.text == "Browse" {
+                        button.set_enabled(true);
+                    }
+                    if button.text == "Easy" || button.text == "Medium" || button.text == "Hard" || button.text == "Master" || button.text == "Extreme" {
+                        button.set_enabled(false);
+                    }
+                }
+                
+            })),
+        );
 
-        let bouton_medium = Button::new(
+        let mut bouton_medium = Button::new(
             x_offset + (button_sizex + button_xpadding) * 5.0,
             y_offset - choosey_offset - button_sizey,
             button_sizex,
@@ -181,9 +199,25 @@ impl<'a> SudokuDisplay<'a> {
             scale_factor,
         );
 
+        actions_boutons.insert(
+            "Medium".to_string(),
+            Rc::new(Box::new(|sudoku_display| {
+                sudoku_display.difficulty = SudokuDifficulty::Medium;
+                for button in sudoku_display.button_list.iter_mut() {
+                    if button.text == "Create" || button.text == "Browse" {
+                        button.set_enabled(true);
+                    }
+                    if button.text == "Easy" || button.text == "Medium" || button.text == "Hard" || button.text == "Master" || button.text == "Extreme" {
+                        button.set_enabled(false);
+                    }
+                }
+                
+            })),
+        );
+        bouton_medium.set_enabled(new_game_available);
         button_list.push(bouton_medium);
 
-        let bouton_hard = Button::new(
+        let mut bouton_hard = Button::new(
             x_offset + (button_sizex + button_xpadding) * 6.0,
             y_offset - choosey_offset - button_sizey,
             button_sizex,
@@ -193,22 +227,25 @@ impl<'a> SudokuDisplay<'a> {
             scale_factor,
         );
 
+        actions_boutons.insert(
+            "Hard".to_string(),
+            Rc::new(Box::new(|sudoku_display| {
+                sudoku_display.difficulty = SudokuDifficulty::Hard;
+                for button in sudoku_display.button_list.iter_mut() {
+                    if button.text == "Create" || button.text == "Browse" {
+                        button.set_enabled(true);
+                    }
+                    if button.text == "Easy" || button.text == "Medium" || button.text == "Hard" || button.text == "Master" || button.text == "Extreme" {
+                        button.set_enabled(false);
+                    }
+                }
+            })),
+        );
+        bouton_hard.set_enabled(new_game_available);
         button_list.push(bouton_hard);
 
-        let bouton_expert = Button::new(
+        let mut bouton_master = Button::new(
             x_offset + (button_sizex + button_xpadding) * 7.0,
-            y_offset - choosey_offset - button_sizey,
-            button_sizex,
-            button_sizey,
-            "Expert".to_string(),
-            false,
-            scale_factor,
-        );
-
-        button_list.push(bouton_expert);
-
-        let bouton_master = Button::new(
-            x_offset + (button_sizex + button_xpadding) * 8.0,
             y_offset - choosey_offset - button_sizey,
             button_sizex,
             button_sizey,
@@ -217,10 +254,25 @@ impl<'a> SudokuDisplay<'a> {
             scale_factor,
         );
 
+        actions_boutons.insert(
+            "Master".to_string(),
+            Rc::new(Box::new(|sudoku_display| {
+                sudoku_display.difficulty = SudokuDifficulty::Master;
+                for button in sudoku_display.button_list.iter_mut() {
+                    if button.text == "Create" || button.text == "Browse" {
+                        button.set_enabled(true);
+                    }
+                    if button.text == "Easy" || button.text == "Medium" || button.text == "Hard" || button.text == "Master" || button.text == "Extreme" {
+                        button.set_enabled(false);
+                    }
+                }
+            })),
+        );
+        bouton_master.set_enabled(new_game_available);
         button_list.push(bouton_master);
 
-        let bouton_extreme = Button::new(
-            x_offset + (button_sizex + button_xpadding) * 9.0,
+        let mut bouton_extreme = Button::new(
+            x_offset + (button_sizex + button_xpadding) * 8.0,
             y_offset - choosey_offset - button_sizey,
             button_sizex,
             button_sizey,
@@ -229,7 +281,70 @@ impl<'a> SudokuDisplay<'a> {
             scale_factor,
         );
 
+        actions_boutons.insert(
+            "Extreme".to_string(),
+            Rc::new(Box::new(|sudoku_display| {
+                sudoku_display.difficulty = SudokuDifficulty::Extreme;
+                for button in sudoku_display.button_list.iter_mut() {
+                    if button.text == "Create" || button.text == "Browse" {
+                        button.set_enabled(true);
+                    }
+                    if button.text == "Easy" || button.text == "Medium" || button.text == "Hard" || button.text == "Master" || button.text == "Extreme" {
+                        button.set_enabled(false);
+                    }
+                }
+            })),
+        );
+        bouton_extreme.set_enabled(new_game_available);
         button_list.push(bouton_extreme);
+
+        let mut bouton_create = Button::new(
+            x_offset + (button_sizex + button_xpadding) * 4.0,
+            y_offset - choosey_offset - button_sizey,
+            button_sizex,
+            button_sizey,
+            "Create".to_string(),
+            false,
+            scale_factor,
+        );
+        bouton_create.set_enabled(false);
+        button_list.push(bouton_create);
+
+        actions_boutons.insert(
+            "Create".to_string(),
+            Rc::new(Box::new(|sudoku_display| {
+                sudoku_display.new_game(sudoku_display.difficulty);
+                for button in sudoku_display.button_list.iter_mut() {
+                    if button.text == "Create" || button.text == "Browse" {
+                        button.set_enabled(false);
+                    }
+                }
+            })),
+        );
+
+        let mut bouton_browse = Button::new(
+            x_offset + (button_sizex + button_xpadding) * 5.0,
+            y_offset - choosey_offset - button_sizey,
+            button_sizex,
+            button_sizey,
+            "Browse".to_string(),
+            false,
+            scale_factor,
+        );
+        bouton_browse.set_enabled(false);
+        button_list.push(bouton_browse);
+
+        actions_boutons.insert(
+            "Create".to_string(),
+            Rc::new(Box::new(|sudoku_display| {
+                sudoku_display.new_game(sudoku_display.difficulty);
+                for button in sudoku_display.button_list.iter_mut() {
+                    if button.text == "Create" || button.text == "Browse" {
+                        button.set_enabled(false);
+                    }
+                }
+            })),
+        );
 
         let solvex_offset = 50.0 * scale_factor;
         let solve_ypadding = 10.0 * scale_factor;
@@ -272,7 +387,8 @@ impl<'a> SudokuDisplay<'a> {
         actions_boutons.insert(
             "Solve".to_string(),
             Rc::new(Box::new(|sudoku_display| {
-                sudoku_display.solve_once();
+                debug!("Solving sudoku");
+                sudoku_display.sudoku.board = sudoku_display.sudoku.solve();
             })),
         );
 
@@ -298,6 +414,7 @@ impl<'a> SudokuDisplay<'a> {
             button_note.text.to_string(),
             Rc::new(Box::new(|sudoku_display| {
                 sudoku_display.note = !sudoku_display.note;
+                debug!("Note mode: {}", sudoku_display.note);
                 for bouton in sudoku_display.button_list.iter_mut() {
                     if bouton.text == *"Note" {
                         bouton.set_clicked(!bouton.clicked());
@@ -323,14 +440,14 @@ impl<'a> SudokuDisplay<'a> {
         actions_boutons.insert(
             button_note_fill.text.to_string(),
             Rc::new(Box::new(|sudoku_display| {
-                sudoku_display
-                    .player_pboard_history
-                    .push(sudoku_display.player_pboard.clone());
+                let mut changed = false;
+                let old_pboard = sudoku_display.player_pboard.clone();
                 for x in 0..sudoku_display.sudoku.get_n2() {
                     for y in 0..sudoku_display.sudoku.get_n2() {
                         if sudoku_display.player_pboard[y][x].is_empty()
                             && sudoku_display.sudoku.get_board()[y][x] == 0
                         {
+                            changed = true;
                             for i in 1..=sudoku_display.sudoku.get_n2() {
                                 sudoku_display.player_pboard[y][x].insert(i);
                             }
@@ -347,6 +464,9 @@ impl<'a> SudokuDisplay<'a> {
                             }
                         }
                     }
+                }
+                if changed {
+                    sudoku_display.player_pboard_history.push(old_pboard);
                 }
             })),
         );
@@ -511,8 +631,21 @@ impl<'a> SudokuDisplay<'a> {
             background,
             lifes,
             new_game_available,
+            difficulty,
             correction_board,
+            background_defaite,
         }
+    }
+
+    pub fn new_game(&mut self, difficulty: SudokuDifficulty) {
+        self.lifes = 3;
+        *self.sudoku = Sudoku::generate(self.sudoku.n, difficulty);
+        self.player_pboard = vec![vec![HashSet::new(); self.sudoku.get_n2()]; self.sudoku.get_n2()];
+        self.player_pboard_history.clear();
+        self.correction_board = self.sudoku.solve().clone();
+        self.selected_cell = None;
+        self.note = false;
+        self.new_game_available = false;
     }
 
     pub fn set_lifes(&mut self, lifes: i32) {
@@ -699,7 +832,34 @@ impl<'a> SudokuDisplay<'a> {
 
         clear_background(Color::from_hex(0xffffff));
 
-        draw_texture(&self.background, 0., 0., WHITE);
+        if self.sudoku.is_solved() {
+            let bg_width = self.max_width;
+            let bg_height = self.background.height() * (bg_width / self.background.width());
+            draw_texture_ex(
+                &self.background,
+                0.,
+                0.,
+                WHITE,
+                DrawTextureParams {
+                    dest_size: Some(vec2(bg_width, bg_height)),
+                    ..Default::default()
+                },
+            );
+        }
+        else if self.lifes == 0 {
+            let bg_width = self.max_width;
+            let bg_height = self.background_defaite.height() * (bg_width / self.background_defaite.width());
+            draw_texture_ex(
+                &self.background_defaite,
+                0.,
+                0.,
+                WHITE,
+                DrawTextureParams {
+                    dest_size: Some(vec2(bg_width, bg_height)),
+                    ..Default::default()
+                },
+            );
+        }
 
         let sudoku_x = mouse_x - self.x_offset;
         let sudoku_y = mouse_y - self.y_offset;
@@ -718,6 +878,7 @@ impl<'a> SudokuDisplay<'a> {
                     for button in self.button_list.iter_mut() {
                         if button.text == n.to_string() {
                             button.set_clicked(false);
+                            button.set_clickable(true);
                         }
                     }
                 }
