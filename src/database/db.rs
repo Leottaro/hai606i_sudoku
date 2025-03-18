@@ -39,14 +39,14 @@ impl Database {
         sudoku_diff: SudokuDifficulty,
     ) -> Result<SimpleSudoku, diesel::result::Error> {
         let nb_max = simple_sudokus
-            .filter(difficulty.eq(sudoku_diff as u8).and(n.eq(sudoku_n as u8)))
+            .filter(n.eq(sudoku_n as u8).and(difficulty.eq(sudoku_diff as u8)))
             .count()
-            .execute(&mut self.connection)?;
+            .get_result::<i64>(&mut self.connection)?;
         simple_sudokus
             .filter(difficulty.eq(sudoku_diff as u8).and(n.eq(sudoku_n as u8)))
-            .limit(nb_max as i64 - 1)
+            .limit(nb_max - 1)
             .get_result::<DBSimpleSudoku>(&mut self.connection)
-            .map(|db_simple_sudoku| SimpleSudoku::from_db(&db_simple_sudoku))
+            .map(|db_simple_sudoku| db_simple_sudoku.to_sudoku())
     }
 }
 

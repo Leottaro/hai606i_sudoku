@@ -19,6 +19,22 @@ pub struct DBSimpleSudoku {
     pub difficulty: u8,
 }
 
+impl DBSimpleSudoku {
+    pub fn to_sudoku(&self) -> SimpleSudoku {
+        let mut sudoku = SimpleSudoku::new(self.n as usize);
+        let mut board_iter = self.board.clone().into_iter().map(|cell| cell as usize);
+        for y in 0..sudoku.get_n2() {
+            for x in 0..sudoku.get_n2() {
+                let next_value = board_iter.next().unwrap();
+                if next_value > 0 {
+                    sudoku.set_value(x, y, next_value);
+                }
+            }
+        }
+        sudoku
+    }
+}
+
 #[derive(Insertable)]
 #[diesel(table_name = simple_sudokus)]
 pub struct DBNewSimpleSudoku {

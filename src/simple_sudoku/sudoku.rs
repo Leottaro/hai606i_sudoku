@@ -3,7 +3,7 @@ use super::{
     SudokuDifficulty::{self, *},
     SudokuGroups::{self, *},
 };
-use crate::{database, debug_only};
+use crate::debug_only;
 use rand::Rng;
 use std::{
     cmp::max,
@@ -228,22 +228,6 @@ impl Sudoku {
             difficulty,
             error,
         }
-    }
-
-    pub fn from_db(simple_sudoku: &database::DBSimpleSudoku) -> Self {
-        let mut sudoku = Self::new(simple_sudoku.n as usize);
-        sudoku.difficulty = SudokuDifficulty::from(simple_sudoku.difficulty);
-        let mut board_iter = simple_sudoku
-            .board
-            .clone()
-            .into_iter()
-            .map(|cell| cell as usize);
-        for y in 0..sudoku.n2 {
-            for x in 0..sudoku.n2 {
-                sudoku.board[y][x] = board_iter.next().unwrap();
-            }
-        }
-        sudoku
     }
 
     /*
