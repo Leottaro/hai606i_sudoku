@@ -24,8 +24,8 @@ fn window_conf() -> Conf {
 #[macroquad::main(window_conf)]
 async fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
-    #[cfg(debug_assertions)]
-    debug!("Debug activé");
+    //#[cfg(debug_assertions)]
+    //debug!("Debug activé");
     let mut sudoku = Sudoku::new(3);
     println!("{}", sudoku);
     let font = load_ttf_font("./res/font/RobotoMono-Thin.ttf")

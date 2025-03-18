@@ -295,7 +295,8 @@ impl<'a> SudokuDisplay<'a> {
         actions_boutons.insert(
             "Solve".to_string(),
             Rc::new(Box::new(|sudoku_display| {
-                sudoku_display.sudoku.solve();
+                debug!("Solving sudoku");
+                sudoku_display.sudoku.board = sudoku_display.sudoku.solve();
             })),
         );
 
