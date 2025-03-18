@@ -122,7 +122,7 @@ pub struct SudokuDisplay {
     button_list: Vec<Button>,
     font: macroquad::text::Font,
     actions_boutons: HashMap<String, ButtonFunction>,
-    background: Texture2D,
+    background_victoire: Texture2D,
     background_defaite: Texture2D,
     lifes: usize,
     new_game_available: bool,

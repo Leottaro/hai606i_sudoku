@@ -21,6 +21,7 @@ impl Database {
             eprintln!("Error connecting to db at {database_url}: {}", error);
             None
         } else {
+            println!("connected !");
             Some(Self {
                 connection: connection.unwrap(),
             })
