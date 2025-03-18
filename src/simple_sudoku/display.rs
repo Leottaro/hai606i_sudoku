@@ -131,7 +131,7 @@ impl<'a> SudokuDisplay<'a> {
             button_sizex,
             button_sizey,
             "New Game".to_string(),
-            false,
+            new_game_available,
             scale_factor,
         );
 
@@ -148,7 +148,7 @@ impl<'a> SudokuDisplay<'a> {
                     sudoku_display.set_lifes(sudoku_display.lifes as i32 - 1);
                 }
                 for bouton in sudoku_display.button_list.iter_mut() {
-                    if nom_boutons.contains(&bouton.text) {
+                    if nom_boutons.contains(&bouton.text.to_uppercase()) {
                         bouton.set_enabled(sudoku_display.new_game_available);
                     } else if bouton.text == "New Game" {
                         bouton.set_clicked(sudoku_display.new_game_available);
@@ -195,20 +195,8 @@ impl<'a> SudokuDisplay<'a> {
 
         button_list.push(bouton_hard);
 
-        let bouton_expert = Button::new(
-            x_offset + (button_sizex + button_xpadding) * 7.0,
-            y_offset - choosey_offset - button_sizey,
-            button_sizex,
-            button_sizey,
-            "Expert".to_string(),
-            false,
-            scale_factor,
-        );
-
-        button_list.push(bouton_expert);
-
         let bouton_master = Button::new(
-            x_offset + (button_sizex + button_xpadding) * 8.0,
+            x_offset + (button_sizex + button_xpadding) * 7.0,
             y_offset - choosey_offset - button_sizey,
             button_sizex,
             button_sizey,
@@ -220,7 +208,7 @@ impl<'a> SudokuDisplay<'a> {
         button_list.push(bouton_master);
 
         let bouton_extreme = Button::new(
-            x_offset + (button_sizex + button_xpadding) * 9.0,
+            x_offset + (button_sizex + button_xpadding) * 8.0,
             y_offset - choosey_offset - button_sizey,
             button_sizex,
             button_sizey,
