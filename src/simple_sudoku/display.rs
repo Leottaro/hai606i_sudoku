@@ -159,7 +159,7 @@ impl<'a> SudokuDisplay<'a> {
 
         button_list.push(new_game_btn);
 
-        let bouton_easy = Button::new(
+        let mut bouton_easy = Button::new(
             x_offset + (button_sizex + button_xpadding) * 4.0,
             y_offset - choosey_offset - button_sizey,
             button_sizex,
@@ -169,9 +169,10 @@ impl<'a> SudokuDisplay<'a> {
             scale_factor,
         );
 
+        bouton_easy.set_enabled(new_game_available);
         button_list.push(bouton_easy);
 
-        let bouton_medium = Button::new(
+        let mut bouton_medium = Button::new(
             x_offset + (button_sizex + button_xpadding) * 5.0,
             y_offset - choosey_offset - button_sizey,
             button_sizex,
@@ -181,9 +182,10 @@ impl<'a> SudokuDisplay<'a> {
             scale_factor,
         );
 
+        bouton_medium.set_enabled(new_game_available);
         button_list.push(bouton_medium);
 
-        let bouton_hard = Button::new(
+        let mut bouton_hard = Button::new(
             x_offset + (button_sizex + button_xpadding) * 6.0,
             y_offset - choosey_offset - button_sizey,
             button_sizex,
@@ -193,9 +195,10 @@ impl<'a> SudokuDisplay<'a> {
             scale_factor,
         );
 
+        bouton_hard.set_enabled(new_game_available);
         button_list.push(bouton_hard);
 
-        let bouton_master = Button::new(
+        let mut bouton_master = Button::new(
             x_offset + (button_sizex + button_xpadding) * 7.0,
             y_offset - choosey_offset - button_sizey,
             button_sizex,
@@ -205,9 +208,10 @@ impl<'a> SudokuDisplay<'a> {
             scale_factor,
         );
 
+        bouton_master.set_enabled(new_game_available);
         button_list.push(bouton_master);
 
-        let bouton_extreme = Button::new(
+        let mut bouton_extreme = Button::new(
             x_offset + (button_sizex + button_xpadding) * 8.0,
             y_offset - choosey_offset - button_sizey,
             button_sizex,
@@ -217,6 +221,7 @@ impl<'a> SudokuDisplay<'a> {
             scale_factor,
         );
 
+        bouton_extreme.set_enabled(new_game_available);
         button_list.push(bouton_extreme);
 
         let solvex_offset = 50.0 * scale_factor;
@@ -311,14 +316,14 @@ impl<'a> SudokuDisplay<'a> {
         actions_boutons.insert(
             button_note_fill.text.to_string(),
             Rc::new(Box::new(|sudoku_display| {
-                sudoku_display
-                    .player_pboard_history
-                    .push(sudoku_display.player_pboard.clone());
+                let mut changed = false;
+                let old_pboard = sudoku_display.player_pboard.clone();
                 for x in 0..sudoku_display.sudoku.get_n2() {
                     for y in 0..sudoku_display.sudoku.get_n2() {
                         if sudoku_display.player_pboard[y][x].is_empty()
                             && sudoku_display.sudoku.get_board()[y][x] == 0
                         {
+                            changed = true;
                             for i in 1..=sudoku_display.sudoku.get_n2() {
                                 sudoku_display.player_pboard[y][x].insert(i);
                             }
@@ -335,6 +340,11 @@ impl<'a> SudokuDisplay<'a> {
                             }
                         }
                     }
+                }
+                if changed {
+                    sudoku_display
+                        .player_pboard_history
+                        .push(old_pboard);
                 }
             })),
         );
