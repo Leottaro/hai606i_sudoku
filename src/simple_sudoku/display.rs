@@ -1,10 +1,12 @@
+use crate::database::Database;
+
 use super::{Button, ButtonFunction, Sudoku, SudokuDifficulty, SudokuDisplay, SudokuGroups::*};
 use macroquad::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-impl<'a> SudokuDisplay<'a> {
-    pub async fn new(sudoku: &'a mut Sudoku, font: Font) -> Self {
+impl SudokuDisplay {
+    pub async fn new(sudoku: Sudoku, font: Font, database: Database) -> Self {
         let max_height = screen_height() * 1.05;
         let max_width = screen_width() * 1.05;
         let scale_factor = 1.0;
@@ -358,9 +360,9 @@ impl<'a> SudokuDisplay<'a> {
         button_list.push(bouton_browse);
 
         actions_boutons.insert(
-            "Create".to_string(),
+            "Browse".to_string(),
             Rc::new(Box::new(|sudoku_display| {
-                sudoku_display.new_game(sudoku_display.difficulty);
+                sudoku_display.browse_game(sudoku_display.difficulty);
                 for button in sudoku_display.button_list.iter_mut() {
                     if button.text == "Create" || button.text == "Browse" {
                         button.set_enabled(false);
@@ -635,6 +637,7 @@ impl<'a> SudokuDisplay<'a> {
         // =============================================
 
         Self {
+            database,
             sudoku,
             max_height,
             max_width,
@@ -662,7 +665,18 @@ impl<'a> SudokuDisplay<'a> {
 
     pub fn new_game(&mut self, difficulty: SudokuDifficulty) {
         self.lifes = 3;
-        *self.sudoku = Sudoku::generate_new(self.sudoku.n, difficulty);
+        self.sudoku = Sudoku::generate_new(self.sudoku.n, difficulty);
+        self.player_pboard = vec![vec![HashSet::new(); self.sudoku.get_n2()]; self.sudoku.get_n2()];
+        self.player_pboard_history.clear();
+        self.correction_board = self.sudoku.solve().clone();
+        self.selected_cell = None;
+        self.note = false;
+        self.new_game_available = false;
+    }
+
+    pub fn browse_game(&mut self, difficulty: SudokuDifficulty) {
+        self.lifes = 3;
+        self.sudoku = Sudoku::load_from_db(&mut self.database, difficulty);
         self.player_pboard = vec![vec![HashSet::new(); self.sudoku.get_n2()]; self.sudoku.get_n2()];
         self.player_pboard_history.clear();
         self.correction_board = self.sudoku.solve().clone();

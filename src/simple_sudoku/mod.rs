@@ -7,6 +7,8 @@ use std::{
 
 use macroquad::texture::Texture2D;
 
+use crate::database::Database;
+
 pub mod button;
 pub mod display;
 pub mod rules;
@@ -102,8 +104,9 @@ pub struct Sudoku {
 }
 
 pub type ButtonFunction = Rc<Box<dyn Fn(&mut SudokuDisplay)>>;
-pub struct SudokuDisplay<'a> {
-    sudoku: &'a mut Sudoku,
+pub struct SudokuDisplay {
+    database: Database,
+    sudoku: Sudoku,
     max_height: f32,
     max_width: f32,
     scale_factor: f32,
