@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use diesel::{
     BoolExpressionMethods, Connection, ExpressionMethods, MysqlConnection, QueryDsl, RunQueryDsl,
 };
@@ -20,40 +18,34 @@ impl Database {
         });
 
         println!("connecting to db at {}...", database_url);
-        let mysql_connection = MysqlConnection::establish(&database_url)
+        let connection = MysqlConnection::establish(&database_url)
             .unwrap_or_else(|_| panic!("Error connecting to {}", database_url));
 
-        Self {
-            connection: Mutex::new(mysql_connection),
-        }
-    }
-
-    pub fn get_connection(&self) -> &Mutex<MysqlConnection> {
-        &self.connection
+        Self { connection }
     }
 
     pub fn insert_simple_sudoku(
-        &self,
+        &mut self,
         sudoku: DBNewSimpleSudoku,
     ) -> Result<usize, diesel::result::Error> {
         diesel::insert_into(simple_sudokus)
             .values(&sudoku)
-            .execute(&mut *self.connection.lock().unwrap())
+            .execute(&mut self.connection)
     }
 
     pub fn get_random_simple_sudoku(
-        &self,
+        &mut self,
         sudoku_n: usize,
         sudoku_diff: SudokuDifficulty,
     ) -> Result<SimpleSudoku, diesel::result::Error> {
         let nb_max = simple_sudokus
             .filter(difficulty.eq(sudoku_diff as u8).and(n.eq(sudoku_n as u8)))
             .count()
-            .execute(&mut *self.connection.lock().unwrap())?;
+            .execute(&mut self.connection)?;
         simple_sudokus
             .filter(difficulty.eq(sudoku_diff as u8).and(n.eq(sudoku_n as u8)))
             .limit(nb_max as i64 - 1)
-            .get_result::<DBSimpleSudoku>(&mut *self.connection.lock().unwrap())
+            .get_result::<DBSimpleSudoku>(&mut self.connection)
             .map(|db_simple_sudoku| SimpleSudoku::from_db(&db_simple_sudoku))
     }
 }

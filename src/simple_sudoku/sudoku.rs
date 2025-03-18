@@ -246,12 +246,6 @@ impl Sudoku {
         sudoku
     }
 
-    pub fn generate_full(n: usize) -> Self {
-        let mut sudoku = Self::new(n);
-        sudoku.backtrack_solve(0, 0);
-        sudoku
-    }
-
     /*
     ->	ORIGINAL					->	(n^4)! + (n^4-1)! + ... + 1!
     ->	CALCULABILITY THRESHOLD		->	(n^4)! + (n^4-1)! + ... + 17!
@@ -265,7 +259,11 @@ impl Sudoku {
 
         loop {
             let thread_count: usize = available_parallelism().unwrap().get();
-            let default = Arc::new(Mutex::new((Self::generate_full(n), vec![true; n2 * n2])));
+            let default = {
+                let mut sudoku = Self::new(n);
+                sudoku.backtrack_solve(0, 0);
+                Arc::new(Mutex::new((sudoku, vec![true; n2 * n2])))
+            };
             let to_explore: Arc<Mutex<Vec<SudokuFilledCells>>> = Arc::new(Mutex::new(Vec::new()));
             let explored_filled_cells: Arc<Mutex<HashSet<Vec<bool>>>> =
                 Arc::new(Mutex::new(HashSet::new()));
@@ -430,18 +428,36 @@ impl Sudoku {
                 threads_infos.push((join_handle, main_tx));
             }
 
-            let mut unwrapped_sudoku = 0;
-            while unwrapped_sudoku < thread_count {
+            for _ in 0..thread_count {
                 let sudoku = rx.recv().unwrap().unwrap();
-                unwrapped_sudoku += 1;
 
-                if sudoku.is_unique() {
-                    for (handle, tx) in threads_infos {
-                        let _ = tx.send(());
-                        handle.join().unwrap();
-                    }
-                    return sudoku;
+                // verify that the sudoku is unique
+                if !sudoku.is_unique() {
+                    continue;
                 }
+
+                // panic if generated a wrong sudoku
+                let mut verify_sudoku = sudoku.clone();
+                loop {
+                    match verify_sudoku.rule_solve(None, None) {
+                        Ok(Some(_)) => (),
+                        Ok(None) => {
+                            if !verify_sudoku.is_solved() {
+                                panic!("ERROR IN SUDOKU SOLVING: Couldn't solve generated sudoku: \nORIGINAL SUDOKU:\n{sudoku}\nFINISHED SUDOKU: \n{verify_sudoku}");
+                            }
+                            break;
+                        }
+                        Err(((x1, y1), (x2, y2))) => {
+                            panic!("ERROR IN SUDOKU: cells ({x1},{y1}) == ({x2},{y2}): \nORIGINAL SUDOKU:");
+                        }
+                    }
+                }
+
+                for (handle, tx) in threads_infos {
+                    let _ = tx.send(());
+                    handle.join().unwrap();
+                }
+                return sudoku;
             }
         }
     }

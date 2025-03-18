@@ -1,6 +1,5 @@
 use diesel::MysqlConnection;
 use schema::simple_sudokus;
-use std::sync::Mutex;
 
 use crate::simple_sudoku::Sudoku as SimpleSudoku;
 
@@ -8,7 +7,7 @@ pub mod db;
 pub mod schema;
 
 pub struct Database {
-    connection: Mutex<MysqlConnection>,
+    connection: MysqlConnection,
 }
 
 #[derive(Queryable)]
