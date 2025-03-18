@@ -4,6 +4,7 @@ use super::{
     SudokuGroups::{self, *},
 };
 use crate::debug_only;
+use log::{info, warn};
 use rand::Rng;
 use std::{
     cmp::max,
@@ -235,6 +236,23 @@ impl Sudoku {
         let mut sudoku = Self::new(n);
         sudoku.backtrack_solve(0, 0);
         sudoku
+    }
+
+    pub fn solve(&mut self) -> Vec<Vec<usize>> {
+        let mut sudoku = self.clone();
+        loop {
+            match sudoku.rule_solve(None, None) {
+                Ok(None) => break,
+                Ok(_) => (),
+                Err(((x1, y1), (x2, y2))) => eprintln!("Error: {x1},{y1} == {x2},{y2}"),
+            }
+        }
+        if sudoku.is_solved() {
+            info!("Sudoku solved !");
+        } else {
+            warn!("Sudoku not solved !");
+        }
+        sudoku.get_board()
     }
 
     /*
