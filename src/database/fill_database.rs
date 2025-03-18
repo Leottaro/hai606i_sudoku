@@ -14,7 +14,7 @@ fn main() {
     for (count, &difficulty) in (0_u128..).zip(difficulties.iter().cycle()) {
         println!("\n{count}: difficulty {difficulty}: ");
 
-        let sudoku = Sudoku::generate(3, difficulty);
+        let sudoku = Sudoku::generate_new(3, difficulty);
 
         let thread_database = Arc::clone(&database);
         let mut inserted_sudoku = DBNewSimpleSudoku::from(&sudoku);

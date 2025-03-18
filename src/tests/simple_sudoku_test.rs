@@ -333,7 +333,7 @@ mod tests {
                 println!("iteration {j}: ");
 
                 let start = std::time::Instant::now();
-                let _sudoku = Sudoku::generate(3, difficulty);
+                let _sudoku = Sudoku::generate_new(3, difficulty);
                 time_samples[i].1.push(start.elapsed().as_millis());
             }
         }

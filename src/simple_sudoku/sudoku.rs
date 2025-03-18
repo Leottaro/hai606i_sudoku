@@ -3,7 +3,7 @@ use super::{
     SudokuDifficulty::{self, *},
     SudokuGroups::{self, *},
 };
-use crate::debug_only;
+use crate::{database::Database, debug_only};
 use rand::Rng;
 use std::{
     cmp::max,
@@ -236,7 +236,7 @@ impl Sudoku {
     ->	REMOVE REDUNDANCY 			->	(n^4)! - (n^4-1)! - ... - 17!
     ->  ONLY 2 POSSIBILITIES		->  2! + 2! + ... + 17! (un peu moins que ça grâce à REMOVE REDUNDANCY)
     */
-    pub fn generate(n: usize, aimed_difficulty: SudokuDifficulty) -> Self {
+    pub fn generate_new(n: usize, aimed_difficulty: SudokuDifficulty) -> Self {
         let n2 = n * n;
         let (tx, rx) = mpsc::channel();
         type SudokuFilledCells = (Sudoku, Vec<bool>);
@@ -444,6 +444,10 @@ impl Sudoku {
                 return sudoku;
             }
         }
+    }
+
+    pub fn load_from_db(database: &mut Database, difficulty: SudokuDifficulty) -> Self {
+        database.get_random_simple_sudoku(3, difficulty).unwrap()
     }
 
     pub fn parse_file(file_name: &str) -> Result<Self, Box<dyn std::error::Error>> {
