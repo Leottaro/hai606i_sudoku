@@ -9,7 +9,7 @@ use hai606i_sudoku::{
 };
 
 fn main() {
-    let database = Arc::new(Mutex::new(Database::connect()));
+    let database = Arc::new(Mutex::new(Database::connect().unwrap()));
     let difficulties = SudokuDifficulty::iter().collect::<Vec<_>>();
     for (count, &difficulty) in (0_u128..).zip(difficulties.iter().cycle()) {
         println!("\n{count}: difficulty {difficulty}: ");

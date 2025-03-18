@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 impl SudokuDisplay {
-    pub async fn new(sudoku: Sudoku, font: Font, database: Database) -> Self {
+    pub async fn new(sudoku: Sudoku, font: Font) -> Self {
         let max_height = screen_height() * 1.05;
         let max_width = screen_width() * 1.05;
         let scale_factor = 1.0;
@@ -14,6 +14,7 @@ impl SudokuDisplay {
         let pixel_per_cell = grid_size / sudoku.get_n2() as f32;
         let x_offset = 250.0 * scale_factor;
         let y_offset = 150.0 * scale_factor;
+        let database = None;
 
         let mode = "play".to_string();
         let player_pboard_history: Vec<Vec<Vec<HashSet<usize>>>> = Vec::new();
@@ -356,6 +357,7 @@ impl SudokuDisplay {
             false,
             scale_factor,
         );
+        bouton_browse.set_clickable(database.is_some());
         bouton_browse.set_enabled(false);
         button_list.push(bouton_browse);
 
@@ -663,6 +665,16 @@ impl SudokuDisplay {
         }
     }
 
+    pub fn set_db(&mut self, database: Option<Database>) {
+        for button in self.button_list.iter_mut() {
+            if button.text.eq("Browse") && button.clickable != database.is_some() {
+                button.set_clickable(database.is_some());
+                self.database = database;
+                break;
+            }
+        }
+    }
+
     pub fn new_game(&mut self, difficulty: SudokuDifficulty) {
         self.lifes = 3;
         self.sudoku = Sudoku::generate_new(self.sudoku.n, difficulty);
@@ -676,7 +688,11 @@ impl SudokuDisplay {
 
     pub fn browse_game(&mut self, difficulty: SudokuDifficulty) {
         self.lifes = 3;
-        self.sudoku = Sudoku::load_from_db(&mut self.database, difficulty);
+        self.sudoku = if let Some(database) = &mut self.database {
+            Sudoku::load_from_db(database, difficulty)
+        } else {
+            Sudoku::generate_new(self.sudoku.n, difficulty)
+        };
         self.player_pboard = vec![vec![HashSet::new(); self.sudoku.get_n2()]; self.sudoku.get_n2()];
         self.player_pboard_history.clear();
         self.correction_board = self.sudoku.solve().clone();
