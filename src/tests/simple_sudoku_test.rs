@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use std::{
+        env::current_dir,
         io::BufRead,
         sync::{Arc, Mutex},
     };
@@ -326,7 +327,7 @@ mod tests {
         let mut time_samples = SudokuDifficulty::iter()
             .map(|diff| (diff, Vec::new()))
             .collect::<Vec<_>>();
-        let iterations: usize = 100;
+        let iterations: usize = 1000;
 
         let end_function = |time_samples: Vec<(SudokuDifficulty, Vec<u128>)>, iterations: usize| {
             for (difficulty, mut samples) in time_samples {
@@ -345,6 +346,16 @@ mod tests {
             }
         };
 
+        let error_function = |original_sudoku: &Sudoku, filename: String| {
+            let mut file_path = current_dir().unwrap();
+            file_path.push("res/sudoku_samples/");
+            file_path.push(&filename);
+            std::fs::write(&file_path, original_sudoku.board_to_string()).unwrap_or_else(|err| {
+                panic!("couldn't write sudoku to file {}: {}", filename, err)
+            });
+            panic!("wrongly generated Sudoku written to file {:?}", file_path);
+        };
+
         for (i, difficulty) in SudokuDifficulty::iter().enumerate() {
             println!("testing difficulty {difficulty}");
 
@@ -352,10 +363,10 @@ mod tests {
                 println!("iteration {j}: ");
 
                 let start = std::time::Instant::now();
-                let mut original_sudoku = Sudoku::generate(3, difficulty);
+                let original_sudoku = Sudoku::generate(3, difficulty);
                 time_samples[i].1.push(start.elapsed().as_millis());
 
-                println!("Solving...");
+                println!("Solving...\n{}", original_sudoku);
                 let mut sudoku = original_sudoku.clone();
                 loop {
                     match sudoku.rule_solve(None, None) {
@@ -363,19 +374,15 @@ mod tests {
                         Ok(None) => {
                             if !sudoku.is_solved() {
                                 eprintln!("ERROR IN SUDOKU SOLVING: Couldn't solve generated sudoku: \nORIGINAL SUDOKU:\n{original_sudoku}\nFINISHED SUDOKU: \n{sudoku}");
-                                env_logger::Builder::from_env(
-                                    env_logger::Env::default().default_filter_or("debug"),
-                                )
-                                .init();
-                                loop {
-                                    match original_sudoku.rule_solve(None, None) {
-                                        Ok(None) | Err(_) => {
-                                            end_function(time_samples, iterations);
-                                            panic!();
-                                        }
-                                        _ => (),
-                                    }
-                                }
+                                end_function(time_samples, iterations);
+                                error_function(
+                                    &original_sudoku,
+                                    format!(
+                                        "sudoku_generation_{}_unsolved.txt",
+                                        original_sudoku.get_difficulty()
+                                    ),
+                                );
+                                return;
                             }
                             break;
                         }
@@ -383,20 +390,19 @@ mod tests {
                             eprintln!(
                             "ERROR IN SUDOKU: cells ({x1},{y1}) == ({x2},{y2}): \nORIGINAL SUDOKU:"
                         );
-                            loop {
-                                match original_sudoku.rule_solve(None, None) {
-                                    Ok(None) | Err(_) => {
-                                        eprintln!("MAXIMUM SUDOKU:{original_sudoku}");
-                                        end_function(time_samples, iterations);
-                                        panic!();
-                                    }
-                                    _ => (),
-                                }
-                            }
+                            end_function(time_samples, iterations);
+                            error_function(
+                                &original_sudoku,
+                                format!(
+                                    "sudoku_generation_{}_error.txt",
+                                    original_sudoku.get_difficulty()
+                                ),
+                            );
+                            return;
                         }
                     }
                 }
-                println!("Solved !");
+                println!("Solved !\n{sudoku}");
             }
         }
 

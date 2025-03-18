@@ -240,15 +240,16 @@ impl Sudoku {
     ->	ORIGINAL					->	(n^4)! + (n^4-1)! + ... + 1!
     ->	CALCULABILITY THRESHOLD		->	(n^4)! + (n^4-1)! + ... + 17!
     ->	REMOVE REDUNDANCY 			->	(n^4)! - (n^4-1)! - ... - 17!
+    ->  ONLY 2 POSSIBILITIES		->  2! + 2! + ... + 17! (un peu moins que ça grâce à REMOVE REDUNDANCY)
     */
     pub fn generate(n: usize, aimed_difficulty: SudokuDifficulty) -> Self {
         let n2 = n * n;
         let start = std::time::Instant::now();
-        let thread_count: usize = available_parallelism().unwrap().get();
         let (tx, rx) = mpsc::channel();
         type SudokuFilledCells = (Sudoku, Vec<bool>);
 
         loop {
+            let thread_count: usize = available_parallelism().unwrap().get();
             let default = Arc::new(Mutex::new((Self::generate_full(n), vec![true; n2 * n2])));
             let to_explore: Arc<Mutex<Vec<SudokuFilledCells>>> = Arc::new(Mutex::new(Vec::new()));
             let explored_filled_cells: Arc<Mutex<HashSet<Vec<bool>>>> =
@@ -308,6 +309,7 @@ impl Sudoku {
                             let x = i % n2;
                             let y = i / n2;
                             let mut testing_sudoku = sudoku.clone();
+                            testing_sudoku.difficulty = Unknown;
                             let removed_value = testing_sudoku.remove_value(x, y);
                             filled_cells[i] = false;
 
@@ -436,12 +438,9 @@ impl Sudoku {
     }
 
     pub fn parse_file(file_name: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        let file_path = {
-            let mut path_builder = current_dir().unwrap();
-            path_builder.push("res/sudoku_samples/");
-            path_builder.push(file_name);
-            path_builder.into_os_string().into_string().unwrap()
-        };
+        let mut file_path = current_dir().unwrap();
+        file_path.push("res/sudoku_samples/");
+        file_path.push(file_name);
         let file_content = std::fs::read_to_string(file_path)?;
         Self::parse_string(&file_content)
     }
@@ -469,6 +468,20 @@ impl Sudoku {
 			.into());
         }
         Ok(sudoku)
+    }
+
+    pub fn board_to_string(&self) -> String {
+        let mut lines: Vec<String> = Vec::new();
+        lines.push(format!("{}", self.n));
+        for line in self.board.iter() {
+            lines.push(
+                line.iter()
+                    .map(|cell| cell.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            );
+        }
+        lines.join("\n")
     }
 
     // RULE SOLVING
