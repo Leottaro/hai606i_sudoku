@@ -38,12 +38,16 @@ impl Database {
         sudoku_n: usize,
         sudoku_diff: SudokuDifficulty,
     ) -> Result<SimpleSudoku, diesel::result::Error> {
+        define_sql_function! {
+            fn rand() -> Text;
+        };
         let nb_max = simple_sudokus
             .filter(n.eq(sudoku_n as u8).and(difficulty.eq(sudoku_diff as u8)))
             .count()
             .get_result::<i64>(&mut self.connection)?;
         simple_sudokus
             .filter(difficulty.eq(sudoku_diff as u8).and(n.eq(sudoku_n as u8)))
+            .order(rand())
             .limit(nb_max - 1)
             .get_result::<DBSimpleSudoku>(&mut self.connection)
             .map(|db_simple_sudoku| db_simple_sudoku.to_sudoku())
