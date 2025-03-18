@@ -558,9 +558,6 @@ impl Sudoku {
                                 y,
                                 value
                             );
-                            if y1 == y {
-                                println!("AIE AIE AIE PROBLEME!!!");
-                            }
                             modified = true;
                         }
                     }

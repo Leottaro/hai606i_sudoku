@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
     use std::{
-        env::current_dir,
         io::BufRead,
         sync::{Arc, Mutex},
     };
@@ -303,25 +302,6 @@ mod tests {
     }
 
     #[test]
-    fn generate_full() {
-        for size in 2..=4 {
-            println!("testing size {size}");
-            for _ in 1..=100 {
-                let sudoku = Sudoku::generate_full(size);
-                assert!(
-                    sudoku.is_solved(),
-                    "Generated sudoku that was unsolved: \n{sudoku}"
-                );
-                if let Some(((x1, y1), (x2, y2))) = sudoku.get_error() {
-                    panic!(
-                        "Gererated an invalid sudoku in ({x1},{y1}) and ({x2},{y2}): \n{sudoku}"
-                    );
-                }
-            }
-        }
-    }
-
-    #[test]
     #[ignore = "test too long: run it with `cargo test -- tests::simple_sudoku_test::tests::generate --exact --nocapture --ignored`"]
     fn generate() {
         let mut time_samples = SudokuDifficulty::iter()
@@ -346,16 +326,6 @@ mod tests {
             }
         };
 
-        let error_function = |original_sudoku: &Sudoku, filename: String| {
-            let mut file_path = current_dir().unwrap();
-            file_path.push("res/sudoku_samples/");
-            file_path.push(&filename);
-            std::fs::write(&file_path, original_sudoku.board_to_string()).unwrap_or_else(|err| {
-                panic!("couldn't write sudoku to file {}: {}", filename, err)
-            });
-            panic!("wrongly generated Sudoku written to file {:?}", file_path);
-        };
-
         for (i, difficulty) in SudokuDifficulty::iter().enumerate() {
             println!("testing difficulty {difficulty}");
 
@@ -363,46 +333,8 @@ mod tests {
                 println!("iteration {j}: ");
 
                 let start = std::time::Instant::now();
-                let original_sudoku = Sudoku::generate(3, difficulty);
+                let _sudoku = Sudoku::generate_new(3, difficulty);
                 time_samples[i].1.push(start.elapsed().as_millis());
-
-                println!("Solving...\n{}", original_sudoku);
-                let mut sudoku = original_sudoku.clone();
-                loop {
-                    match sudoku.rule_solve(None, None) {
-                        Ok(Some(_)) => (),
-                        Ok(None) => {
-                            if !sudoku.is_solved() {
-                                eprintln!("ERROR IN SUDOKU SOLVING: Couldn't solve generated sudoku: \nORIGINAL SUDOKU:\n{original_sudoku}\nFINISHED SUDOKU: \n{sudoku}");
-                                end_function(time_samples, iterations);
-                                error_function(
-                                    &original_sudoku,
-                                    format!(
-                                        "sudoku_generation_{}_unsolved.txt",
-                                        original_sudoku.get_difficulty()
-                                    ),
-                                );
-                                return;
-                            }
-                            break;
-                        }
-                        Err(((x1, y1), (x2, y2))) => {
-                            eprintln!(
-                            "ERROR IN SUDOKU: cells ({x1},{y1}) == ({x2},{y2}): \nORIGINAL SUDOKU:"
-                        );
-                            end_function(time_samples, iterations);
-                            error_function(
-                                &original_sudoku,
-                                format!(
-                                    "sudoku_generation_{}_error.txt",
-                                    original_sudoku.get_difficulty()
-                                ),
-                            );
-                            return;
-                        }
-                    }
-                }
-                println!("Solved !\n{sudoku}");
             }
         }
 

@@ -181,11 +181,15 @@ impl<'a> SudokuDisplay<'a> {
                     if button.text == "Create" || button.text == "Browse" {
                         button.set_enabled(true);
                     }
-                    if button.text == "Easy" || button.text == "Medium" || button.text == "Hard" || button.text == "Master" || button.text == "Extreme" {
+                    if button.text == "Easy"
+                        || button.text == "Medium"
+                        || button.text == "Hard"
+                        || button.text == "Master"
+                        || button.text == "Extreme"
+                    {
                         button.set_enabled(false);
                     }
                 }
-                
             })),
         );
 
@@ -207,11 +211,15 @@ impl<'a> SudokuDisplay<'a> {
                     if button.text == "Create" || button.text == "Browse" {
                         button.set_enabled(true);
                     }
-                    if button.text == "Easy" || button.text == "Medium" || button.text == "Hard" || button.text == "Master" || button.text == "Extreme" {
+                    if button.text == "Easy"
+                        || button.text == "Medium"
+                        || button.text == "Hard"
+                        || button.text == "Master"
+                        || button.text == "Extreme"
+                    {
                         button.set_enabled(false);
                     }
                 }
-                
             })),
         );
         bouton_medium.set_enabled(new_game_available);
@@ -235,7 +243,12 @@ impl<'a> SudokuDisplay<'a> {
                     if button.text == "Create" || button.text == "Browse" {
                         button.set_enabled(true);
                     }
-                    if button.text == "Easy" || button.text == "Medium" || button.text == "Hard" || button.text == "Master" || button.text == "Extreme" {
+                    if button.text == "Easy"
+                        || button.text == "Medium"
+                        || button.text == "Hard"
+                        || button.text == "Master"
+                        || button.text == "Extreme"
+                    {
                         button.set_enabled(false);
                     }
                 }
@@ -262,7 +275,12 @@ impl<'a> SudokuDisplay<'a> {
                     if button.text == "Create" || button.text == "Browse" {
                         button.set_enabled(true);
                     }
-                    if button.text == "Easy" || button.text == "Medium" || button.text == "Hard" || button.text == "Master" || button.text == "Extreme" {
+                    if button.text == "Easy"
+                        || button.text == "Medium"
+                        || button.text == "Hard"
+                        || button.text == "Master"
+                        || button.text == "Extreme"
+                    {
                         button.set_enabled(false);
                     }
                 }
@@ -289,7 +307,12 @@ impl<'a> SudokuDisplay<'a> {
                     if button.text == "Create" || button.text == "Browse" {
                         button.set_enabled(true);
                     }
-                    if button.text == "Easy" || button.text == "Medium" || button.text == "Hard" || button.text == "Master" || button.text == "Extreme" {
+                    if button.text == "Easy"
+                        || button.text == "Medium"
+                        || button.text == "Hard"
+                        || button.text == "Master"
+                        || button.text == "Extreme"
+                    {
                         button.set_enabled(false);
                     }
                 }
@@ -639,7 +662,7 @@ impl<'a> SudokuDisplay<'a> {
 
     pub fn new_game(&mut self, difficulty: SudokuDifficulty) {
         self.lifes = 3;
-        *self.sudoku = Sudoku::generate(self.sudoku.n, difficulty);
+        *self.sudoku = Sudoku::generate_new(self.sudoku.n, difficulty);
         self.player_pboard = vec![vec![HashSet::new(); self.sudoku.get_n2()]; self.sudoku.get_n2()];
         self.player_pboard_history.clear();
         self.correction_board = self.sudoku.solve().clone();
@@ -845,10 +868,10 @@ impl<'a> SudokuDisplay<'a> {
                     ..Default::default()
                 },
             );
-        }
-        else if self.lifes == 0 {
+        } else if self.lifes == 0 {
             let bg_width = self.max_width;
-            let bg_height = self.background_defaite.height() * (bg_width / self.background_defaite.width());
+            let bg_height =
+                self.background_defaite.height() * (bg_width / self.background_defaite.width());
             draw_texture_ex(
                 &self.background_defaite,
                 0.,

@@ -3,7 +3,7 @@ use super::{
     SudokuDifficulty::{self, *},
     SudokuGroups::{self, *},
 };
-use crate::debug_only;
+use crate::{database::Database, debug_only};
 use log::{info, warn};
 use rand::Rng;
 use std::{
@@ -231,44 +231,24 @@ impl Sudoku {
         }
     }
 
-    pub fn generate_full(n: usize) -> Self {
-        let mut sudoku = Self::new(n);
-        sudoku.backtrack_solve(0, 0);
-        sudoku
-    }
-
-    pub fn solve(&mut self) -> Vec<Vec<usize>> {
-        let mut sudoku = self.clone();
-        loop {
-            match sudoku.rule_solve(None, None) {
-                Ok(None) => break,
-                Ok(_) => (),
-                Err(((x1, y1), (x2, y2))) => eprintln!("Error: {x1},{y1} == {x2},{y2}"),
-            }
-        }
-        if sudoku.is_solved() {
-            info!("Sudoku solved !");
-        } else {
-            warn!("Sudoku not solved !");
-        }
-        sudoku.get_board()
-    }
-
     /*
     ->	ORIGINAL					->	(n^4)! + (n^4-1)! + ... + 1!
     ->	CALCULABILITY THRESHOLD		->	(n^4)! + (n^4-1)! + ... + 17!
     ->	REMOVE REDUNDANCY 			->	(n^4)! - (n^4-1)! - ... - 17!
     ->  ONLY 2 POSSIBILITIES		->  2! + 2! + ... + 17! (un peu moins que ça grâce à REMOVE REDUNDANCY)
     */
-    pub fn generate(n: usize, aimed_difficulty: SudokuDifficulty) -> Self {
+    pub fn generate_new(n: usize, aimed_difficulty: SudokuDifficulty) -> Self {
         let n2 = n * n;
-        let start = std::time::Instant::now();
         let (tx, rx) = mpsc::channel();
         type SudokuFilledCells = (Sudoku, Vec<bool>);
 
         loop {
             let thread_count: usize = available_parallelism().unwrap().get();
-            let default = Arc::new(Mutex::new((Self::generate_full(n), vec![true; n2 * n2])));
+            let default = {
+                let mut sudoku = Self::new(n);
+                sudoku.backtrack_solve(0, 0);
+                Arc::new(Mutex::new((sudoku, vec![true; n2 * n2])))
+            };
             let to_explore: Arc<Mutex<Vec<SudokuFilledCells>>> = Arc::new(Mutex::new(Vec::new()));
             let explored_filled_cells: Arc<Mutex<HashSet<Vec<bool>>>> =
                 Arc::new(Mutex::new(HashSet::new()));
@@ -297,10 +277,11 @@ impl Sudoku {
 
                         (*thread_total.lock().unwrap()).add_assign(1);
                         print!(
-                            "Skipped {}/{} instances with {} filled cells            \r",
+                            "Skipped {}/{} instances with {} filled cells{}\r",
                             thread_skipped.lock().unwrap(),
                             thread_total.lock().unwrap(),
-                            filled_cells.iter().filter(|b| **b).count()
+                            filled_cells.iter().filter(|b| **b).count(),
+                            " ".repeat(20)
                         );
                         std::io::Write::flush(&mut std::io::stdout()).unwrap();
 
@@ -339,10 +320,11 @@ impl Sudoku {
                                 (*thread_skipped.lock().unwrap()).add_assign(1);
                                 (*thread_total.lock().unwrap()).add_assign(1);
                                 print!(
-                                    "Skipped {}/{} instances with {} filled cells            \r",
+                                    "Skipped {}/{} instances with {} filled cells{}\r",
                                     thread_skipped.lock().unwrap(),
                                     thread_total.lock().unwrap(),
-                                    filled_cells.iter().filter(|b| **b).count()
+                                    filled_cells.iter().filter(|b| **b).count(),
+                                    " ".repeat(20)
                                 );
                                 std::io::Write::flush(&mut std::io::stdout()).unwrap();
                                 filled_cells[i] = true;
@@ -373,11 +355,12 @@ impl Sudoku {
                                             (*thread_skipped.lock().unwrap()).add_assign(1);
                                             (*thread_total.lock().unwrap()).add_assign(1);
                                             print!(
-                    						"Skipped {}/{} instances with {} filled cells            \r",
-                    						thread_skipped.lock().unwrap(),
-                    						thread_total.lock().unwrap(),
-                    						filled_cells.iter().filter(|b| **b).count()
-                    					);
+                                                "Skipped {}/{} instances with {} filled cells{}\r",
+                                                thread_skipped.lock().unwrap(),
+                                                thread_total.lock().unwrap(),
+                                                filled_cells.iter().filter(|b| **b).count(),
+                                                " ".repeat(20)
+                                            );
                                             std::io::Write::flush(&mut std::io::stdout()).unwrap();
                                             break;
                                         }
@@ -430,29 +413,42 @@ impl Sudoku {
                 threads_infos.push((join_handle, main_tx));
             }
 
-            let mut unwrapped_sudoku = 0;
-            while unwrapped_sudoku < thread_count {
+            for _ in 0..thread_count {
                 let sudoku = rx.recv().unwrap().unwrap();
-                unwrapped_sudoku += 1;
 
-                if sudoku.is_unique() {
-                    for (handle, tx) in threads_infos {
-                        let _ = tx.send(());
-                        handle.join().unwrap();
-                    }
-
-                    println!(
-                        "Skipped {} sudokus, Explored {} possibilities, in {} seconds",
-                        skipped.lock().unwrap(),
-                        explored_filled_cells.lock().unwrap().len(),
-                        start.elapsed().as_secs_f32()
-                    );
-
-                    return sudoku;
+                // verify that the sudoku is unique
+                if !sudoku.is_unique() {
+                    continue;
                 }
-                println!("GENERATION HAD TO LOOP");
+
+                // panic if generated a wrong sudoku
+                let mut verify_sudoku = sudoku.clone();
+                loop {
+                    match verify_sudoku.rule_solve(None, None) {
+                        Ok(Some(_)) => (),
+                        Ok(None) => {
+                            if !verify_sudoku.is_solved() {
+                                panic!("ERROR IN SUDOKU SOLVING: Couldn't solve generated sudoku: \nORIGINAL SUDOKU:\n{sudoku}\nFINISHED SUDOKU: \n{verify_sudoku}");
+                            }
+                            break;
+                        }
+                        Err(((x1, y1), (x2, y2))) => {
+                            panic!("ERROR IN SUDOKU: cells ({x1},{y1}) == ({x2},{y2}): \nORIGINAL SUDOKU:");
+                        }
+                    }
+                }
+
+                for (handle, tx) in threads_infos {
+                    let _ = tx.send(());
+                    handle.join().unwrap();
+                }
+                return sudoku;
             }
         }
+    }
+
+    pub fn load_from_db(database: &mut Database, difficulty: SudokuDifficulty) -> Self {
+        database.get_random_simple_sudoku(3, difficulty).unwrap()
     }
 
     pub fn parse_file(file_name: &str) -> Result<Self, Box<dyn std::error::Error>> {
@@ -549,6 +545,26 @@ impl Sudoku {
         }
 
         Ok(rule_used)
+    }
+
+    pub fn solve(&mut self) -> Vec<Vec<usize>> {
+        let mut sudoku = self.clone();
+        loop {
+            match sudoku.rule_solve(None, None) {
+                Ok(None) => break,
+                Ok(_) => (),
+                Err(((x1, y1), (x2, y2))) => {
+                    eprintln!("Error: {x1},{y1} == {x2},{y2}");
+                    break;
+                }
+            }
+        }
+        if sudoku.is_solved() {
+            info!("Sudoku solved !");
+        } else {
+            warn!("Sudoku not solved !");
+        }
+        sudoku.get_board()
     }
 
     // BACKTRACK SOLVING
