@@ -314,12 +314,6 @@ impl SudokuDisplay {
     pub fn init(&mut self) {
         self.set_mode("Play");
         self.lifes = 3;
-        for y in 0..self.sudoku.get_n2() {
-            for x in 0..self.sudoku.get_n2() {
-                self.player_pboard[y][x].clear();
-                self.correction_board[y][x] = 1;
-            }
-        }
         self.selected_cell = None;
         self.player_pboard_history.clear();
         self.note = false;
@@ -357,11 +351,6 @@ impl SudokuDisplay {
             .map(|diff| diff.to_string())
             .collect();
         self.new_game_available = !self.new_game_available;
-        if self.new_game_available {
-            self.set_lifes(self.lifes as i32 + 1);
-        } else {
-            self.set_lifes(self.lifes as i32 - 1);
-        }
         for bouton in self.button_list.iter_mut() {
             if bouton.text.eq("Create") || bouton.text.eq("Browse") {
                 bouton.set_enabled(false);
@@ -405,6 +394,9 @@ impl SudokuDisplay {
                 button.set_clicked(false);
             }
         }
+
+        self.correction_board = self.sudoku.solve();
+        debug!("{:?}", self.correction_board);
     }
 
     fn set_lifes(&mut self, lifes: i32) {
@@ -587,6 +579,9 @@ impl SudokuDisplay {
                     }
                 } else {
                     self.set_lifes(self.lifes as i32 - 1);
+                    if let Some((x, y)) = self.selected_cell {
+                        self.draw_cell(x, y, Color::from_hex(0xff0000));
+                    }
                 }
             }
         }
@@ -894,6 +889,9 @@ impl SudokuDisplay {
                 }
                 Some(KeyCode::Right) => {
                     selected_cell.0 = (selected_cell.0 + 1) % self.sudoku.get_n2();
+                }
+                Some(KeyCode::A) => {
+                    debug!("salut c'est le 1 !");
                 }
                 _ => (),
             }
