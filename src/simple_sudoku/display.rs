@@ -677,7 +677,7 @@ impl SudokuDisplay {
 
     pub fn new_game(&mut self, difficulty: SudokuDifficulty) {
         self.lifes = 3;
-        self.sudoku = Sudoku::generate_new(self.sudoku.n, difficulty);
+        self.sudoku = Sudoku::generate_new(self.sudoku.n, difficulty, None);
         self.player_pboard = vec![vec![HashSet::new(); self.sudoku.get_n2()]; self.sudoku.get_n2()];
         self.player_pboard_history.clear();
         self.correction_board = self.sudoku.solve().clone();
@@ -691,7 +691,7 @@ impl SudokuDisplay {
         self.sudoku = if let Some(database) = &mut self.database {
             Sudoku::load_from_db(database, difficulty)
         } else {
-            Sudoku::generate_new(self.sudoku.n, difficulty)
+            Sudoku::generate_new(self.sudoku.n, difficulty, None)
         };
         self.player_pboard = vec![vec![HashSet::new(); self.sudoku.get_n2()]; self.sudoku.get_n2()];
         self.player_pboard_history.clear();

@@ -231,23 +231,42 @@ impl Sudoku {
         }
     }
 
+    pub fn generate_full(n: usize) -> Self {
+        let mut sudoku = Self::new(n);
+        sudoku.backtrack_solve(0, 0);
+        sudoku
+    }
+
     /*
     ->	ORIGINAL					->	(n^4)! + (n^4-1)! + ... + 1!
     ->	CALCULABILITY THRESHOLD		->	(n^4)! + (n^4-1)! + ... + 17!
     ->	REMOVE REDUNDANCY 			->	(n^4)! - (n^4-1)! - ... - 17!
     ->  ONLY 2 POSSIBILITIES		->  2! + 2! + ... + 17! (un peu moins que ça grâce à REMOVE REDUNDANCY)
     */
-    pub fn generate_new(n: usize, aimed_difficulty: SudokuDifficulty) -> Self {
+    pub fn generate_new(
+        n: usize,
+        aimed_difficulty: SudokuDifficulty,
+        sudoku_base: Option<Sudoku>,
+    ) -> Self {
         let n2 = n * n;
         let (tx, rx) = mpsc::channel();
         type SudokuFilledCells = (Sudoku, Vec<bool>);
 
         loop {
             let thread_count: usize = available_parallelism().unwrap().get();
-            let default = {
-                let mut sudoku = Self::new(n);
-                sudoku.backtrack_solve(0, 0);
-                Arc::new(Mutex::new((sudoku, vec![true; n2 * n2])))
+            let default = if let Some(sudoku) = &sudoku_base {
+                if sudoku.n != n {
+                    panic!(
+                        "Error in generate_new. Given n was {} but given sudoku has a n of {}",
+                        n, sudoku.n
+                    );
+                }
+                let filled_cells: Vec<bool> = (0..n2 * n2)
+                    .map(|i| sudoku.get_cell_value(i % n2, i / n2) != 0)
+                    .collect();
+                Arc::new(Mutex::new((sudoku.clone(), filled_cells)))
+            } else {
+                Arc::new(Mutex::new((Self::generate_full(n), vec![true; n2 * n2])))
             };
             let to_explore: Arc<Mutex<Vec<SudokuFilledCells>>> = Arc::new(Mutex::new(Vec::new()));
             let explored_filled_cells: Arc<Mutex<HashSet<Vec<bool>>>> =
