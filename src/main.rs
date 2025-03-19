@@ -1,10 +1,16 @@
-use env_logger::Env;
-use macroquad::prelude::*;
-use simple_sudoku::{Sudoku, SudokuDisplay};
-use std::{thread, time};
+#![allow(dead_code)] // no warning due to unused code
 
-mod simple_sudoku;
-mod tests;
+use std::{
+    sync::mpsc,
+    thread::{self, sleep},
+    time::Duration,
+};
+
+use hai606i_sudoku::{
+    database::Database,
+    simple_sudoku::{Sudoku, SudokuDisplay},
+};
+use macroquad::prelude::*;
 
 fn window_conf() -> Conf {
     Conf {
@@ -17,31 +23,24 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
-    #[cfg(debug_assertions)]
-    debug!("Debug activé");
-    let mut sudoku = Sudoku::parse_file("sudoku-3-64-9.txt").unwrap();
-    println!("{}", sudoku);
-    let mut sudoku_display = SudokuDisplay::new(&mut sudoku);
-
+    // env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
     let font = load_ttf_font("./res/font/RobotoMono-Thin.ttf")
         .await
         .unwrap();
-    let temps = time::Duration::from_millis(100);
 
-    while sudoku_display.is_valid().is_ok() && !sudoku_display.is_solved() {
-        match sudoku_display.rule_solve(None) {
-            Ok(0) => {
-                println!("Sudoku solved!");
-            }
-            Ok(_) => (),
-            Err(((x1, y1), (x2, y2))) => {
-                println!("Error: ({}, {}) and ({}, {})", x1, y1, x2, y2);
-            }
+    let mut sudoku_display = SudokuDisplay::new(Sudoku::new(3), font.clone()).await;
+
+    let (tx, rx) = mpsc::channel::<Option<Database>>();
+    thread::spawn(move || loop {
+        let _ = tx.send(Database::connect());
+        sleep(Duration::from_secs(5));
+    });
+
+    loop {
+        if let Ok(db) = rx.try_recv() {
+            sudoku_display.set_db(db);
         }
-
         sudoku_display.run(font.clone()).await;
         next_frame().await;
-        thread::sleep(temps);
     }
 }
