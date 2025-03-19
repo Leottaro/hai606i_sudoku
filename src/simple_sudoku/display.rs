@@ -689,7 +689,7 @@ impl SudokuDisplay {
     pub fn browse_game(&mut self, difficulty: SudokuDifficulty) {
         self.lifes = 3;
         self.sudoku = if let Some(database) = &mut self.database {
-            Sudoku::load_from_db(database, difficulty)
+            Sudoku::load_game_from_db(database, 3, difficulty)
         } else {
             Sudoku::generate_new(self.sudoku.n, difficulty, None)
         };

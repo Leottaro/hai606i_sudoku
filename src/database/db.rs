@@ -2,12 +2,16 @@ use diesel::{
     BoolExpressionMethods, Connection, ExpressionMethods, MysqlConnection, QueryDsl, RunQueryDsl,
 };
 
-use crate::{
-    database::DBSimpleSudoku,
-    simple_sudoku::{Sudoku as SimpleSudoku, SudokuDifficulty},
+use crate::simple_sudoku::{Sudoku as SimpleSudoku, SudokuDifficulty};
+
+use super::{
+    schema::{simple_sudoku_filled::dsl::*, simple_sudoku_games::dsl::*},
+    DBNewSimpleSudokuGame, DBSimpleSudokuFilled, DBSimpleSudokuGame, Database,
 };
 
-use super::{schema::simple_sudokus::dsl::*, DBNewSimpleSudoku, Database};
+define_sql_function! {
+    fn rand() -> Text;
+}
 
 impl Database {
     pub fn connect() -> Option<Self> {
@@ -27,32 +31,73 @@ impl Database {
         }
     }
 
-    pub fn insert_simple_sudoku(
+    pub fn insert_simple_sudoku_filled(
         &mut self,
-        sudoku: DBNewSimpleSudoku,
+        sudoku: DBSimpleSudokuFilled,
     ) -> Result<usize, diesel::result::Error> {
-        diesel::insert_into(simple_sudokus)
+        diesel::insert_into(simple_sudoku_filled)
             .values(&sudoku)
             .execute(&mut self.connection)
     }
 
-    pub fn get_random_simple_sudoku(
+    pub fn insert_multiple_simple_sudoku_filled(
         &mut self,
-        sudoku_n: usize,
-        sudoku_diff: SudokuDifficulty,
+        sudokus: Vec<DBSimpleSudokuFilled>,
+    ) -> Result<usize, diesel::result::Error> {
+        diesel::insert_or_ignore_into(simple_sudoku_filled)
+            .values(&sudokus)
+            .execute(&mut self.connection)
+    }
+
+    pub fn insert_simple_sudoku_game(
+        &mut self,
+        sudoku: DBNewSimpleSudokuGame,
+    ) -> Result<usize, diesel::result::Error> {
+        diesel::insert_into(simple_sudoku_games)
+            .values(&sudoku)
+            .execute(&mut self.connection)
+    }
+
+    pub fn insert_multiple_simple_sudoku_game(
+        &mut self,
+        sudokus: Vec<DBNewSimpleSudokuGame>,
+    ) -> Result<usize, diesel::result::Error> {
+        diesel::insert_into(simple_sudoku_games)
+            .values(&sudokus)
+            .execute(&mut self.connection)
+    }
+
+    pub fn get_random_simple_sudoku_filled(
+        &mut self,
+        n: usize,
     ) -> Result<SimpleSudoku, diesel::result::Error> {
-        define_sql_function! {
-            fn rand() -> Text;
-        };
-        let nb_max = simple_sudokus
-            .filter(n.eq(sudoku_n as u8).and(difficulty.eq(sudoku_diff as u8)))
+        let nb_max = simple_sudoku_filled
+            .filter(filled_n.eq(n as u8))
             .count()
             .get_result::<i64>(&mut self.connection)?;
-        simple_sudokus
-            .filter(difficulty.eq(sudoku_diff as u8).and(n.eq(sudoku_n as u8)))
+        simple_sudoku_filled
+            .filter(filled_n.eq(n as u8))
             .order(rand())
             .limit(nb_max - 1)
-            .get_result::<DBSimpleSudoku>(&mut self.connection)
+            .get_result::<DBSimpleSudokuFilled>(&mut self.connection)
+            .map(|db_simple_sudoku| db_simple_sudoku.to_sudoku())
+    }
+
+    pub fn get_random_simple_sudoku_game(
+        &mut self,
+        n: usize,
+        difficulty: SudokuDifficulty,
+    ) -> Result<SimpleSudoku, diesel::result::Error> {
+        let nb_max = simple_sudoku_games
+            .filter(game_n.eq(n as u8).and(game_difficulty.eq(difficulty as u8)))
+            .count()
+            .get_result::<i64>(&mut self.connection)?;
+
+        simple_sudoku_games
+            .filter(game_n.eq(n as u8).and(game_difficulty.eq(difficulty as u8)))
+            .order(rand())
+            .limit(nb_max - 1)
+            .get_result::<DBSimpleSudokuGame>(&mut self.connection)
             .map(|db_simple_sudoku| db_simple_sudoku.to_sudoku())
     }
 }

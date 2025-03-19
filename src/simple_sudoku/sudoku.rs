@@ -3,13 +3,17 @@ use super::{
     SudokuDifficulty::{self, *},
     SudokuGroups::{self, *},
 };
-use crate::{database::Database, debug_only};
+use crate::{
+    database::{DBNewSimpleSudokuGame, DBSimpleSudokuFilled, Database},
+    debug_only,
+};
 use log::{info, warn};
-use rand::Rng;
+use rand::{seq::SliceRandom, thread_rng, Rng};
 use std::{
     cmp::max,
     collections::{HashMap, HashSet},
     env::current_dir,
+    hash::{DefaultHasher, Hash, Hasher},
     ops::{AddAssign, Range},
     sync::{mpsc, Arc, LazyLock, Mutex, RwLock},
     thread::{available_parallelism, JoinHandle},
@@ -85,6 +89,13 @@ impl Sudoku {
     }
 
     pub fn set_value(&mut self, x: usize, y: usize, value: usize) {
+        if self.board[y][x] == value {
+            warn!("tried to set cell ({},{}) to its own value", x, y);
+            return;
+        }
+        if self.board[y][x] != 0 {
+            panic!("Cannot set an already setted value");
+        }
         self.board[y][x] = value;
         self.possibility_board[y][x].clear();
         for (x1, y1) in self.get_cell_group(x, y, All) {
@@ -98,6 +109,9 @@ impl Sudoku {
     }
 
     pub fn remove_value(&mut self, x: usize, y: usize) -> usize {
+        if self.board[y][x] == 0 {
+            panic!("Cannot remove an already empty value");
+        }
         let removed_value = self.board[y][x];
 
         self.board[y][x] = 0;
@@ -105,7 +119,10 @@ impl Sudoku {
 
         for (x1, y1) in self.get_cell_group(x, y, All) {
             if let Some((err1, err2)) = self.error {
-                if (err1 == (x, y) && err2 == (x1, y1)) || (err1 == (x1, y1) && err2 == (x, y)) {
+                if (err1.eq(&err2) && err1.eq(&(x1, y1)))
+                    || (err1.eq(&(x, y)) && err2.eq(&(x1, y1)))
+                    || (err2.eq(&(x, y)) && err1.eq(&(x1, y1)))
+                {
                     self.error = None;
                 }
             }
@@ -466,10 +483,6 @@ impl Sudoku {
         }
     }
 
-    pub fn load_from_db(database: &mut Database, difficulty: SudokuDifficulty) -> Self {
-        database.get_random_simple_sudoku(3, difficulty).unwrap()
-    }
-
     pub fn parse_file(file_name: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let mut file_path = current_dir().unwrap();
         file_path.push("res/sudoku_samples/");
@@ -605,7 +618,12 @@ impl Sudoku {
             x += 1;
         }
 
-        for value in self.possibility_board[y][x].clone() {
+        let mut possibilities = self.possibility_board[y][x]
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>();
+        possibilities.shuffle(&mut thread_rng());
+        for value in possibilities {
             self.set_value(x, y, value);
             if self.backtrack_solve(x + 1, y) {
                 return true;
@@ -665,6 +683,83 @@ impl Sudoku {
             self.remove_value(x, y);
         }
         self.possibility_board[y][x] = possible_values;
+    }
+
+    // DATABASE
+
+    pub fn to_db(&self) -> (DBSimpleSudokuFilled, DBNewSimpleSudokuGame) {
+        let mut filled_sudoku = self.clone();
+        filled_sudoku.solve();
+        let filled_n = filled_sudoku.n as u8;
+        let filled_board_hash = {
+            let mut hasher = DefaultHasher::new();
+            filled_sudoku.get_board().hash(&mut hasher);
+            hasher.finish()
+        };
+        let filled_board: Vec<u8> = filled_sudoku
+            .board
+            .iter()
+            .flat_map(|line| line.iter().map(|cell| *cell as u8))
+            .collect();
+        let mut corners_hash: Vec<u64> = Vec::new();
+        for y0 in [0, filled_sudoku.n2 - filled_sudoku.n] {
+            for x0 in [0, filled_sudoku.n2 - filled_sudoku.n] {
+                let mut corner: Vec<usize> = Vec::new();
+                for y in y0..y0 + filled_sudoku.n {
+                    for x in x0..x0 + filled_sudoku.n {
+                        corner.push(filled_sudoku.get_cell_value(x, y));
+                    }
+                }
+
+                let hash = {
+                    let mut hasher = DefaultHasher::new();
+                    corner.hash(&mut hasher);
+                    hasher.finish()
+                };
+
+                corners_hash.push(hash);
+            }
+        }
+        let mut corners_hash_iter = corners_hash.into_iter();
+        let simple_sudoku_filled = DBSimpleSudokuFilled {
+            filled_board_hash,
+            filled_n,
+            filled_board,
+            filled_up_left_corner: corners_hash_iter.next().unwrap(),
+            filled_up_right_corner: corners_hash_iter.next().unwrap(),
+            filled_bottom_left_corner: corners_hash_iter.next().unwrap(),
+            filled_bottom_right_corner: corners_hash_iter.next().unwrap(),
+        };
+
+        let game_board: Vec<u8> = self
+            .board
+            .iter()
+            .flat_map(|line| line.iter().map(|cell| *cell as u8))
+            .collect();
+        let game_difficulty = self.difficulty as u8;
+
+        let simple_sudoku_game = DBNewSimpleSudokuGame {
+            game_n: filled_n,
+            filled_board_hash,
+            game_board,
+            game_difficulty,
+        };
+
+        (simple_sudoku_filled, simple_sudoku_game)
+    }
+
+    pub fn load_filled_from_db(database: &mut Database, n: usize) -> Self {
+        database.get_random_simple_sudoku_filled(n).unwrap()
+    }
+
+    pub fn load_game_from_db(
+        database: &mut Database,
+        n: usize,
+        difficulty: SudokuDifficulty,
+    ) -> Self {
+        database
+            .get_random_simple_sudoku_game(n, difficulty)
+            .unwrap()
     }
 }
 
