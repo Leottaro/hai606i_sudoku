@@ -1,46 +1,31 @@
 #![allow(dead_code)] // no warning due to unused code
 
-use std::{
-    sync::mpsc,
-    thread::{self, sleep},
-    time::Duration,
-};
+use hai606i_sudoku::simple_sudoku::{Sudoku, SudokuDifficulty};
 
-use hai606i_sudoku::{
-    database::Database,
-    simple_sudoku::{Sudoku, SudokuDisplay},
-};
-use macroquad::prelude::*;
+fn main() {
+    let canonical1 = Sudoku::generate_full(3);
+    let (db_canonical_sudoku, _db_canonical_squares) = canonical1.canonical_to_db();
+    let canonical2 = db_canonical_sudoku.to_sudoku();
 
-fn window_conf() -> Conf {
-    Conf {
-        window_title: "Sudoku".to_owned(),
-        window_width: 1920,
-        window_height: 1080,
-        ..Default::default()
+    if canonical1.ne(&canonical2) {
+        panic!("canonical_to_db PROBLEME");
     }
-}
 
-#[macroquad::main(window_conf)]
-async fn main() {
-    // env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
-    let font = load_ttf_font("./res/font/RobotoMono-Thin.ttf")
-        .await
-        .unwrap();
+    for difficulty in SudokuDifficulty::iter() {
+        let mut randomized1 = canonical1.clone();
+        randomized1.randomize();
 
-    let mut sudoku_display = SudokuDisplay::new(Sudoku::new(3), font.clone()).await;
-
-    let (tx, rx) = mpsc::channel::<Option<Database>>();
-    thread::spawn(move || loop {
-        let _ = tx.send(Database::connect());
-        sleep(Duration::from_secs(5));
-    });
-
-    loop {
-        if let Ok(db) = rx.try_recv() {
-            sudoku_display.set_db(db);
+        let game1 = randomized1.generate_from(difficulty);
+        let db_game = game1.randomized_to_db();
+        let game2 = db_game.to_sudoku();
+        if game1.ne(&game2) {
+            panic!("randomized_to_db game PROBLEME");
         }
-        sudoku_display.run(font.clone()).await;
-        next_frame().await;
+
+        let db_randomized = randomized1.randomized_to_db();
+        let randomized2 = db_randomized.to_sudoku();
+        if randomized1.ne(&randomized2) {
+            panic!("randomized_to_db PROBLEME");
+        }
     }
 }
