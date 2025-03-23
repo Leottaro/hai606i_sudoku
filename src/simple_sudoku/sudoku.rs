@@ -891,6 +891,40 @@ impl Sudoku {
 
     // DATABASE
 
+    pub fn db_from_canonical(origin: DBSimpleSudokuCanonical) -> Self {
+        let mut sudoku = Sudoku::new(origin.sudoku_n as usize);
+        sudoku.canonical_board_hash = origin.canonical_board_hash;
+        for y in 0..sudoku.get_n2() {
+            for x in 0..sudoku.get_n2() {
+                let value = origin.canonical_board
+                    [y * origin.sudoku_n as usize * origin.sudoku_n as usize + x]
+                    as usize;
+                if value != 0 {
+                    sudoku.set_value(x, y, value).unwrap();
+                }
+            }
+        }
+        sudoku
+    }
+
+    pub fn db_from_game(origin: impl Into<DBNewSimpleSudokuGame>) -> Self {
+        let origin: DBNewSimpleSudokuGame = origin.into();
+        let mut sudoku = Sudoku::new(origin.game_n as usize);
+        sudoku.canonical_board_hash = origin.game_canonical_board_hash;
+        for y in 0..sudoku.get_n2() {
+            for x in 0..sudoku.get_n2() {
+                let value = origin.game_board
+                    [y * origin.game_n as usize * origin.game_n as usize + x]
+                    as usize;
+                if value != 0 {
+                    sudoku.set_value(x, y, value).unwrap();
+                }
+            }
+        }
+        sudoku.difficulty = SudokuDifficulty::from(origin.game_difficulty);
+        sudoku
+    }
+
     pub fn canonical_to_db(
         &self,
     ) -> (DBSimpleSudokuCanonical, Vec<DBSimpleSudokuCanonicalSquares>) {
@@ -921,7 +955,7 @@ impl Sudoku {
                     }
                 }
                 simple_sudoku_canonical_squares.push(DBSimpleSudokuCanonicalSquares {
-                    canonical_board_hash: self.canonical_board_hash,
+                    square_canonical_board_hash: self.canonical_board_hash,
                     square_id: square_id as u8,
                     square_hash: hasher.finish(),
                 });
@@ -941,7 +975,7 @@ impl Sudoku {
             .flat_map(|line| line.iter().map(|cell| *cell as u8))
             .collect();
         DBNewSimpleSudokuGame {
-            canonical_board_hash: self.canonical_board_hash,
+            game_canonical_board_hash: self.canonical_board_hash,
             game_n: self.n as u8,
             game_board: board,
             game_difficulty: self.difficulty as u8,

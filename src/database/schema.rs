@@ -9,8 +9,8 @@ diesel::table! {
 }
 
 diesel::table! {
-    simple_sudoku_canonical_squares (canonical_board_hash, square_id) {
-        canonical_board_hash -> Unsigned<Bigint>,
+    simple_sudoku_canonical_squares (square_canonical_board_hash, square_id) {
+        square_canonical_board_hash -> Unsigned<Bigint>,
         square_id -> Unsigned<Tinyint>,
         square_hash -> Unsigned<Bigint>,
     }
@@ -19,7 +19,7 @@ diesel::table! {
 diesel::table! {
     simple_sudoku_games (game_id) {
         game_id -> Integer,
-        canonical_board_hash -> Unsigned<Bigint>,
+        game_canonical_board_hash -> Unsigned<Bigint>,
         game_n -> Unsigned<Tinyint>,
         game_board -> Tinyblob,
         game_difficulty -> Unsigned<Tinyint>,
@@ -27,8 +27,8 @@ diesel::table! {
     }
 }
 
-diesel::joinable!(simple_sudoku_canonical_squares -> simple_sudoku_canonical (canonical_board_hash));
-diesel::joinable!(simple_sudoku_games -> simple_sudoku_canonical (canonical_board_hash));
+diesel::joinable!(simple_sudoku_canonical_squares -> simple_sudoku_canonical (square_canonical_board_hash));
+diesel::joinable!(simple_sudoku_games -> simple_sudoku_canonical (game_canonical_board_hash));
 
 diesel::allow_tables_to_appear_in_same_query!(
     simple_sudoku_canonical,

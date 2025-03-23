@@ -5,7 +5,7 @@ use hai606i_sudoku::simple_sudoku::{Sudoku, SudokuDifficulty};
 fn main() {
     let canonical1 = Sudoku::generate_full(3);
     let (db_canonical_sudoku, _db_canonical_squares) = canonical1.canonical_to_db();
-    let canonical2 = db_canonical_sudoku.to_sudoku();
+    let canonical2 = Sudoku::db_from_canonical(db_canonical_sudoku);
 
     if canonical1.ne(&canonical2) {
         panic!("canonical_to_db PROBLEME");
@@ -17,13 +17,13 @@ fn main() {
 
         let game1 = randomized1.generate_from(difficulty);
         let db_game = game1.randomized_to_db();
-        let game2 = db_game.to_sudoku();
+        let game2 = Sudoku::db_from_game(db_game);
         if game1.ne(&game2) {
             panic!("randomized_to_db game PROBLEME");
         }
 
         let db_randomized = randomized1.randomized_to_db();
-        let randomized2 = db_randomized.to_sudoku();
+        let randomized2 = Sudoku::db_from_game(db_randomized);
         if randomized1.ne(&randomized2) {
             panic!("randomized_to_db PROBLEME");
         }
