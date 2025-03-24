@@ -1,3 +1,4 @@
+#[cfg(feature = "database")]
 use crate::database::Database;
 
 use super::{
@@ -16,7 +17,6 @@ impl SudokuDisplay {
         let pixel_per_cell = grid_size / sudoku.get_n2() as f32;
         let x_offset = 250.0 * scale_factor;
         let y_offset = 150.0 * scale_factor;
-        let database = None;
 
         let mode = "play".to_string();
         let player_pboard_history = Vec::new();
@@ -360,10 +360,11 @@ impl SudokuDisplay {
             false,
             scale_factor,
         );
-        bouton_browse.set_clickable(database.is_some());
+        bouton_browse.set_clickable(false);
         bouton_browse.set_enabled(false);
         button_list.push(bouton_browse);
 
+        #[cfg(feature = "database")]
         actions_boutons.insert(
             "Browse".to_string(),
             Rc::new(Box::new(|sudoku_display| {
@@ -651,7 +652,8 @@ impl SudokuDisplay {
         // =============================================
 
         Self {
-            database,
+            #[cfg(feature = "database")]
+            database: None,
             sudoku,
             max_height,
             max_width,
@@ -693,6 +695,7 @@ impl SudokuDisplay {
         &self.button_list
     }
 
+    #[cfg(feature = "database")]
     pub fn set_db(&mut self, database: Option<Database>) {
         for button in self.button_list.iter_mut() {
             if button.text.eq("Browse") && button.clickable != database.is_some() {
@@ -717,6 +720,7 @@ impl SudokuDisplay {
         self.new_game_available = false;
     }
 
+    #[cfg(feature = "database")]
     pub fn browse_game(&mut self, difficulty: SudokuDifficulty) {
         self.lifes = 3;
         self.sudoku = if let Some(database) = &mut self.database {

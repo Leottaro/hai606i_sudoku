@@ -1,41 +1,50 @@
 #![allow(dead_code)] // no warning due to unused code
 
-use hai606i_sudoku::simple_sudoku::{Sudoku, SudokuDifficulty};
+#[cfg(feature = "database")]
+use std::{
+    sync::mpsc,
+    thread::{self, sleep},
+    time::Duration,
+};
 
-fn main() {
-    let mut time_samples = SudokuDifficulty::iter()
-        .map(|diff| (diff, Vec::new()))
-        .collect::<Vec<_>>();
-    let iterations: usize = 100;
+#[cfg(feature = "database")]
+use hai606i_sudoku::database::Database;
 
-    let end_function = |time_samples: Vec<(SudokuDifficulty, Vec<u128>)>, iterations: usize| {
-        for (difficulty, mut samples) in time_samples {
-            samples.sort();
+use hai606i_sudoku::simple_sudoku::{Sudoku, SudokuDisplay};
+use macroquad::prelude::*;
 
-            let min = samples.first().unwrap_or(&0);
-            let max = samples.last().unwrap_or(&0);
-
-            let average = samples.iter().sum::<u128>() as f32 / iterations as f32;
-            let median = samples.get(samples.len() / 2).unwrap_or(&0);
-
-            println!(
-                "Difficulty {}:\n\tmin: {}ms\n\tmax: {}ms\n\taverage {:.2} ms\n\tmedian: {}ms",
-                difficulty, min, max, average, median
-            );
-        }
-    };
-
-    for (i, difficulty) in SudokuDifficulty::iter().enumerate() {
-        println!("testing difficulty {difficulty}");
-
-        for j in 0..iterations {
-            println!("iteration {j}: ");
-
-            let start = std::time::Instant::now();
-            let _sudoku = Sudoku::generate_new(3, difficulty);
-            time_samples[i].1.push(start.elapsed().as_millis());
-        }
+fn window_conf() -> Conf {
+    Conf {
+        window_title: "Sudoku".to_owned(),
+        window_width: 1920,
+        window_height: 1080,
+        ..Default::default()
     }
+}
 
-    end_function(time_samples, iterations);
+#[macroquad::main(window_conf)]
+async fn main() {
+    // env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
+    let font = load_ttf_font("./res/font/RobotoMono-Thin.ttf")
+        .await
+        .unwrap();
+
+    let mut sudoku_display = SudokuDisplay::new(Sudoku::new(3), font.clone()).await;
+
+    #[cfg(feature = "database")]
+    let (tx, rx) = mpsc::channel::<Option<Database>>();
+    #[cfg(feature = "database")]
+    thread::spawn(move || loop {
+        let _ = tx.send(Database::connect());
+        sleep(Duration::from_secs(5));
+    });
+
+    loop {
+        #[cfg(feature = "database")]
+        if let Ok(db) = rx.try_recv() {
+            sudoku_display.set_db(db);
+        }
+        sudoku_display.run(font.clone()).await;
+        next_frame().await;
+    }
 }

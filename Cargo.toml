@@ -5,15 +5,19 @@ edition = "2021"
 default-run = "hai606i_sudoku"
 
 [[bin]]
+required-features = ["database"]
 name = "fill_database"
 path = "src/database/fill_database.rs"
 
 [dependencies]
-diesel = { version = "2.2.8", features = ["mysql"] }
-dotenv = "0.15.0"
+diesel = { version = "2.2.8", features = ["mysql"], optional = true }
+dotenv = { version = "0.15.0", optional = true }
 
 env_logger = "0.11.6"
 graph = "0.3.1"
 log = "0.4.25"
 macroquad = "0.4"
 rand = "0.8.5"
+
+[features]
+database = ["diesel", "dotenv"]

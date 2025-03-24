@@ -4,12 +4,12 @@ use super::{
     SudokuError,
     SudokuGroups::{self, *},
 };
-use crate::{
-    database::{
-        DBNewSimpleSudokuGame, DBSimpleSudokuCanonical, DBSimpleSudokuCanonicalSquares, Database,
-    },
-    debug_only,
+
+#[cfg(feature = "database")]
+use crate::database::{
+    DBNewSimpleSudokuGame, DBSimpleSudokuCanonical, DBSimpleSudokuCanonicalSquares, Database,
 };
+use crate::debug_only;
 use log::{info, warn};
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use std::{
@@ -932,6 +932,7 @@ impl Sudoku {
     ///////////////////////////////////////////////////////////////////////////////////////////////////
     // DATABASE
 
+    #[cfg(feature = "database")]
     pub fn db_from_canonical(origin: DBSimpleSudokuCanonical) -> Self {
         let mut sudoku = Sudoku::new(origin.sudoku_n);
         sudoku.canonical_board_hash = origin.canonical_board_hash;
@@ -947,6 +948,7 @@ impl Sudoku {
         sudoku
     }
 
+    #[cfg(feature = "database")]
     pub fn db_from_game(origin: impl Into<DBNewSimpleSudokuGame>) -> Self {
         let origin: DBNewSimpleSudokuGame = origin.into();
         let mut sudoku = Sudoku::new(origin.game_n);
@@ -963,6 +965,7 @@ impl Sudoku {
         sudoku
     }
 
+    #[cfg(feature = "database")]
     pub fn db_to_canonical(
         &self,
     ) -> (DBSimpleSudokuCanonical, Vec<DBSimpleSudokuCanonicalSquares>) {
@@ -1003,6 +1006,7 @@ impl Sudoku {
         (simple_sudoku_canonical, simple_sudoku_canonical_squares)
     }
 
+    #[cfg(feature = "database")]
     pub fn db_to_randomized(&self) -> DBNewSimpleSudokuGame {
         if self.is_canonical {
             panic!("Can't get the game db with a canonical sudoku");
@@ -1022,10 +1026,12 @@ impl Sudoku {
         }
     }
 
+    #[cfg(feature = "database")]
     pub fn load_canonical_from_db(database: &mut Database, n: usize) -> Self {
         database.get_random_simple_sudoku_canonical(n).unwrap()
     }
 
+    #[cfg(feature = "database")]
     pub fn load_game_from_db(
         database: &mut Database,
         n: usize,

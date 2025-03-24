@@ -186,6 +186,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "database")]
     fn to_from_db() {
         let canonical1 = Sudoku::generate_full(3);
         let (db_canonical_sudoku, _db_canonical_squares) = canonical1.db_to_canonical();

@@ -7,6 +7,7 @@ use std::{
 
 use macroquad::texture::Texture2D;
 
+#[cfg(feature = "database")]
 use crate::database::Database;
 
 pub mod button;
@@ -133,6 +134,7 @@ pub struct Sudoku {
 
 pub type ButtonFunction = Rc<Box<dyn Fn(&mut SudokuDisplay)>>;
 pub struct SudokuDisplay {
+    #[cfg(feature = "database")]
     database: Option<Database>,
     sudoku: Sudoku,
     max_height: f32,
