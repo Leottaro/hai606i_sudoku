@@ -98,14 +98,13 @@ pub enum SudokuError {
 impl std::fmt::Display for SudokuError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SudokuError::NoPossibilityCell(coords) => {
-                write!(f, "SudokuError: No possibility for cell at {:?}", coords)
+            SudokuError::NoPossibilityCell((x, y)) => {
+                write!(f, "SudokuError: No possibility for cell at ({x},{y})",)
             }
-            SudokuError::SameValueCells((coords1, coords2)) => {
+            SudokuError::SameValueCells(((x1, y1), (x2, y2))) => {
                 write!(
                     f,
-                    "SudokuError: Cells at {:?} and {:?} have the same value",
-                    coords1, coords2
+                    "SudokuError: Cells at ({x1},{y1}) and ({x2},{y2}) have the same value"
                 )
             }
         }
@@ -152,7 +151,7 @@ pub struct SudokuDisplay {
     button_list: Vec<Button>,
     font: macroquad::text::Font,
     actions_boutons: HashMap<String, ButtonFunction>,
-    background: Texture2D,
+    background_victoire: Texture2D,
     background_defaite: Texture2D,
     lifes: u8,
     new_game_available: bool,

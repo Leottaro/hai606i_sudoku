@@ -134,10 +134,7 @@ mod tests {
             "solved sudokus:\n{}",
             sudoku_solved
                 .iter()
-                .map(|(file_name, difficulty)| format!(
-                    "{}: difficulty {:?}",
-                    file_name, difficulty
-                ))
+                .map(|(file_name, difficulty)| format!("{}: difficulty {}", file_name, difficulty))
                 .collect::<Vec<String>>()
                 .join("\n")
         );
