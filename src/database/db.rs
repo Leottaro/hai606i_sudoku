@@ -156,14 +156,14 @@ impl Database {
 
     pub fn get_random_simple_sudoku_canonical(
         &mut self,
-        n: usize,
+        n: u8,
     ) -> Result<SimpleSudoku, diesel::result::Error> {
         let nb_max = simple_sudoku_canonical
-            .filter(sudoku_n.eq(n as u8))
+            .filter(sudoku_n.eq(n))
             .count()
             .get_result::<i64>(&mut self.connection)?;
         simple_sudoku_canonical
-            .filter(sudoku_n.eq(n as u8))
+            .filter(sudoku_n.eq(n))
             .order(rand())
             .limit(nb_max - 1)
             .get_result::<DBSimpleSudokuCanonical>(&mut self.connection)
@@ -172,16 +172,16 @@ impl Database {
 
     pub fn get_random_simple_sudoku_game(
         &mut self,
-        n: usize,
+        n: u8,
         difficulty: SudokuDifficulty,
     ) -> Result<SimpleSudoku, diesel::result::Error> {
         let nb_max = simple_sudoku_games
-            .filter(game_n.eq(n as u8).and(game_difficulty.eq(difficulty as u8)))
+            .filter(game_n.eq(n).and(game_difficulty.eq(difficulty as u8)))
             .count()
             .get_result::<i64>(&mut self.connection)?;
 
         simple_sudoku_games
-            .filter(game_n.eq(n as u8).and(game_difficulty.eq(difficulty as u8)))
+            .filter(game_n.eq(n).and(game_difficulty.eq(difficulty as u8)))
             .order(rand())
             .limit(nb_max - 1)
             .get_result::<DBSimpleSudokuGame>(&mut self.connection)

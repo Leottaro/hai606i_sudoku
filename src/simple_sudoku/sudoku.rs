@@ -1027,16 +1027,12 @@ impl Sudoku {
     }
 
     #[cfg(feature = "database")]
-    pub fn load_canonical_from_db(database: &mut Database, n: usize) -> Self {
+    pub fn load_canonical_from_db(database: &mut Database, n: u8) -> Self {
         database.get_random_simple_sudoku_canonical(n).unwrap()
     }
 
     #[cfg(feature = "database")]
-    pub fn load_game_from_db(
-        database: &mut Database,
-        n: usize,
-        difficulty: SudokuDifficulty,
-    ) -> Self {
+    pub fn load_game_from_db(database: &mut Database, n: u8, difficulty: SudokuDifficulty) -> Self {
         database
             .get_random_simple_sudoku_game(n, difficulty)
             .unwrap()

@@ -404,10 +404,11 @@ impl SudokuDisplay {
     fn new_game(&mut self, difficulty: SudokuDifficulty, browse: bool) {
         self.init();
         #[cfg(feature = "database")]
-        if browse {
-            self.sudoku = Sudoku::load_from_db(self.database, difficulty)
-        } else {
-            self.sudoku = Sudoku::generate_new(self.sudoku.n, difficulty)
+        match (browse, &mut self.database) {
+            (true, Some(database)) => {
+                self.sudoku = Sudoku::load_game_from_db(database, self.sudoku.get_n(), difficulty)
+            }
+            _ => self.sudoku = Sudoku::generate_new(self.sudoku.get_n(), difficulty),
         };
 
         #[cfg(not(feature = "database"))]
