@@ -1,46 +1,41 @@
 #![allow(dead_code)] // no warning due to unused code
 
-use std::{
-    sync::mpsc,
-    thread::{self, sleep},
-    time::Duration,
-};
+use hai606i_sudoku::simple_sudoku::{Sudoku, SudokuDifficulty};
 
-use hai606i_sudoku::{
-    database::Database,
-    simple_sudoku::{Sudoku, SudokuDisplay},
-};
-use macroquad::prelude::*;
+fn main() {
+    let mut time_samples = SudokuDifficulty::iter()
+        .map(|diff| (diff, Vec::new()))
+        .collect::<Vec<_>>();
+    let iterations: usize = 100;
 
-fn window_conf() -> Conf {
-    Conf {
-        window_title: "Sudoku".to_owned(),
-        window_width: 1920,
-        window_height: 1080,
-        ..Default::default()
-    }
-}
+    let end_function = |time_samples: Vec<(SudokuDifficulty, Vec<u128>)>, iterations: usize| {
+        for (difficulty, mut samples) in time_samples {
+            samples.sort();
 
-#[macroquad::main(window_conf)]
-async fn main() {
-    // env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
-    let font = load_ttf_font("./res/font/RobotoMono-Thin.ttf")
-        .await
-        .unwrap();
+            let min = samples.first().unwrap_or(&0);
+            let max = samples.last().unwrap_or(&0);
 
-    let mut sudoku_display = SudokuDisplay::new(Sudoku::new(3), font.clone()).await;
+            let average = samples.iter().sum::<u128>() as f32 / iterations as f32;
+            let median = samples.get(samples.len() / 2).unwrap_or(&0);
 
-    let (tx, rx) = mpsc::channel::<Option<Database>>();
-    thread::spawn(move || loop {
-        let _ = tx.send(Database::connect());
-        sleep(Duration::from_secs(5));
-    });
-
-    loop {
-        if let Ok(db) = rx.try_recv() {
-            sudoku_display.set_db(db);
+            println!(
+                "Difficulty {}:\n\tmin: {}ms\n\tmax: {}ms\n\taverage {:.2} ms\n\tmedian: {}ms",
+                difficulty, min, max, average, median
+            );
         }
-        sudoku_display.run(font.clone()).await;
-        next_frame().await;
+    };
+
+    for (i, difficulty) in SudokuDifficulty::iter().enumerate() {
+        println!("testing difficulty {difficulty}");
+
+        for j in 0..iterations {
+            println!("iteration {j}: ");
+
+            let start = std::time::Instant::now();
+            let _sudoku = Sudoku::generate_new(3, difficulty);
+            time_samples[i].1.push(start.elapsed().as_millis());
+        }
     }
+
+    end_function(time_samples, iterations);
 }

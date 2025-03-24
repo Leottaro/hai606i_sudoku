@@ -19,23 +19,23 @@ mod tests {
             panic!("{}", err);
         } else {
             let mut expected_sudoku = Sudoku::new(3);
-            expected_sudoku.set_value(0, 0, 6).unwrap();
-            expected_sudoku.set_value(2, 0, 2).unwrap();
-            expected_sudoku.set_value(4, 0, 5).unwrap();
-            expected_sudoku.set_value(5, 1, 4).unwrap();
-            expected_sudoku.set_value(7, 1, 3).unwrap();
-            expected_sudoku.set_value(0, 3, 4).unwrap();
-            expected_sudoku.set_value(1, 3, 3).unwrap();
-            expected_sudoku.set_value(5, 3, 8).unwrap();
-            expected_sudoku.set_value(1, 4, 1).unwrap();
-            expected_sudoku.set_value(6, 4, 2).unwrap();
-            expected_sudoku.set_value(6, 5, 7).unwrap();
-            expected_sudoku.set_value(0, 6, 5).unwrap();
-            expected_sudoku.set_value(3, 6, 2).unwrap();
-            expected_sudoku.set_value(4, 6, 7).unwrap();
-            expected_sudoku.set_value(7, 7, 8).unwrap();
-            expected_sudoku.set_value(8, 7, 1).unwrap();
-            expected_sudoku.set_value(3, 8, 6).unwrap();
+            expected_sudoku.set_value((0, 0), 6).unwrap();
+            expected_sudoku.set_value((2, 0), 2).unwrap();
+            expected_sudoku.set_value((4, 0), 5).unwrap();
+            expected_sudoku.set_value((5, 1), 4).unwrap();
+            expected_sudoku.set_value((7, 1), 3).unwrap();
+            expected_sudoku.set_value((0, 3), 4).unwrap();
+            expected_sudoku.set_value((1, 3), 3).unwrap();
+            expected_sudoku.set_value((5, 3), 8).unwrap();
+            expected_sudoku.set_value((1, 4), 1).unwrap();
+            expected_sudoku.set_value((6, 4), 2).unwrap();
+            expected_sudoku.set_value((6, 5), 7).unwrap();
+            expected_sudoku.set_value((0, 6), 5).unwrap();
+            expected_sudoku.set_value((3, 6), 2).unwrap();
+            expected_sudoku.set_value((4, 6), 7).unwrap();
+            expected_sudoku.set_value((7, 7), 8).unwrap();
+            expected_sudoku.set_value((8, 7), 1).unwrap();
+            expected_sudoku.set_value((3, 8), 6).unwrap();
             println!("expected_sudoku: \n{}", expected_sudoku);
 
             assert!(parsed_sudoku.eq(&expected_sudoku));
@@ -81,7 +81,7 @@ mod tests {
                 while sudoku.get_error().is_none() && !sudoku.is_filled() {
                     match sudoku.rule_solve(None, None) {
                         Ok(None) => break,
-                        Ok(Some(rule_used)) => sudoku_rule_usage[rule_used] += 1,
+                        Ok(Some(rule_used)) => sudoku_rule_usage[rule_used as usize] += 1,
                         Err(err) => {
                             eprintln!("{}", err);
                             break;
@@ -276,8 +276,8 @@ mod tests {
                     match rule_solve_result {
                         Ok(None) => break,
                         Ok(Some(rule_used)) => {
-                            sudoku_rule_usage[rule_used].0 = true;
-                            sudoku_rule_usage[rule_used].1 += elapsed;
+                            sudoku_rule_usage[rule_used as usize].0 = true;
+                            sudoku_rule_usage[rule_used as usize].1 += elapsed;
                         }
                         Err(_) => {
                             eprintln!("\nError: sudoku isn't valid: \n{sudoku_string}\n");

@@ -1,4 +1,4 @@
-pub type Coords = (usize, usize);
+pub type Coords = (u8, u8);
 
 use std::{
     collections::{HashMap, HashSet},
@@ -117,12 +117,12 @@ type CellGroupMap = HashMap<(Coords, SudokuGroups), HashSet<Coords>>;
 
 #[derive(Clone)]
 pub struct Sudoku {
-    n: usize,
-    n2: usize,
+    n: u8,
+    n2: u8,
 
-    board: Vec<Vec<usize>>,
-    possibility_board: Vec<Vec<HashSet<usize>>>,
-    filled_cells: usize,
+    board: Vec<Vec<u8>>,
+    possibility_board: Vec<Vec<HashSet<u8>>>,
+    filled_cells: u16,
 
     difficulty: SudokuDifficulty,
     error: Option<SudokuError>,
@@ -144,18 +144,18 @@ pub struct SudokuDisplay {
     x_offset: f32,
     y_offset: f32,
     mode: String,
-    player_pboard_history: Vec<Vec<Vec<HashSet<usize>>>>,
-    player_pboard: Vec<Vec<HashSet<usize>>>,
+    player_pboard_history: Vec<Vec<Vec<HashSet<u8>>>>,
+    player_pboard: Vec<Vec<HashSet<u8>>>,
     note: bool,
     button_list: Vec<Button>,
     font: macroquad::text::Font,
     actions_boutons: HashMap<String, ButtonFunction>,
     background: Texture2D,
     background_defaite: Texture2D,
-    lifes: usize,
+    lifes: u8,
     new_game_available: bool,
     difficulty: SudokuDifficulty,
-    correction_board: Vec<Vec<usize>>,
+    correction_board: Vec<Vec<u8>>,
 }
 
 pub struct Button {
