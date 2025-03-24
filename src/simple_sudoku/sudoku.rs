@@ -1,15 +1,22 @@
 use super::{
     CellGroupMap, Coords, GroupMap, Sudoku,
     SudokuDifficulty::{self, *},
+    SudokuError,
     SudokuGroups::{self, *},
 };
-use crate::{database::Database, debug_only};
+use crate::{
+    database::{
+        DBNewSimpleSudokuGame, DBSimpleSudokuCanonical, DBSimpleSudokuCanonicalSquares, Database,
+    },
+    debug_only,
+};
 use log::{info, warn};
-use rand::Rng;
+use rand::{seq::SliceRandom, thread_rng, Rng};
 use std::{
     cmp::max,
     collections::{HashMap, HashSet},
     env::current_dir,
+    hash::{DefaultHasher, Hash, Hasher},
     ops::{AddAssign, Range},
     sync::{mpsc, Arc, LazyLock, Mutex, RwLock},
     thread::{available_parallelism, JoinHandle},
@@ -80,34 +87,68 @@ impl Sudoku {
             .collect()
     }
 
-    pub fn get_error(&self) -> Option<(Coords, Coords)> {
+    pub fn get_error(&self) -> Option<SudokuError> {
         self.error
     }
 
-    pub fn set_value(&mut self, x: usize, y: usize, value: usize) {
+    pub fn is_canonical(&self) -> bool {
+        self.is_canonical
+    }
+
+    pub fn set_value(&mut self, x: usize, y: usize, value: usize) -> Result<(), SudokuError> {
+        if self.board[y][x] == value {
+            warn!("tried to set cell ({},{}) to its own value", x, y);
+            return Ok(());
+        }
+        if self.board[y][x] != 0 {
+            panic!("Cannot set an already setted value");
+        }
+        self.filled_cells += 1;
         self.board[y][x] = value;
         self.possibility_board[y][x].clear();
         for (x1, y1) in self.get_cell_group(x, y, All) {
             self.possibility_board[y1][x1].remove(&value);
             if self.board[y1][x1] == value && (x, y) != (x1, y1) {
-                self.error = Some(((x, y), (x1, y1)));
+                let error = SudokuError::SameValueCells(((x, y), (x1, y1)));
+                self.error = Some(error);
+                return Err(error);
             } else if self.board[y1][x1] == 0 && self.possibility_board[y1][x1].is_empty() {
-                self.error = Some(((x1, y1), (x1, y1)));
+                let error = SudokuError::NoPossibilityCell((x1, y1));
+                self.error = Some(error);
+                return Err(error);
             }
         }
+        Ok(())
     }
 
     pub fn remove_value(&mut self, x: usize, y: usize) -> usize {
+        if self.is_canonical {
+            panic!("Cannot modify a canonical sudoku !");
+        }
+        if self.board[y][x] == 0 {
+            panic!("Cannot remove an already empty value");
+        }
         let removed_value = self.board[y][x];
 
+        self.filled_cells -= 1;
         self.board[y][x] = 0;
         self.possibility_board[y][x] = (1..=self.n2).collect();
 
         for (x1, y1) in self.get_cell_group(x, y, All) {
-            if let Some((err1, err2)) = self.error {
-                if (err1 == (x, y) && err2 == (x1, y1)) || (err1 == (x1, y1) && err2 == (x, y)) {
-                    self.error = None;
+            match self.error {
+                Some(SudokuError::SameValueCells((cell1, cell2))) => {
+                    if (cell1.eq(&(x, y)) && cell2.eq(&(x1, y1)))
+                        || (cell2.eq(&(x, y)) && cell1.eq(&(x1, y1)))
+                    {
+                        self.error = None;
+                    }
                 }
+                Some(SudokuError::NoPossibilityCell(cell)) => {
+                    if cell.eq(&(x1, y1)) {
+                        self.error = None;
+                    }
+                }
+                _ => (),
             }
 
             if self.board[y1][x1] != 0 {
@@ -127,7 +168,7 @@ impl Sudoku {
         removed_value
     }
 
-    pub fn is_same_group(&mut self, x1: usize, y1: usize, x2: usize, y2: usize) -> bool {
+    pub fn is_same_group(&self, x1: usize, y1: usize, x2: usize, y2: usize) -> bool {
         x1 == x2 || y1 == y2 || (x1 / self.n == x2 / self.n && y1 / self.n == y2 / self.n)
     }
 
@@ -153,6 +194,9 @@ impl Sudoku {
         let possibility_board = vec![vec![(1..=n2).collect(); n2]; n2];
         let difficulty = Unknown;
         let error = None;
+        let is_canonical = false;
+        let filled_cells = 0;
+        let canonical_board_hash = 0;
 
         if GROUPS.read().unwrap().contains_key(&n) && CELL_GROUPS.read().unwrap().contains_key(&n) {
             return Self {
@@ -160,8 +204,11 @@ impl Sudoku {
                 n2,
                 board,
                 possibility_board,
+                filled_cells,
                 difficulty,
                 error,
+                is_canonical,
+                canonical_board_hash,
             };
         }
 
@@ -228,6 +275,181 @@ impl Sudoku {
             possibility_board,
             difficulty,
             error,
+            is_canonical,
+            filled_cells,
+            canonical_board_hash,
+        }
+    }
+
+    pub fn generate_full(n: usize) -> Self {
+        let mut sudoku = Self::new(n);
+        let mut rng = thread_rng();
+
+        // upper row is 1 2 3 4 .....
+        for x in 0..sudoku.n2 {
+            sudoku.set_value(x, 0, x + 1).unwrap();
+        }
+
+        // left column filling (with each squares separated)
+        let mut column_squares: Vec<Vec<usize>> = Vec::new();
+
+        // upper left square can't have the n first values
+        let mut possible_values = {
+            let mut temp = (n + 1..=sudoku.n2).collect::<Vec<_>>();
+            temp.shuffle(&mut rng);
+            temp
+        };
+
+        // so we extract the first square
+        let mut first_square = vec![1];
+        for _y in 1..n {
+            first_square.push(possible_values.pop().unwrap());
+        }
+        column_squares.push(first_square);
+
+        // add the first n values to the options and re shuffle
+        possible_values.extend(2..=sudoku.n);
+        possible_values.shuffle(&mut rng);
+
+        // extract the remaining squares from those values
+        column_squares.extend(possible_values.chunks(n).map(|square| square.to_vec()));
+
+        // within each square, sort the values (rows) in an ascending order
+        for square in column_squares.iter_mut() {
+            square.sort();
+        }
+
+        // sort the squares by first value
+        column_squares.sort_by(|square1, square2| square1[0].cmp(&square2[0]));
+
+        // get the rest of the final column and fill it
+        let column = column_squares.into_iter().flatten();
+        for (y, value) in column.enumerate() {
+            sudoku.set_value(0, y, value).unwrap();
+        }
+
+        // fill the rest of the sudoku
+        sudoku.backtrack_solve(0, 0);
+
+        // get the canonical board hash
+        sudoku.canonical_board_hash = {
+            let mut hasher = DefaultHasher::new();
+            sudoku.board.hash(&mut hasher);
+            hasher.finish()
+        };
+
+        sudoku.is_canonical = true;
+        sudoku
+    }
+
+    pub fn randomize(&mut self) {
+        if !self.is_filled() {
+            panic!("Cannot randomize a non filled sudoku !");
+        }
+        let mut rng = thread_rng();
+
+        ////////////////////////////////////////////////////
+        // swap rows randomly (keep the first line in place)
+        let first_line = 0;
+        let mut first_floor = (1..self.n).collect::<Vec<_>>();
+        let mut floors = (self.n..self.n2)
+            .collect::<Vec<_>>()
+            .chunks(self.n)
+            .map(|floor| floor.to_vec())
+            .collect::<Vec<_>>();
+
+        // shuffle each floor (not the first floor)
+        floors.shuffle(&mut rng);
+
+        // shuffle each row inside a floor (not the first row)
+        first_floor.shuffle(&mut rng);
+        for floor in floors.iter_mut() {
+            floor.shuffle(&mut rng);
+        }
+
+        let rows_swap = {
+            let mut temp = vec![first_line];
+            temp.extend(first_floor);
+            temp.extend(floors.into_iter().flatten());
+            temp
+        };
+
+        self.board = rows_swap
+            .into_iter()
+            .map(|shuffled_y| self.board[shuffled_y].clone())
+            .collect();
+
+        ////////////////////////////////////////////////////
+        // swap random values
+        let values_swap: HashMap<usize, usize> = {
+            let mut values_input = (1..=self.n2).collect::<Vec<_>>();
+            let mut values_output = values_input.clone();
+            values_input.shuffle(&mut rng);
+            values_output.shuffle(&mut rng);
+            values_input.into_iter().zip(values_output).collect()
+        };
+
+        for y in 0..self.n2 {
+            for x in 0..self.n2 {
+                self.board[y][x] = *values_swap.get(&self.board[y][x]).unwrap();
+            }
+        }
+
+        self.is_canonical = false
+    }
+
+    pub fn canonize(&mut self) {
+        if !self.is_filled() {
+            panic!("Cannot canonize a non filled sudoku !");
+        }
+        if self.is_canonical {
+            panic!("Cannot canonize an already canonical sudoku !");
+        }
+
+        ///////////////////////////////////////////////////
+        // swap values to get 1 2 3 4 5... in the first row
+        let values_swap: HashMap<usize, usize> =
+            (0..self.n2).map(|x| (self.board[0][x], x + 1)).collect();
+
+        for y in 0..self.n2 {
+            for x in 0..self.n2 {
+                self.board[y][x] = *values_swap.get(&self.board[y][x]).unwrap();
+            }
+        }
+
+        ///////////////////////////////////////////////////
+        // swap rows logically
+
+        // extract floors
+        let mut floors = self
+            .board
+            .chunks(self.n)
+            .map(|floor| floor.to_vec())
+            .collect::<Vec<_>>();
+
+        // within each floor, sort the rows by their first cell
+        for floor in floors.iter_mut() {
+            floor.sort_by(|row1, row2| row1[0].cmp(&row2[0]));
+        }
+
+        // sort the rows batch by their upper left cell
+        floors.sort_by(|floor1, floor2| floor1[0][0].cmp(&floor2[0][0]));
+
+        self.board = floors.into_iter().flatten().collect::<Vec<_>>();
+
+        ////////////////////////////////////////////////////////////////////
+        // check if the board is the same as the hash of the canonical board
+        let board_hash = {
+            let mut hasher = DefaultHasher::new();
+            self.board.hash(&mut hasher);
+            hasher.finish()
+        };
+
+        if board_hash != self.canonical_board_hash {
+            panic!(
+                "SudokuError: Canonization mismatch: expected hash {}, got hash {}",
+                self.canonical_board_hash, board_hash
+            );
         }
     }
 
@@ -237,17 +459,22 @@ impl Sudoku {
     ->	REMOVE REDUNDANCY 			->	(n^4)! - (n^4-1)! - ... - 17!
     ->  ONLY 2 POSSIBILITIES		->  2! + 2! + ... + 17! (un peu moins que ça grâce à REMOVE REDUNDANCY)
     */
-    pub fn generate_new(n: usize, aimed_difficulty: SudokuDifficulty) -> Self {
-        let n2 = n * n;
+    pub fn generate_from(&self, aimed_difficulty: SudokuDifficulty) -> Self {
+        if self.is_canonical {
+            panic!("Cannot generate a sudoku from a canonical one");
+        }
+
+        let n2 = self.n2;
         let (tx, rx) = mpsc::channel();
         type SudokuFilledCells = (Sudoku, Vec<bool>);
 
         loop {
             let thread_count: usize = available_parallelism().unwrap().get();
             let default = {
-                let mut sudoku = Self::new(n);
-                sudoku.backtrack_solve(0, 0);
-                Arc::new(Mutex::new((sudoku, vec![true; n2 * n2])))
+                let filled_cells: Vec<bool> = (0..n2 * n2)
+                    .map(|i| self.get_cell_value(i % n2, i / n2) != 0)
+                    .collect();
+                Arc::new(Mutex::new((self.clone(), filled_cells)))
             };
             let to_explore: Arc<Mutex<Vec<SudokuFilledCells>>> = Arc::new(Mutex::new(Vec::new()));
             let explored_filled_cells: Arc<Mutex<HashSet<Vec<bool>>>> =
@@ -269,7 +496,7 @@ impl Sudoku {
                 let join_handle = std::thread::spawn(move || {
                     let mut rng = rand::thread_rng();
                     while thread_rx.try_recv().is_err() {
-                        let (mut sudoku, mut filled_cells) = thread_to_explore
+                        let (mut sudoku, filled_cells) = thread_to_explore
                             .lock()
                             .unwrap()
                             .pop()
@@ -277,7 +504,7 @@ impl Sudoku {
 
                         (*thread_total.lock().unwrap()).add_assign(1);
                         print!(
-                            "Skipped {}/{} instances with {} filled cells{}\r",
+                            " Skipped {}/{} instances with {} filled cells{}\r",
                             thread_skipped.lock().unwrap(),
                             thread_total.lock().unwrap(),
                             filled_cells.iter().filter(|b| **b).count(),
@@ -310,7 +537,6 @@ impl Sudoku {
                             let mut testing_sudoku = sudoku.clone();
                             testing_sudoku.difficulty = Unknown;
                             let removed_value = testing_sudoku.remove_value(x, y);
-                            filled_cells[i] = false;
 
                             if thread_explored_filled_cells
                                 .lock()
@@ -320,14 +546,13 @@ impl Sudoku {
                                 (*thread_skipped.lock().unwrap()).add_assign(1);
                                 (*thread_total.lock().unwrap()).add_assign(1);
                                 print!(
-                                    "Skipped {}/{} instances with {} filled cells{}\r",
+                                    " Skipped {}/{} instances with {} filled cells{}\r",
                                     thread_skipped.lock().unwrap(),
                                     thread_total.lock().unwrap(),
                                     filled_cells.iter().filter(|b| **b).count(),
                                     " ".repeat(20)
                                 );
                                 std::io::Write::flush(&mut std::io::stdout()).unwrap();
-                                filled_cells[i] = true;
                                 continue;
                             }
 
@@ -355,7 +580,7 @@ impl Sudoku {
                                             (*thread_skipped.lock().unwrap()).add_assign(1);
                                             (*thread_total.lock().unwrap()).add_assign(1);
                                             print!(
-                                                "Skipped {}/{} instances with {} filled cells{}\r",
+                                                " Skipped {}/{} instances with {} filled cells{}\r",
                                                 thread_skipped.lock().unwrap(),
                                                 thread_total.lock().unwrap(),
                                                 filled_cells.iter().filter(|b| **b).count(),
@@ -372,11 +597,10 @@ impl Sudoku {
                                 }
                             }
                             if !can_solve {
-                                filled_cells[i] = true;
                                 continue;
                             }
 
-                            if filled_cells.len() < n2 * 2 - 1 {
+                            if testing_sudoku.filled_cells < n2 * 2 - 1 {
                                 thread_explored_filled_cells
                                     .lock()
                                     .unwrap()
@@ -387,15 +611,16 @@ impl Sudoku {
                                 passed_sudoku.remove_value(x, y);
                                 passed_sudoku.difficulty = testing_sudoku.difficulty;
 
+                                let mut passed_filled_cells = filled_cells.clone();
+                                passed_filled_cells[i] = false;
+
                                 thread_to_explore
                                     .lock()
                                     .unwrap()
-                                    .push((passed_sudoku, filled_cells.clone()));
+                                    .push((passed_sudoku, passed_filled_cells));
 
                                 working_sub_sudokus += 1;
                             }
-
-                            filled_cells[i] = true;
                         }
 
                         if working_sub_sudokus == 0 && sudoku.difficulty == aimed_difficulty {
@@ -427,13 +652,13 @@ impl Sudoku {
                     match verify_sudoku.rule_solve(None, None) {
                         Ok(Some(_)) => (),
                         Ok(None) => {
-                            if !verify_sudoku.is_solved() {
+                            if !verify_sudoku.is_filled() {
                                 panic!("ERROR IN SUDOKU SOLVING: Couldn't solve generated sudoku: \nORIGINAL SUDOKU:\n{sudoku}\nFINISHED SUDOKU: \n{verify_sudoku}");
                             }
                             break;
                         }
-                        Err(((x1, y1), (x2, y2))) => {
-                            panic!("ERROR IN SUDOKU: cells ({x1},{y1}) == ({x2},{y2}): \nORIGINAL SUDOKU:");
+                        Err(err) => {
+                            panic!("ERROR IN SUDOKU: {err}: \nORIGINAL SUDOKU: {sudoku}");
                         }
                     }
                 }
@@ -447,8 +672,10 @@ impl Sudoku {
         }
     }
 
-    pub fn load_from_db(database: &mut Database, difficulty: SudokuDifficulty) -> Self {
-        database.get_random_simple_sudoku(3, difficulty).unwrap()
+    pub fn generate_new(n: usize, aimed_difficulty: SudokuDifficulty) -> Self {
+        let mut sudoku_base = Sudoku::generate_full(n);
+        sudoku_base.randomize();
+        sudoku_base.generate_from(aimed_difficulty)
     }
 
     pub fn parse_file(file_name: &str) -> Result<Self, Box<dyn std::error::Error>> {
@@ -470,11 +697,11 @@ impl Sudoku {
                 if value == 0 {
                     continue;
                 }
-                sudoku.set_value(x, y, value);
+                sudoku.set_value(x, y, value).unwrap();
             }
         }
 
-        if let Some(((x1, y1), (x2, y2))) = sudoku.get_error() {
+        if let Some(SudokuError::SameValueCells(((x1, y1), (x2, y2)))) = sudoku.get_error() {
             return Err(format!(
 				"Sudoku isn't valid ! \n the cells ({},{}) and ({},{}) contains the same value\nThere must be an error in the file",
 				x1, y1, x2, y2
@@ -504,7 +731,11 @@ impl Sudoku {
         &mut self,
         specific_rules: Option<Range<usize>>,
         max_difficulty: Option<SudokuDifficulty>,
-    ) -> Result<Option<usize>, (Coords, Coords)> {
+    ) -> Result<Option<usize>, SudokuError> {
+        if self.is_canonical {
+            panic!("Cannot modify a canonical sudoku !");
+        }
+
         let rules: Vec<_> = Sudoku::RULES
             .iter()
             .filter(|(rule_id, difficulty, _rule)| {
@@ -553,13 +784,13 @@ impl Sudoku {
             match sudoku.rule_solve(None, None) {
                 Ok(None) => break,
                 Ok(_) => (),
-                Err(((x1, y1), (x2, y2))) => {
-                    eprintln!("Error: {x1},{y1} == {x2},{y2}");
+                Err(err) => {
+                    eprintln!("{err}");
                     break;
                 }
             }
         }
-        if sudoku.is_solved() {
+        if sudoku.is_filled() {
             info!("Sudoku solved !");
         } else {
             warn!("Sudoku not solved !");
@@ -570,6 +801,10 @@ impl Sudoku {
     // BACKTRACK SOLVING
 
     pub fn backtrack_solve(&mut self, mut x: usize, mut y: usize) -> bool {
+        if self.is_canonical {
+            panic!("Cannot modify a canonical sudoku !");
+        }
+
         loop {
             if y == self.n2 - 1 && x == self.n2 {
                 return true;
@@ -586,11 +821,21 @@ impl Sudoku {
             x += 1;
         }
 
-        for value in self.possibility_board[y][x].clone() {
-            self.set_value(x, y, value);
+        let mut possibilities = self.possibility_board[y][x]
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>();
+        possibilities.shuffle(&mut thread_rng());
+        for value in possibilities {
+            if self.set_value(x, y, value).is_err() {
+                self.remove_value(x, y);
+                continue;
+            }
+
             if self.backtrack_solve(x + 1, y) {
                 return true;
             }
+
             self.remove_value(x, y);
         }
 
@@ -599,15 +844,8 @@ impl Sudoku {
 
     // UTILITY
 
-    pub fn is_solved(&self) -> bool {
-        for y in 0..self.n2 {
-            for x in 0..self.n2 {
-                if self.board[y][x] == 0 || !self.possibility_board[y][x].is_empty() {
-                    return false;
-                }
-            }
-        }
-        true
+    pub fn is_filled(&self) -> bool {
+        self.filled_cells == self.n2 * self.n2
     }
 
     pub fn is_unique(&self) -> bool {
@@ -636,7 +874,10 @@ impl Sudoku {
 
         let possible_values = self.possibility_board[y][x].clone();
         for value in possible_values.clone().into_iter() {
-            self.set_value(x, y, value);
+            if self.set_value(x, y, value).is_err() {
+                self.remove_value(x, y);
+                continue;
+            }
 
             self._is_unique(x, y, solutions);
             if *solutions > 1 {
@@ -646,6 +887,114 @@ impl Sudoku {
             self.remove_value(x, y);
         }
         self.possibility_board[y][x] = possible_values;
+    }
+
+    // DATABASE
+
+    pub fn db_from_canonical(origin: DBSimpleSudokuCanonical) -> Self {
+        let mut sudoku = Sudoku::new(origin.sudoku_n as usize);
+        sudoku.canonical_board_hash = origin.canonical_board_hash;
+        for y in 0..sudoku.get_n2() {
+            for x in 0..sudoku.get_n2() {
+                let value = origin.canonical_board
+                    [y * origin.sudoku_n as usize * origin.sudoku_n as usize + x]
+                    as usize;
+                if value != 0 {
+                    sudoku.set_value(x, y, value).unwrap();
+                }
+            }
+        }
+        sudoku
+    }
+
+    pub fn db_from_game(origin: impl Into<DBNewSimpleSudokuGame>) -> Self {
+        let origin: DBNewSimpleSudokuGame = origin.into();
+        let mut sudoku = Sudoku::new(origin.game_n as usize);
+        sudoku.canonical_board_hash = origin.game_canonical_board_hash;
+        for y in 0..sudoku.get_n2() {
+            for x in 0..sudoku.get_n2() {
+                let value = origin.game_board
+                    [y * origin.game_n as usize * origin.game_n as usize + x]
+                    as usize;
+                if value != 0 {
+                    sudoku.set_value(x, y, value).unwrap();
+                }
+            }
+        }
+        sudoku.difficulty = SudokuDifficulty::from(origin.game_difficulty);
+        sudoku
+    }
+
+    pub fn db_to_canonical(
+        &self,
+    ) -> (DBSimpleSudokuCanonical, Vec<DBSimpleSudokuCanonicalSquares>) {
+        if !self.is_canonical {
+            panic!("Can't get the canonical db with a randomized sudoku");
+        }
+
+        let board: Vec<u8> = self
+            .board
+            .iter()
+            .flat_map(|line| line.iter().map(|cell| *cell as u8))
+            .collect();
+
+        let simple_sudoku_canonical = DBSimpleSudokuCanonical {
+            canonical_board_hash: self.canonical_board_hash,
+            sudoku_n: self.n as u8,
+            canonical_board: board,
+        };
+
+        let mut simple_sudoku_canonical_squares = Vec::new();
+        for y0 in 0..self.n {
+            for x0 in 0..self.n {
+                let square_id = y0 * self.n + x0;
+                let mut hasher = DefaultHasher::new();
+                for y in 0..self.n {
+                    for x in 0..self.n {
+                        (self.board[y0 * self.n + y][x0 * self.n + x] as u8).hash(&mut hasher);
+                    }
+                }
+                simple_sudoku_canonical_squares.push(DBSimpleSudokuCanonicalSquares {
+                    square_canonical_board_hash: self.canonical_board_hash,
+                    square_id: square_id as u8,
+                    square_hash: hasher.finish(),
+                });
+            }
+        }
+        (simple_sudoku_canonical, simple_sudoku_canonical_squares)
+    }
+
+    pub fn db_to_randomized(&self) -> DBNewSimpleSudokuGame {
+        if self.is_canonical {
+            panic!("Can't get the game db with a canonical sudoku");
+        }
+
+        let board: Vec<u8> = self
+            .board
+            .iter()
+            .flat_map(|line| line.iter().map(|cell| *cell as u8))
+            .collect();
+        DBNewSimpleSudokuGame {
+            game_canonical_board_hash: self.canonical_board_hash,
+            game_n: self.n as u8,
+            game_board: board,
+            game_difficulty: self.difficulty as u8,
+            game_filled_cells: self.filled_cells as u8,
+        }
+    }
+
+    pub fn load_canonical_from_db(database: &mut Database, n: usize) -> Self {
+        database.get_random_simple_sudoku_canonical(n).unwrap()
+    }
+
+    pub fn load_game_from_db(
+        database: &mut Database,
+        n: usize,
+        difficulty: SudokuDifficulty,
+    ) -> Self {
+        database
+            .get_random_simple_sudoku_game(n, difficulty)
+            .unwrap()
     }
 }
 
@@ -733,32 +1082,14 @@ impl PartialEq for Sudoku {
 
         for y in 0..self.n2 {
             for x in 0..self.n2 {
-                if self.board[y][x] != other.board[y][x] {
+                if self.board[y][x].ne(&other.board[y][x])
+                    || self.possibility_board[y][x].ne(&other.possibility_board[y][x])
+                {
                     return false;
                 }
             }
         }
 
-        for y in 0..self.n2 {
-            for x in 0..self.n2 {
-                if !self.possibility_board[y][x].eq(&other.possibility_board[y][x]) {
-                    return false;
-                }
-            }
-        }
         true
-    }
-}
-
-impl Clone for Sudoku {
-    fn clone(&self) -> Self {
-        Self {
-            n: self.n,
-            n2: self.n2,
-            board: self.board.clone(),
-            possibility_board: self.possibility_board.clone(),
-            difficulty: self.difficulty,
-            error: self.error,
-        }
     }
 }

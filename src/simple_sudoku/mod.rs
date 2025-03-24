@@ -88,19 +88,47 @@ impl SudokuDifficulty {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
+pub enum SudokuError {
+    NoPossibilityCell(Coords),
+    SameValueCells((Coords, Coords)),
+}
+
+impl std::fmt::Display for SudokuError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SudokuError::NoPossibilityCell(coords) => {
+                write!(f, "SudokuError: No possibility for cell at {:?}", coords)
+            }
+            SudokuError::SameValueCells((coords1, coords2)) => {
+                write!(
+                    f,
+                    "SudokuError: Cells at {:?} and {:?} have the same value",
+                    coords1, coords2
+                )
+            }
+        }
+    }
+}
+
 pub type SudokuRule = fn(&mut Sudoku) -> bool;
 type GroupMap = HashMap<SudokuGroups, Vec<HashSet<Coords>>>;
 type CellGroupMap = HashMap<(Coords, SudokuGroups), HashSet<Coords>>;
 
-#[derive(Debug)]
+#[derive(Clone)]
 pub struct Sudoku {
     n: usize,
     n2: usize,
 
     board: Vec<Vec<usize>>,
     possibility_board: Vec<Vec<HashSet<usize>>>,
+    filled_cells: usize,
+
     difficulty: SudokuDifficulty,
-    error: Option<(Coords, Coords)>,
+    error: Option<SudokuError>,
+
+    is_canonical: bool,
+    canonical_board_hash: u64,
 }
 
 pub type ButtonFunction = Rc<Box<dyn Fn(&mut SudokuDisplay)>>;

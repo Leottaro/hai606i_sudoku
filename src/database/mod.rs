@@ -1,7 +1,5 @@
 use diesel::MysqlConnection;
-use schema::simple_sudokus;
-
-use crate::simple_sudoku::Sudoku as SimpleSudoku;
+use schema::{simple_sudoku_canonical, simple_sudoku_canonical_squares, simple_sudoku_games};
 
 pub mod db;
 pub mod schema;
@@ -10,49 +8,55 @@ pub struct Database {
     connection: MysqlConnection,
 }
 
-#[derive(Queryable)]
+#[derive(Insertable, Selectable, Queryable, Clone)]
 #[diesel(check_for_backend(diesel::mysql::Mysql))]
-pub struct DBSimpleSudoku {
-    pub id: i32,
-    pub n: u8,
-    pub board: Vec<u8>,
-    pub difficulty: u8,
+#[diesel(table_name = simple_sudoku_canonical)]
+pub struct DBSimpleSudokuCanonical {
+    pub canonical_board_hash: u64,
+    pub sudoku_n: u8,
+    pub canonical_board: Vec<u8>,
 }
 
-impl DBSimpleSudoku {
-    pub fn to_sudoku(&self) -> SimpleSudoku {
-        let mut sudoku = SimpleSudoku::new(self.n as usize);
-        let mut board_iter = self.board.clone().into_iter().map(|cell| cell as usize);
-        for y in 0..sudoku.get_n2() {
-            for x in 0..sudoku.get_n2() {
-                let next_value = board_iter.next().unwrap();
-                if next_value > 0 {
-                    sudoku.set_value(x, y, next_value);
-                }
-            }
-        }
-        sudoku
-    }
+#[derive(Insertable, Selectable, Queryable, Clone)]
+#[diesel(check_for_backend(diesel::mysql::Mysql))]
+#[diesel(table_name = simple_sudoku_canonical_squares)]
+pub struct DBSimpleSudokuCanonicalSquares {
+    pub square_canonical_board_hash: u64,
+    pub square_id: u8,
+    pub square_hash: u64,
 }
 
-#[derive(Insertable)]
-#[diesel(table_name = simple_sudokus)]
-pub struct DBNewSimpleSudoku {
-    pub n: u8,
-    pub board: Vec<u8>,
-    pub difficulty: u8,
+#[derive(Queryable, Selectable, Clone)]
+#[diesel(check_for_backend(diesel::mysql::Mysql))]
+#[diesel(table_name = simple_sudoku_games)]
+pub struct DBSimpleSudokuGame {
+    pub game_id: i32,
+    pub game_canonical_board_hash: u64,
+    pub game_n: u8,
+    pub game_board: Vec<u8>,
+    pub game_difficulty: u8,
+    pub game_filled_cells: u8,
 }
 
-impl DBNewSimpleSudoku {
-    pub fn from(sudoku: &SimpleSudoku) -> Self {
+#[derive(Insertable, Clone)]
+#[diesel(check_for_backend(diesel::mysql::Mysql))]
+#[diesel(table_name = simple_sudoku_games)]
+pub struct DBNewSimpleSudokuGame {
+    pub game_canonical_board_hash: u64,
+    pub game_n: u8,
+    pub game_board: Vec<u8>,
+    pub game_difficulty: u8,
+    pub game_filled_cells: u8,
+}
+
+impl From<DBSimpleSudokuGame> for DBNewSimpleSudokuGame {
+    fn from(game: DBSimpleSudokuGame) -> Self {
         Self {
-            n: sudoku.get_n() as u8,
-            board: sudoku
-                .get_board()
-                .into_iter()
-                .flat_map(|line| line.into_iter().map(|cell| cell as u8))
-                .collect(),
-            difficulty: sudoku.get_difficulty() as u8,
+            game_canonical_board_hash: game.game_canonical_board_hash,
+            game_n: game.game_n,
+            game_board: game.game_board,
+            game_difficulty: game.game_difficulty,
+            game_filled_cells: game.game_filled_cells,
         }
     }
 }

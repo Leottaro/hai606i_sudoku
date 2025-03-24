@@ -582,7 +582,7 @@ impl SudokuDisplay {
                                 if sudoku_display.correction_board[y1][x1] == value {
                                     sudoku_display.player_pboard_history.clear();
                                     info!("Bonne réponse !");
-                                    sudoku_display.sudoku.set_value(x1, y1, value);
+                                    sudoku_display.sudoku.set_value(x1, y1, value).unwrap();
                                     sudoku_display.player_pboard[y1][x1].clear();
                                     for n in 1..=sudoku_display.sudoku.get_n2() {
                                         for button in sudoku_display.button_list.iter_mut() {
@@ -689,7 +689,7 @@ impl SudokuDisplay {
     pub fn browse_game(&mut self, difficulty: SudokuDifficulty) {
         self.lifes = 3;
         self.sudoku = if let Some(database) = &mut self.database {
-            Sudoku::load_from_db(database, difficulty)
+            Sudoku::load_game_from_db(database, 3, difficulty)
         } else {
             Sudoku::generate_new(self.sudoku.n, difficulty)
         };
@@ -719,7 +719,9 @@ impl SudokuDisplay {
             match self.sudoku.rule_solve(None, None) {
                 Ok(None | Some(0) | Some(1)) => break,
                 Ok(_) => (),
-                Err(((x1, y1), (x2, y2))) => eprintln!("Error: {x1},{y1} == {x2},{y2}"),
+                Err(err) => {
+                    eprintln!("{err}");
+                }
             }
         }
         let board = self.sudoku.get_board().clone();
@@ -885,7 +887,7 @@ impl SudokuDisplay {
 
         clear_background(Color::from_hex(0xffffff));
 
-        if self.sudoku.is_solved() {
+        if self.sudoku.is_filled() {
             let bg_width = self.max_width;
             let bg_height = self.background.height() * (bg_width / self.background.width());
             draw_texture_ex(
