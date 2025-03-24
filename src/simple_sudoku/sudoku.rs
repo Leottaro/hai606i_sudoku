@@ -925,7 +925,7 @@ impl Sudoku {
         sudoku
     }
 
-    pub fn canonical_to_db(
+    pub fn db_to_canonical(
         &self,
     ) -> (DBSimpleSudokuCanonical, Vec<DBSimpleSudokuCanonicalSquares>) {
         if !self.is_canonical {
@@ -964,7 +964,7 @@ impl Sudoku {
         (simple_sudoku_canonical, simple_sudoku_canonical_squares)
     }
 
-    pub fn randomized_to_db(&self) -> DBNewSimpleSudokuGame {
+    pub fn db_to_randomized(&self) -> DBNewSimpleSudokuGame {
         if self.is_canonical {
             panic!("Can't get the game db with a canonical sudoku");
         }

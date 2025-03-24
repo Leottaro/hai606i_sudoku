@@ -50,7 +50,7 @@ fn canonical(inserted_number: usize) {
             .spawn(move || {
                 while *remaining_number.lock().unwrap() > 0 {
                     let sudoku_base: Sudoku = Sudoku::generate_full(3);
-                    let inserted_data = sudoku_base.canonical_to_db();
+                    let inserted_data = sudoku_base.db_to_canonical();
                     thread_data.lock().unwrap().push(inserted_data);
                 }
             })
@@ -117,7 +117,9 @@ fn games() {
 
             sudoku.randomize();
             let game = sudoku.generate_from(difficulty);
-            passed_games.push(game.randomized_to_db());
+            let mut game_db = game.db_to_randomized();
+            game_db.game_difficulty = difficulty as u8;
+            passed_games.push(game_db);
         }
 
         let thread_database = Arc::clone(&database);

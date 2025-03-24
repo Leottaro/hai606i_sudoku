@@ -188,7 +188,7 @@ mod tests {
     #[test]
     fn to_from_db() {
         let canonical1 = Sudoku::generate_full(3);
-        let (db_canonical_sudoku, _db_canonical_squares) = canonical1.canonical_to_db();
+        let (db_canonical_sudoku, _db_canonical_squares) = canonical1.db_to_canonical();
         let canonical2 = Sudoku::db_from_canonical(db_canonical_sudoku);
 
         if canonical1.ne(&canonical2) {
@@ -200,13 +200,13 @@ mod tests {
             randomized1.randomize();
 
             let game1 = randomized1.generate_from(difficulty);
-            let db_game = game1.randomized_to_db();
+            let db_game = game1.db_to_randomized();
             let game2 = Sudoku::db_from_game(db_game);
             if game1.ne(&game2) {
                 panic!("randomized_to_db game PROBLEME");
             }
 
-            let db_randomized = randomized1.randomized_to_db();
+            let db_randomized = randomized1.db_to_randomized();
             let randomized2 = Sudoku::db_from_game(db_randomized);
             if randomized1.ne(&randomized2) {
                 panic!("randomized_to_db PROBLEME");
