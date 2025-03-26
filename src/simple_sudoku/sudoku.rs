@@ -988,7 +988,11 @@ impl Sudoku {
     }
 
     #[cfg(feature = "database")]
-    pub fn load_game_from_db(database: &mut Database, n: u8, difficulty: SudokuDifficulty) -> Self {
+    pub fn load_game_from_db(
+        database: &mut Database,
+        n: usize,
+        difficulty: SudokuDifficulty,
+    ) -> Self {
         database
             .get_random_simple_sudoku_game(n as u8, difficulty)
             .unwrap()
