@@ -7,7 +7,11 @@ default-run = "hai606i_sudoku"
 [[bin]]
 required-features = ["database"]
 name = "fill_database"
-path = "src/database/fill_database.rs"
+path = "src/fill_database.rs"
+
+[[bin]]
+name = "generation_benchmark"
+path = "src/generation_benchmark.rs"
 
 [dependencies]
 diesel = { version = "2.2.8", features = ["mysql"], optional = true }

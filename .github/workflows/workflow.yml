@@ -1,0 +1,29 @@
+name: Test and build with and witout features on push / pull request
+
+on:
+    push:
+        branches:
+            - main
+            - simple_sudoku
+    pull_request:
+    workflow_dispatch:
+
+env:
+    CARGO_TERM_COLOR: always
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - name: Tests
+              run: cargo test -- --nocapture
+            - name: Build release with and without features
+              run: cargo build -r && cargo build -r --all-features
+    benchmark:
+        runs-on: self-hosted
+        needs: build
+        steps:
+            - uses: actions/checkout@v4
+            - name: Build and Run
+              run: cargo run -r --bin generation_benchmark
