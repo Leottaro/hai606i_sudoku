@@ -50,7 +50,7 @@ fn canonical(inserted_number: usize) {
             .spawn(move || {
                 while *remaining_number.lock().unwrap() > 0 {
                     let sudoku_base: Sudoku = Sudoku::generate_full(3);
-                    let inserted_data = sudoku_base.db_to_canonical();
+                    let inserted_data = sudoku_base.db_to_canonical().unwrap();
                     thread_data.lock().unwrap().push(inserted_data);
                 }
             })
@@ -115,9 +115,9 @@ fn games() {
         for difficulty in SudokuDifficulty::iter() {
             println!("{difficulty}{}", " ".repeat(50));
 
-            sudoku.randomize();
-            let game = sudoku.generate_from(difficulty);
-            let mut game_db = game.db_to_randomized();
+            sudoku.randomize().unwrap();
+            let game = sudoku.generate_from(difficulty).unwrap();
+            let mut game_db = game.db_to_randomized().unwrap();
             game_db.game_difficulty = difficulty as u8;
             passed_games.push(game_db);
         }
