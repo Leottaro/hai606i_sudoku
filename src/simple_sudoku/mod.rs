@@ -1,4 +1,4 @@
-pub type Coords = (u8, u8);
+pub type Coords = (usize, usize);
 
 use std::{
     collections::{HashMap, HashSet},
@@ -89,23 +89,47 @@ impl SudokuDifficulty {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SudokuError {
+    CanonizationMismatch(Sudoku, u64),
+    InvalidState(String),
     NoPossibilityCell(Coords),
+    ParseString((String, String)),
+    ReadFile((String, String)),
     SameValueCells((Coords, Coords)),
+    WrongFunction(String),
+    WrongInput(String),
 }
 
 impl std::fmt::Display for SudokuError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            SudokuError::CanonizationMismatch(sudoku, board_hash) => {
+                write!(f, "SudokuError: Canonization mismatch this sudoku \n{sudoku}\nExpected board hash {}, got {}", sudoku.canonical_board_hash, board_hash)
+            }
+            SudokuError::InvalidState(string) => {
+                write!(f, "SudokuError: Invalid sudoku state for {string}")
+            }
             SudokuError::NoPossibilityCell((x, y)) => {
-                write!(f, "SudokuError: No possibility for cell at ({x},{y})",)
+                write!(f, "SudokuError: No possibility for cell at ({x},{y})")
+            }
+            SudokuError::ParseString((string, error)) => {
+                write!(f, "SudokuError: couldn't parse \"{string}\": {error}")
+            }
+            SudokuError::ReadFile((file_path, error)) => {
+                write!(f, "SudokuError: couldn't open file {file_path}: {error}")
             }
             SudokuError::SameValueCells(((x1, y1), (x2, y2))) => {
                 write!(
                     f,
                     "SudokuError: Cells at ({x1},{y1}) and ({x2},{y2}) have the same value"
                 )
+            }
+            SudokuError::WrongFunction(string) => {
+                write!(f, "SudokuError: Wrong function for {string}")
+            }
+            SudokuError::WrongInput(string) => {
+                write!(f, "SudokuError: Wrong input for {string}")
             }
         }
     }
@@ -115,17 +139,16 @@ pub type SudokuRule = fn(&mut Sudoku) -> bool;
 type GroupMap = HashMap<SudokuGroups, Vec<HashSet<Coords>>>;
 type CellGroupMap = HashMap<(Coords, SudokuGroups), HashSet<Coords>>;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Sudoku {
-    n: u8,
-    n2: u8,
+    n: usize,
+    n2: usize,
 
-    board: Vec<Vec<u8>>,
-    possibility_board: Vec<Vec<HashSet<u8>>>,
-    filled_cells: u16,
+    board: Vec<Vec<usize>>,
+    possibility_board: Vec<Vec<HashSet<usize>>>,
+    filled_cells: usize,
 
     difficulty: SudokuDifficulty,
-    error: Option<SudokuError>,
 
     is_canonical: bool,
     canonical_board_hash: u64,
@@ -145,18 +168,18 @@ pub struct SudokuDisplay {
     x_offset: f32,
     y_offset: f32,
     mode: String,
-    player_pboard_history: Vec<Vec<Vec<HashSet<u8>>>>,
-    player_pboard: Vec<Vec<HashSet<u8>>>,
+    player_pboard_history: Vec<Vec<Vec<HashSet<usize>>>>,
+    player_pboard: Vec<Vec<HashSet<usize>>>,
     note: bool,
     button_list: Vec<Button>,
     font: macroquad::text::Font,
     actions_boutons: HashMap<String, ButtonFunction>,
     background_victoire: Texture2D,
     background_defaite: Texture2D,
-    lifes: u8,
+    lifes: usize,
     new_game_available: bool,
     difficulty: SudokuDifficulty,
-    correction_board: Vec<Vec<u8>>,
+    correction_board: Vec<Vec<usize>>,
 }
 
 pub struct Button {

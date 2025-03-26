@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS simple_sudoku_games (
 	game_n TINYINT UNSIGNED NOT NULL,
 	game_board TINYBLOB NOT NULL,
 	game_difficulty TINYINT UNSIGNED NOT NULL,
-	game_filled_cells TINYINT UNSIGNED NOT NULL,
+	game_filled_cells SMALLINT UNSIGNED NOT NULL,
 	PRIMARY KEY (game_id),
 	FOREIGN KEY (game_canonical_board_hash) REFERENCES simple_sudoku_canonical(canonical_board_hash)
 );
