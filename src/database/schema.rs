@@ -23,7 +23,7 @@ diesel::table! {
         game_n -> Unsigned<Tinyint>,
         game_board -> Tinyblob,
         game_difficulty -> Unsigned<Tinyint>,
-        game_filled_cells -> Unsigned<Tinyint>,
+        game_filled_cells -> Unsigned<Smallint>,
     }
 }
 

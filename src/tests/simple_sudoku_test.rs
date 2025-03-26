@@ -11,35 +11,34 @@ mod tests {
     fn test_parse_file() {
         let parsed_sudoku = {
             let temp = Sudoku::parse_file("sudoku-3-64-9.txt");
-            assert!(temp.is_ok());
+            if let Err(error) = temp {
+                panic!("{}", error);
+            }
             temp.unwrap()
         };
         println!("parsed_sudoku: \n{}", parsed_sudoku);
-        if let Some(err) = parsed_sudoku.get_error() {
-            panic!("{}", err);
-        } else {
-            let mut expected_sudoku = Sudoku::new(3);
-            expected_sudoku.set_value((0, 0), 6).unwrap();
-            expected_sudoku.set_value((2, 0), 2).unwrap();
-            expected_sudoku.set_value((4, 0), 5).unwrap();
-            expected_sudoku.set_value((5, 1), 4).unwrap();
-            expected_sudoku.set_value((7, 1), 3).unwrap();
-            expected_sudoku.set_value((0, 3), 4).unwrap();
-            expected_sudoku.set_value((1, 3), 3).unwrap();
-            expected_sudoku.set_value((5, 3), 8).unwrap();
-            expected_sudoku.set_value((1, 4), 1).unwrap();
-            expected_sudoku.set_value((6, 4), 2).unwrap();
-            expected_sudoku.set_value((6, 5), 7).unwrap();
-            expected_sudoku.set_value((0, 6), 5).unwrap();
-            expected_sudoku.set_value((3, 6), 2).unwrap();
-            expected_sudoku.set_value((4, 6), 7).unwrap();
-            expected_sudoku.set_value((7, 7), 8).unwrap();
-            expected_sudoku.set_value((8, 7), 1).unwrap();
-            expected_sudoku.set_value((3, 8), 6).unwrap();
-            println!("expected_sudoku: \n{}", expected_sudoku);
 
-            assert!(parsed_sudoku.eq(&expected_sudoku));
-        }
+        let mut expected_sudoku = Sudoku::new(3);
+        expected_sudoku.set_value(0, 0, 6).unwrap();
+        expected_sudoku.set_value(2, 0, 2).unwrap();
+        expected_sudoku.set_value(4, 0, 5).unwrap();
+        expected_sudoku.set_value(5, 1, 4).unwrap();
+        expected_sudoku.set_value(7, 1, 3).unwrap();
+        expected_sudoku.set_value(0, 3, 4).unwrap();
+        expected_sudoku.set_value(1, 3, 3).unwrap();
+        expected_sudoku.set_value(5, 3, 8).unwrap();
+        expected_sudoku.set_value(1, 4, 1).unwrap();
+        expected_sudoku.set_value(6, 4, 2).unwrap();
+        expected_sudoku.set_value(6, 5, 7).unwrap();
+        expected_sudoku.set_value(0, 6, 5).unwrap();
+        expected_sudoku.set_value(3, 6, 2).unwrap();
+        expected_sudoku.set_value(4, 6, 7).unwrap();
+        expected_sudoku.set_value(7, 7, 8).unwrap();
+        expected_sudoku.set_value(8, 7, 1).unwrap();
+        expected_sudoku.set_value(3, 8, 6).unwrap();
+        println!("expected_sudoku: \n{}", expected_sudoku);
+
+        assert!(parsed_sudoku.eq(&expected_sudoku));
     }
 
     #[test]
@@ -78,10 +77,10 @@ mod tests {
             let thread_n_finished = Arc::clone(&n_finished);
             let join_handle = std::thread::spawn(move || {
                 let mut sudoku_rule_usage: Vec<usize> = vec![0; Sudoku::RULES.len()];
-                while sudoku.get_error().is_none() && !sudoku.is_filled() {
+                loop {
                     match sudoku.rule_solve(None, None) {
                         Ok(None) => break,
-                        Ok(Some(rule_used)) => sudoku_rule_usage[rule_used as usize] += 1,
+                        Ok(Some(rule_used)) => sudoku_rule_usage[rule_used] += 1,
                         Err(err) => {
                             eprintln!("{}", err);
                             break;
@@ -167,12 +166,12 @@ mod tests {
             stdout().flush().unwrap();
 
             let mut randomized = original.clone();
-            randomized.randomize();
+            randomized.randomize().unwrap();
             print!(", randomized");
             stdout().flush().unwrap();
 
             let mut canonical = randomized.clone();
-            canonical.canonize();
+            canonical.canonize().unwrap();
             print!(", canonical");
             stdout().flush().unwrap();
 
@@ -186,7 +185,7 @@ mod tests {
     #[cfg(feature = "database")]
     fn to_from_db() {
         let canonical1 = Sudoku::generate_full(3);
-        let (db_canonical_sudoku, _db_canonical_squares) = canonical1.db_to_canonical();
+        let (db_canonical_sudoku, _db_canonical_squares) = canonical1.db_to_canonical().unwrap();
         let canonical2 = Sudoku::db_from_canonical(db_canonical_sudoku);
 
         if canonical1.ne(&canonical2) {
@@ -195,16 +194,16 @@ mod tests {
 
         for difficulty in SudokuDifficulty::iter() {
             let mut randomized1 = canonical1.clone();
-            randomized1.randomize();
+            randomized1.randomize().unwrap();
 
-            let game1 = randomized1.generate_from(difficulty);
-            let db_game = game1.db_to_randomized();
+            let game1 = randomized1.generate_from(difficulty).unwrap();
+            let db_game = game1.db_to_randomized().unwrap();
             let game2 = Sudoku::db_from_game(db_game);
             if game1.ne(&game2) {
                 panic!("randomized_to_db game PROBLEME");
             }
 
-            let db_randomized = randomized1.db_to_randomized();
+            let db_randomized = randomized1.db_to_randomized().unwrap();
             let randomized2 = Sudoku::db_from_game(db_randomized);
             if randomized1.ne(&randomized2) {
                 panic!("randomized_to_db PROBLEME");
@@ -267,15 +266,15 @@ mod tests {
             let join_handle = std::thread::spawn(move || {
                 let mut sudoku_rule_usage: Vec<(bool, u128)> =
                     vec![(false, 0); Sudoku::RULES.len()];
-                while sudoku.get_error().is_none() && !sudoku.is_filled() {
+                loop {
                     let start = std::time::Instant::now();
                     let rule_solve_result = sudoku.rule_solve(None, None);
                     let elapsed = start.elapsed().as_millis();
                     match rule_solve_result {
                         Ok(None) => break,
                         Ok(Some(rule_used)) => {
-                            sudoku_rule_usage[rule_used as usize].0 = true;
-                            sudoku_rule_usage[rule_used as usize].1 += elapsed;
+                            sudoku_rule_usage[rule_used].0 = true;
+                            sudoku_rule_usage[rule_used].1 += elapsed;
                         }
                         Err(_) => {
                             eprintln!("\nError: sudoku isn't valid: \n{sudoku_string}\n");

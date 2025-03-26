@@ -35,7 +35,7 @@ pub struct DBSimpleSudokuGame {
     pub game_n: u8,
     pub game_board: Vec<u8>,
     pub game_difficulty: u8,
-    pub game_filled_cells: u8,
+    pub game_filled_cells: u16,
 }
 
 #[derive(Insertable, Clone)]
@@ -46,7 +46,7 @@ pub struct DBNewSimpleSudokuGame {
     pub game_n: u8,
     pub game_board: Vec<u8>,
     pub game_difficulty: u8,
-    pub game_filled_cells: u8,
+    pub game_filled_cells: u16,
 }
 
 impl From<DBSimpleSudokuGame> for DBNewSimpleSudokuGame {
