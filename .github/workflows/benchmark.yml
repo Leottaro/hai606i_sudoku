@@ -1,0 +1,19 @@
+name: Frambouase Benchmark
+
+on:
+    push:
+        branches:
+            - "main"
+    workflow_dispatch:
+
+env:
+    CARGO_TERM_COLOR: always
+
+jobs:
+    build:
+        runs-on: self-hosted
+
+        steps:
+            - uses: actions/checkout@v4
+            - name: Build and Run
+              run: cargo run -r --bin generation_benchmark
