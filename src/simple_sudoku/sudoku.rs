@@ -117,6 +117,60 @@ impl Sudoku {
         Ok(())
     }
 
+    pub fn insert_possibility(
+        &mut self,
+        x: usize,
+        y: usize,
+        value: usize,
+    ) -> Result<bool, SudokuError> {
+        if value == 0 || value > self.n2 {
+            return Err(SudokuError::WrongInput(format!(
+                "set_value({x}, {y}, {value}); value should be in [1..{}]",
+                self.n2
+            )));
+        }
+        if self.is_canonical {
+            return Err(SudokuError::InvalidState(format!(
+                "remove_value({x}, {y}) when sudoku is canonical"
+            )));
+        }
+        if self.board[y][x] != 0 {
+            return Err(SudokuError::InvalidState(format!(
+                "remove_value({x}, {y}) when board[y][x] = {}",
+                self.board[y][x]
+            )));
+        }
+
+        Ok(self.possibility_board[y][x].insert(value))
+    }
+
+    pub fn remove_possibility(
+        &mut self,
+        x: usize,
+        y: usize,
+        value: usize,
+    ) -> Result<bool, SudokuError> {
+        if value == 0 || value > self.n2 {
+            return Err(SudokuError::WrongInput(format!(
+                "set_value({x}, {y}, {value}); value should be in [1..{}]",
+                self.n2
+            )));
+        }
+        if self.is_canonical {
+            return Err(SudokuError::InvalidState(format!(
+                "remove_value({x}, {y}) when sudoku is canonical"
+            )));
+        }
+        if self.board[y][x] != 0 {
+            return Err(SudokuError::InvalidState(format!(
+                "remove_value({x}, {y}) when board[y][x] = {}",
+                self.board[y][x]
+            )));
+        }
+
+        Ok(self.possibility_board[y][x].remove(&value))
+    }
+
     pub fn remove_value(&mut self, x: usize, y: usize) -> Result<usize, SudokuError> {
         if self.is_canonical {
             return Err(SudokuError::InvalidState(format!(
