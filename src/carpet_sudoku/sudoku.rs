@@ -7,10 +7,11 @@ use std::{
 
 use rand::{seq::SliceRandom, thread_rng, Rng};
 
-use crate::simple_sudoku::{Sudoku, SudokuDifficulty, SudokuError};
+use crate::simple_sudoku::{Sudoku, SudokuDifficulty, SudokuError, SudokuGroups};
 
 use super::{CarpetPattern, CarpetSudoku};
 
+type RawLink = ((usize, usize), (usize, usize));
 impl CarpetSudoku {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////   CREATION   /////////////////////////////////////////////////////////
@@ -18,7 +19,8 @@ impl CarpetSudoku {
 
     pub fn new(n: usize, pattern: CarpetPattern) -> Self {
         let (sudokus, links) = match pattern {
-            CarpetPattern::Double => Self::new_double(n),
+            CarpetPattern::Double => Self::new_diagonal(n, 2),
+            CarpetPattern::Diagonal(n_sudokus) => Self::new_diagonal(n, n_sudokus),
             CarpetPattern::Samurai => Self::new_samurai(n),
         };
 
@@ -46,16 +48,15 @@ impl CarpetSudoku {
         }
     }
 
-    fn new_double(n: usize) -> (Vec<Sudoku>, Vec<((usize, usize), (usize, usize))>) {
-        let sudokus = vec![
-            Sudoku::new(n), // bottom sudoku
-            Sudoku::new(n), // top sudoku
-        ];
-        let links = vec![((0, n - 1), (1, 2 * n))];
+    fn new_diagonal(n: usize, n_sudokus: usize) -> (Vec<Sudoku>, Vec<RawLink>) {
+        let sudokus = vec![Sudoku::new(n); n_sudokus];
+        let links = (1..n_sudokus)
+            .map(|i| ((i - 1, n - 1), (i, 2 * n)))
+            .collect();
         (sudokus, links)
     }
 
-    fn new_samurai(n: usize) -> (Vec<Sudoku>, Vec<((usize, usize), (usize, usize))>) {
+    fn new_samurai(n: usize) -> (Vec<Sudoku>, Vec<RawLink>) {
         let sudokus = vec![
             Sudoku::new(n), // center sudoku
             Sudoku::new(n), // top left sudoku
@@ -76,7 +77,7 @@ impl CarpetSudoku {
     ///////////////////////////////////////////////////////   MODIFICATION   ///////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    fn update_link(&mut self, intersect_possibilities: bool) -> Result<(), SudokuError> {
+    fn update_link(&mut self) -> Result<(), SudokuError> {
         for (&sudoku1, links) in self.links.iter() {
             for &(square1, sudoku2, square2) in links.iter() {
                 let y1 = (square1 / self.n) * self.n;
@@ -109,38 +110,16 @@ impl CarpetSudoku {
                             .clone();
 
                         for p in possibilities1.iter() {
-                            if !possibilities2.contains(p) {
-                                if intersect_possibilities {
-                                    self.sudokus[sudoku1].remove_possibility(
-                                        x1 + dx,
-                                        y1 + dy,
-                                        *p,
-                                    )?;
-                                } else {
-                                    self.sudokus[sudoku2].insert_possibility(
-                                        x2 + dx,
-                                        y2 + dy,
-                                        *p,
-                                    )?;
-                                }
+                            if possibilities2.contains(p) {
+                                continue;
                             }
+                            self.sudokus[sudoku1].remove_possibility(x1 + dx, y1 + dy, *p)?;
                         }
                         for p in possibilities2.iter() {
-                            if !possibilities1.contains(p) {
-                                if intersect_possibilities {
-                                    self.sudokus[sudoku2].remove_possibility(
-                                        x2 + dx,
-                                        y2 + dy,
-                                        *p,
-                                    )?;
-                                } else {
-                                    self.sudokus[sudoku1].insert_possibility(
-                                        x1 + dx,
-                                        y1 + dy,
-                                        *p,
-                                    )?;
-                                }
+                            if possibilities1.contains(p) {
+                                continue;
                             }
+                            self.sudokus[sudoku2].remove_possibility(x2 + dx, y2 + dy, *p)?;
                         }
                     }
                 }
@@ -158,7 +137,7 @@ impl CarpetSudoku {
     ) -> Result<(), SudokuError> {
         self.filled_cells += 1;
         self.sudokus[sudoku_id].set_value(x, y, value)?;
-        self.update_link(true)
+        self.update_link()
     }
 
     pub fn remove_value(
@@ -173,19 +152,58 @@ impl CarpetSudoku {
         let x0 = (x / self.n) * self.n;
         let y0 = (y / self.n) * self.n;
         let square_id = y0 * self.n + x0 / self.n;
+        let value = self.sudokus[sudoku_id].remove_value(x, y)?;
+        let mut is_in_link = false;
 
-        let value = self.sudokus[sudoku_id].remove_value(x, y);
         for &(square1, sudoku2, square2) in self.links.get(&sudoku_id).unwrap() {
             if square_id != square1 {
                 continue;
             }
+            is_in_link = true;
 
             let y2 = (square2 / self.n) * self.n;
             let x2 = (square2 % self.n) * self.n;
             let _ = self.sudokus[sudoku2].remove_value(x2 + dx, y2 + dy);
         }
-        self.update_link(false)?;
-        value
+
+        if is_in_link {
+            self.update_link()?;
+            return Ok(value);
+        }
+
+        let modified_posibilities = self.sudokus[sudoku_id].get_cell_group(x, y, SudokuGroups::All);
+        for (x, y) in modified_posibilities {
+            let dx = x % self.n;
+            let dy = y % self.n;
+            let x0 = (x / self.n) * self.n;
+            let y0 = (y / self.n) * self.n;
+            let square_id = y0 * self.n + x0 / self.n;
+
+            for &(square1, sudoku2, square2) in self.links.get(&sudoku_id).unwrap() {
+                if square_id != square1 {
+                    continue;
+                }
+
+                let y2 = (square2 / self.n) * self.n + dx;
+                let x2 = (square2 % self.n) * self.n + dy;
+                let mut can_insert_value = true;
+
+                for (x3, y3) in self.sudokus[sudoku2].get_cell_group(x2, y2, SudokuGroups::All) {
+                    if self.sudokus[sudoku2].get_cell_value(x3, y3) == value {
+                        can_insert_value = false;
+                        break;
+                    }
+                }
+
+                if can_insert_value {
+                    self.sudokus[sudoku2]
+                        .get_cell_possibilities_mut(x2, y2)
+                        .insert(value);
+                }
+            }
+        }
+
+        Ok(value)
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -194,12 +212,12 @@ impl CarpetSudoku {
 
     pub fn rule_solve(
         &mut self,
-        aimed_difficulty: Option<SudokuDifficulty>,
+        max_difficulty: Option<SudokuDifficulty>,
     ) -> Result<(bool, bool), SudokuError> {
         let mut modified_possibility = false;
         let mut modified_value = false;
         for sudoku in self.sudokus.iter_mut() {
-            match sudoku.rule_solve(None, aimed_difficulty) {
+            match sudoku.rule_solve(None, max_difficulty) {
                 Ok(Some(1 | 2)) => {
                     modified_value = true;
                     modified_possibility = true;
@@ -209,7 +227,7 @@ impl CarpetSudoku {
             }
             self.difficulty = self.difficulty.max(sudoku.get_difficulty());
         }
-        self.update_link(true)?;
+        self.update_link()?;
         Ok((modified_possibility, modified_value))
     }
 
@@ -220,6 +238,7 @@ impl CarpetSudoku {
     }
 
     pub fn backtrack_solve(&mut self, mut sudoku_id: usize, mut x: usize, mut y: usize) -> bool {
+        // println!("{self}");
         loop {
             if sudoku_id == self.sudokus.len() - 1 && y == self.n2 - 1 && x == self.n2 {
                 return true;
@@ -274,7 +293,7 @@ impl CarpetSudoku {
         let n2 = self.n2;
         let n_sudokus = self.sudokus.len();
 
-        let (tx, rx) = mpsc::channel();
+        let (tx, rx) = mpsc::channel::<Self>();
         type SudokuFilledCells = (CarpetSudoku, Vec<bool>);
 
         loop {
@@ -305,7 +324,7 @@ impl CarpetSudoku {
                 let thread_total = Arc::clone(&total);
                 let thread_skipped = Arc::clone(&skipped);
                 let thread_tx = tx.clone();
-                let (main_tx, thread_rx) = mpsc::channel();
+                let (main_tx, thread_rx) = mpsc::channel::<()>();
 
                 let join_handle = std::thread::spawn(move || {
                     let mut rng = rand::thread_rng();
@@ -350,10 +369,10 @@ impl CarpetSudoku {
                             let cell_i = i - sudoku_id * n2 * n2;
                             let y = cell_i / n2;
                             let x = cell_i % n2;
-                            let mut testing_sudoku = carpet.clone();
-                            testing_sudoku.difficulty = SudokuDifficulty::Unknown;
+                            let mut testing_carpet = carpet.clone();
+                            testing_carpet.difficulty = SudokuDifficulty::Unknown;
                             let removed_value =
-                                testing_sudoku.remove_value(sudoku_id, x, y).unwrap();
+                                testing_carpet.remove_value(sudoku_id, x, y).unwrap();
 
                             if thread_explored_filled_cells
                                 .lock()
@@ -375,9 +394,9 @@ impl CarpetSudoku {
 
                             let mut can_solve: bool = false;
                             loop {
-                                match testing_sudoku.rule_solve(Some(aimed_difficulty)) {
+                                match testing_carpet.rule_solve(Some(aimed_difficulty)) {
                                     Ok((_, true)) => {
-                                        if testing_sudoku.sudokus[sudoku_id].get_cell_value(x, y)
+                                        if testing_carpet.sudokus[sudoku_id].get_cell_value(x, y)
                                             == removed_value
                                         {
                                             can_solve = true;
@@ -391,7 +410,7 @@ impl CarpetSudoku {
                                                     let cell_i = i - sudoku_id * n2 * n2;
                                                     let y = cell_i / n2;
                                                     let x = cell_i % n2;
-                                                    testing_sudoku.sudokus[sudoku_id]
+                                                    testing_carpet.sudokus[sudoku_id]
                                                         .get_cell_value(x, y)
                                                         .ne(&0)
                                                 })
@@ -424,7 +443,7 @@ impl CarpetSudoku {
                                 continue;
                             }
 
-                            if testing_sudoku.filled_cells < n_sudokus * (n2 * 2 - 1) {
+                            if testing_carpet.filled_cells < n_sudokus * (n2 * 2 - 1) {
                                 thread_explored_filled_cells
                                     .lock()
                                     .unwrap()
@@ -433,7 +452,7 @@ impl CarpetSudoku {
                                 // EXPLORATION EN PROFONDEUR
                                 let mut passed_sudoku = carpet.clone();
                                 passed_sudoku.remove_value(sudoku_id, x, y).unwrap();
-                                passed_sudoku.difficulty = testing_sudoku.difficulty;
+                                passed_sudoku.difficulty = testing_carpet.difficulty;
 
                                 let mut passed_filled_cells = filled_cells.clone();
                                 passed_filled_cells[i] = false;
@@ -450,7 +469,7 @@ impl CarpetSudoku {
                         if working_sub_sudokus == 0 && carpet.difficulty == aimed_difficulty {
                             carpet.difficulty = SudokuDifficulty::Unknown;
                             let _ = thread_tx.send(carpet);
-                            return;
+                            break;
                         }
 
                         thread_explored_filled_cells

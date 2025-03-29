@@ -6,7 +6,7 @@ use hai606i_sudoku::{
 };
 
 fn main() {
-    let original_carpet = CarpetSudoku::new(3, CarpetPattern::Double);
+    let original_carpet = CarpetSudoku::generate_full(3, CarpetPattern::Double);
     let generated_carpet = original_carpet.generate_from(SudokuDifficulty::Easy);
     println!("{generated_carpet}");
 }

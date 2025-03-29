@@ -11,11 +11,12 @@ pub struct CarpetSudoku {
     n2: usize,
     sudokus: Vec<Sudoku>,
     links: HashMap<usize, Vec<(usize, usize, usize)>>,
-	filled_cells: usize,
+    filled_cells: usize,
     difficulty: SudokuDifficulty,
 }
 
 pub enum CarpetPattern {
     Double,
+    Diagonal(usize),
     Samurai,
 }
