@@ -73,6 +73,12 @@ impl CarpetSudoku {
         (sudokus, links)
     }
 
+    pub fn generate_full(n: usize, pattern: CarpetPattern) -> Self {
+        let mut carpet = Self::new(n, pattern);
+        carpet.backtrack_solve(1, 0, 0);
+        carpet
+    }
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////   MODIFICATION   ///////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -229,12 +235,6 @@ impl CarpetSudoku {
         }
         self.update_link()?;
         Ok((modified_possibility, modified_value))
-    }
-
-    pub fn generate_full(n: usize, pattern: CarpetPattern) -> Self {
-        let mut carpet = Self::new(n, pattern);
-        carpet.backtrack_solve(0, 0, 0);
-        carpet
     }
 
     pub fn backtrack_solve(&mut self, mut sudoku_id: usize, mut x: usize, mut y: usize) -> bool {

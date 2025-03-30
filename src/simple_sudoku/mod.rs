@@ -91,7 +91,7 @@ impl SudokuDifficulty {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum SudokuError {
-    CanonizationMismatch(Sudoku, u64),
+    CanonizationMismatch(Box<Sudoku>, u64),
     InvalidState(String),
     NoPossibilityCell(Coords),
     ParseString((String, String)),
@@ -143,15 +143,15 @@ type CellGroupMap = HashMap<(Coords, SudokuGroups), HashSet<Coords>>;
 pub struct Sudoku {
     n: usize,
     n2: usize,
-
     board: Vec<Vec<usize>>,
     possibility_board: Vec<Vec<HashSet<usize>>>,
     filled_cells: usize,
-
     difficulty: SudokuDifficulty,
 
     is_canonical: bool,
     canonical_board_hash: u64,
+    values_swap: HashMap<usize, (usize, usize)>, // 1 -> (2, 3) exprime les règles 1 donne 2 et 3 donne 1
+    rows_swap: HashMap<usize, (usize, usize)>,
 }
 
 pub type ButtonFunction = Rc<Box<dyn Fn(&mut SudokuDisplay)>>;

@@ -166,7 +166,7 @@ mod tests {
             stdout().flush().unwrap();
 
             let mut randomized = original.clone();
-            randomized.randomize().unwrap();
+            randomized.randomize(None, None).unwrap();
             print!(", randomized");
             stdout().flush().unwrap();
 
@@ -194,7 +194,7 @@ mod tests {
 
         for difficulty in SudokuDifficulty::iter() {
             let mut randomized1 = canonical1.clone();
-            randomized1.randomize().unwrap();
+            randomized1.randomize(None, None).unwrap();
 
             let game1 = randomized1.generate_from(difficulty).unwrap();
             let db_game = game1.db_to_randomized().unwrap();
