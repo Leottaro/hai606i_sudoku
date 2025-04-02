@@ -663,12 +663,13 @@ impl SudokuDisplay {
         }
     }
 
-    async fn draw_diag_sudoku(&mut self, font: Font, taille: usize){
+    async fn draw_diag_sudoku(&mut self, font: Font, taille: usize) {
         let n = self.sudoku.get_n();
         let n2 = self.sudoku.get_n2();
-        for i in 0..taille{
+        for i in 0..taille {
             let x1 = i * (n2 - n);
             let y1 = (taille - i - 1) * (n2 - n);
+            self.draw_simple_sudoku(font.clone(), x1, y1).await;
             self.draw_simple_sudoku(font.clone(), x1, y1).await;
         }
     }
@@ -690,7 +691,9 @@ impl SudokuDisplay {
 
         self.grid_size = 900.0 * self.scale_factor;
         //self.pixel_per_cell = self.grid_size / self.sudoku.get_n2() as f32;
-        self.pixel_per_cell = self.grid_size / (((self.sudoku.get_n2() - self.sudoku.get_n()) as f32) * 3.0 + self.sudoku.get_n() as f32);
+        self.pixel_per_cell = self.grid_size
+            / (((self.sudoku.get_n2() - self.sudoku.get_n()) as f32) * 3.0
+                + self.sudoku.get_n() as f32);
         self.x_offset = 250.0 * self.scale_factor;
         self.y_offset = 150.0 * self.scale_factor;
     }
@@ -745,6 +748,15 @@ impl SudokuDisplay {
         }
     }
 
+    pub fn diag_click(&mut self, taille: usize, x: usize, y: usize) {
+        if self.selected_cell.is_some() && self.selected_cell.unwrap() == (x, y) {
+            self.selected_cell = None;
+        }
+        else{
+            self.selected_cell = Some((0,0));
+        }
+    }
+
     pub async fn run(&mut self, font: Font) {
         self.update_scale();
         self.update_selected_buttons();
@@ -795,11 +807,12 @@ impl SudokuDisplay {
             && sudoku_y > 0.0
         {
             if is_mouse_button_pressed(MouseButton::Left) {
-                if self.selected_cell.is_some() && self.selected_cell.unwrap() == (x, y) {
-                    self.selected_cell = None;
-                } else {
-                    self.selected_cell = Some((x, y));
-                }
+                self.diag_click(3, x, y);
+                // if self.selected_cell.is_some() && self.selected_cell.unwrap() == (x, y) {
+                //     self.selected_cell = None;
+                // } else {
+                //     self.selected_cell = Some((x, y));
+                // }
             }
             self.draw_cell((x, y), Color::from_hex(0xf1f5f9));
         }
@@ -870,39 +883,6 @@ impl SudokuDisplay {
                 Some(KeyCode::Right) => {
                     selected_cell.0 = (selected_cell.0 + 1) % self.sudoku.get_n2();
                 }
-                Some(KeyCode::N) => {
-                    if let Some(action) = self.actions_boutons.get("Note").cloned() {
-                        action(self);
-                    }
-                }
-                Some(KeyCode::F) => {
-                    if let Some(action) = self.actions_boutons.get("Fill Notes").cloned() {
-                        action(self);
-                    }
-                }
-                Some(KeyCode::U) => {
-                    if let Some(action) = self.actions_boutons.get("Undo").cloned() {
-                        action(self);
-                    }
-                }
-                Some(KeyCode::Escape) => {
-                    self.selected_cell = None;
-                }
-                Some(KeyCode::A) => {
-                    if let Some(action) = self.actions_boutons.get("Analyse").cloned() {
-                        action(self);
-                    }
-                }
-                Some(KeyCode::P) => {
-                    if let Some(action) = self.actions_boutons.get("Play").cloned() {
-                        action(self);
-                    }
-                }
-                Some(KeyCode::S) => {
-                    if let Some(action) = self.actions_boutons.get("Solve").cloned() {
-                        action(self);
-                    }
-                }
                 Some(KeyCode::Kp1) => {
                     if let Some(action) = self.actions_boutons.get("1").cloned() {
                         action(self);
@@ -950,6 +930,42 @@ impl SudokuDisplay {
                 }
                 _ => (),
             }
+        }
+        match get_last_key_pressed(){
+            Some(KeyCode::N) => {
+                if let Some(action) = self.actions_boutons.get("Note").cloned() {
+                    action(self);
+                }
+            }
+            Some(KeyCode::F) => {
+                if let Some(action) = self.actions_boutons.get("Fill Notes").cloned() {
+                    action(self);
+                }
+            }
+            Some(KeyCode::U) => {
+                if let Some(action) = self.actions_boutons.get("Undo").cloned() {
+                    action(self);
+                }
+            }
+            Some(KeyCode::Escape) => {
+                self.selected_cell = None;
+            }
+            Some(KeyCode::A) => {
+                if let Some(action) = self.actions_boutons.get("Analyse").cloned() {
+                    action(self);
+                }
+            }
+            Some(KeyCode::P) => {
+                if let Some(action) = self.actions_boutons.get("Play").cloned() {
+                    action(self);
+                }
+            }
+            Some(KeyCode::S) => {
+                if let Some(action) = self.actions_boutons.get("Solve").cloned() {
+                    action(self);
+                }
+            }
+            _ => (),
         }
     }
 }
