@@ -144,6 +144,10 @@ impl CarpetSudoku {
                             }
                         }
 
+                        if value1 != 0 || value2 != 0 {
+                            continue;
+                        }
+
                         let possibilities1 = self.sudokus[sudoku1]
                             .get_cell_possibilities(x1 + dx, y1 + dy)
                             .clone();
@@ -682,9 +686,9 @@ impl PartialEq for CarpetSudoku {
             return false;
         }
 
-        // if self.difficulty != other.difficulty { // TODO:
-        //     return false;
-        // }
+        if self.difficulty != other.difficulty {
+            return false;
+        }
 
         for (sudoku_id, sudoku1) in self.sudokus.iter().enumerate() {
             let sudoku2 = other.sudokus.get(sudoku_id).unwrap();
