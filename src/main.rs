@@ -1,50 +1,16 @@
 #![allow(dead_code)] // no warning due to unused code
 
-#[cfg(feature = "database")]
-use std::{
-    sync::mpsc,
-    thread::{self, sleep},
-    time::Duration,
+use hai606i_sudoku::{
+    carpet_sudoku::{ CarpetPattern, CarpetSudoku },
+    simple_sudoku::SudokuDifficulty,
 };
 
-#[cfg(feature = "database")]
-use hai606i_sudoku::database::Database;
-
-use hai606i_sudoku::simple_sudoku::{Sudoku, SudokuDisplay};
-use macroquad::prelude::*;
-
-fn window_conf() -> Conf {
-    Conf {
-        window_title: "Sudoku".to_owned(),
-        window_width: 1920,
-        window_height: 1080,
-        ..Default::default()
-    }
-}
-
-#[macroquad::main(window_conf)]
-async fn main() {
-    // env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
-    let font = load_ttf_font("./res/font/RobotoMono-Thin.ttf")
-        .await
-        .unwrap();
-
-    let mut sudoku_display = SudokuDisplay::new(Sudoku::new(3), font.clone()).await;
-
-    #[cfg(feature = "database")]
-    let (tx, rx) = mpsc::channel::<Option<Database>>();
-    #[cfg(feature = "database")]
-    thread::spawn(move || loop {
-        let _ = tx.send(Database::connect());
-        sleep(Duration::from_secs(5));
-    });
-
+fn main() {
+    let mut count = 0;
     loop {
-        #[cfg(feature = "database")]
-        if let Ok(db) = rx.try_recv() {
-            sudoku_display.set_db(db);
-        }
-        sudoku_display.run(font.clone()).await;
-        next_frame().await;
+        count += 1;
+        println!("count: {count}{}", " ".repeat(50));
+        CarpetSudoku::generate_new(3, CarpetPattern::Double, SudokuDifficulty::Extreme);
+        // Sudoku::generate_new(3, SudokuDifficulty::Medium);
     }
 }

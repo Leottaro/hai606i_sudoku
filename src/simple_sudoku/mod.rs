@@ -1,9 +1,6 @@
 pub type Coords = (usize, usize);
 
-use std::{
-    collections::{HashMap, HashSet},
-    rc::Rc,
-};
+use std::{ collections::{ HashMap, HashSet }, rc::Rc };
 
 use macroquad::texture::Texture2D;
 
@@ -70,9 +67,8 @@ impl SudokuDifficulty {
             SudokuDifficulty::Medium,
             SudokuDifficulty::Hard,
             SudokuDifficulty::Master,
-            SudokuDifficulty::Extreme,
-        ]
-        .into_iter()
+            SudokuDifficulty::Extreme
+        ].into_iter()
     }
 
     pub fn from(n: u8) -> Self {
@@ -84,6 +80,28 @@ impl SudokuDifficulty {
             5 => SudokuDifficulty::Extreme,
             254 => SudokuDifficulty::Useless,
             255 => SudokuDifficulty::Unimplemented,
+            _ => SudokuDifficulty::Unknown,
+        }
+    }
+
+    pub fn prev(&self) -> Self {
+        match self {
+            SudokuDifficulty::Medium => SudokuDifficulty::Easy,
+            SudokuDifficulty::Hard => SudokuDifficulty::Medium,
+            SudokuDifficulty::Master => SudokuDifficulty::Hard,
+            SudokuDifficulty::Extreme => SudokuDifficulty::Master,
+
+            _ => SudokuDifficulty::Unknown,
+        }
+    }
+
+    pub fn next(&self) -> Self {
+        match self {
+            SudokuDifficulty::Easy => SudokuDifficulty::Medium,
+            SudokuDifficulty::Medium => SudokuDifficulty::Hard,
+            SudokuDifficulty::Hard => SudokuDifficulty::Master,
+            SudokuDifficulty::Master => SudokuDifficulty::Extreme,
+
             _ => SudokuDifficulty::Unknown,
         }
     }
@@ -105,7 +123,12 @@ impl std::fmt::Display for SudokuError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SudokuError::CanonizationMismatch(sudoku, board_hash) => {
-                write!(f, "SudokuError: Canonization mismatch this sudoku \n{sudoku}\nExpected board hash {}, got {}", sudoku.canonical_board_hash, board_hash)
+                write!(
+                    f,
+                    "SudokuError: Canonization mismatch this sudoku \n{sudoku}\nExpected board hash {}, got {}",
+                    sudoku.canonical_board_hash,
+                    board_hash
+                )
             }
             SudokuError::InvalidState(string) => {
                 write!(f, "SudokuError: Invalid sudoku state for {string}")
@@ -120,10 +143,7 @@ impl std::fmt::Display for SudokuError {
                 write!(f, "SudokuError: couldn't open file {file_path}: {error}")
             }
             SudokuError::SameValueCells(((x1, y1), (x2, y2))) => {
-                write!(
-                    f,
-                    "SudokuError: Cells at ({x1},{y1}) and ({x2},{y2}) have the same value"
-                )
+                write!(f, "SudokuError: Cells at ({x1},{y1}) and ({x2},{y2}) have the same value")
             }
             SudokuError::WrongFunction(string) => {
                 write!(f, "SudokuError: Wrong function for {string}")
