@@ -33,5 +33,5 @@ diesel::joinable!(simple_sudoku_games -> simple_sudoku_canonical (game_canonical
 diesel::allow_tables_to_appear_in_same_query!(
     simple_sudoku_canonical,
     simple_sudoku_canonical_squares,
-    simple_sudoku_games,
+    simple_sudoku_games
 );

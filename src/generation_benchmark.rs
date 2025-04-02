@@ -1,4 +1,4 @@
-use hai606i_sudoku::simple_sudoku::{Sudoku, SudokuDifficulty};
+use hai606i_sudoku::simple_sudoku::{ Sudoku, SudokuDifficulty };
 
 fn main() {
     let mut time_samples = SudokuDifficulty::iter()
@@ -13,12 +13,16 @@ fn main() {
             let min = samples.first().unwrap_or(&0);
             let max = samples.last().unwrap_or(&0);
 
-            let average = samples.iter().sum::<u128>() as f32 / iterations as f32;
+            let average = (samples.iter().sum::<u128>() as f32) / (iterations as f32);
             let median = samples.get(samples.len() / 2).unwrap_or(&0);
 
             println!(
                 "Difficulty {}:\n\tmin: {}ms\n\tmax: {}ms\n\taverage {:.2} ms\n\tmedian: {}ms",
-                difficulty, min, max, average, median
+                difficulty,
+                min,
+                max,
+                average,
+                median
             );
         }
     };

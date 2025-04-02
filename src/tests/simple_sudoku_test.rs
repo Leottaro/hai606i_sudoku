@@ -1,11 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use std::{
-        io::{stdout, BufRead, Write},
-        sync::{Arc, Mutex},
-    };
+    use std::{ io::{ stdout, BufRead, Write }, sync::{ Arc, Mutex } };
 
-    use crate::simple_sudoku::{Sudoku, SudokuDifficulty};
+    use crate::simple_sudoku::{ Sudoku, SudokuDifficulty };
 
     #[test]
     fn test_parse_file() {
@@ -47,13 +44,7 @@ mod tests {
         println!("collecting sudokus");
         let sudokus: Vec<String> = files
             .map(|file| {
-                file.unwrap()
-                    .path()
-                    .file_name()
-                    .unwrap()
-                    .to_os_string()
-                    .into_string()
-                    .unwrap()
+                file.unwrap().path().file_name().unwrap().to_os_string().into_string().unwrap()
             })
             .take(1000)
             .collect();
@@ -79,8 +70,12 @@ mod tests {
                 let mut sudoku_rule_usage: Vec<usize> = vec![0; Sudoku::RULES.len()];
                 loop {
                     match sudoku.rule_solve(None, None) {
-                        Ok(None) => break,
-                        Ok(Some(rule_used)) => sudoku_rule_usage[rule_used] += 1,
+                        Ok(None) => {
+                            break;
+                        }
+                        Ok(Some(rule_used)) => {
+                            sudoku_rule_usage[rule_used] += 1;
+                        }
                         Err(err) => {
                             eprintln!("{}", err);
                             break;
@@ -98,14 +93,9 @@ mod tests {
                     } else {
                         "unsolved"
                     },
-                    n_finished,
+                    n_finished
                 );
-                (
-                    file_name,
-                    sudoku.is_filled(),
-                    sudoku.get_difficulty(),
-                    sudoku_rule_usage,
-                )
+                (file_name, sudoku.is_filled(), sudoku.get_difficulty(), sudoku_rule_usage)
             });
 
             join_handles.push(join_handle);
@@ -176,7 +166,9 @@ mod tests {
             stdout().flush().unwrap();
 
             if canonical.ne(&original) {
-                panic!("PROBLEEEEME: \nORIGINAL:\n{original}\nRANDOMIZED:\n{randomized}\nNORMALIZED:\n{canonical}");
+                panic!(
+                    "PROBLEEEEME: \nORIGINAL:\n{original}\nRANDOMIZED:\n{randomized}\nNORMALIZED:\n{canonical}"
+                );
             }
         }
     }
@@ -216,7 +208,9 @@ mod tests {
     fn rule_analyse() {
         let sudoku_data = std::fs::File::open("res/sudoku_cluewise.csv");
         if sudoku_data.is_err() {
-            println!("\n\n#################### MESSAGE DE LEO ####################\nres/sudoku_cluewise.csv not found ! Try executing: \ncurl -L -o res/sudoku_cluewise.zip https://www.kaggle.com/api/v1/datasets/download/informoney/4-million-sudoku-puzzles-easytohard && unzip res/sudoku_data.zip -d res\n#################### MESSAGE DE LEO ####################\n\n");
+            println!(
+                "\n\n#################### MESSAGE DE LEO ####################\nres/sudoku_cluewise.csv not found ! Try executing: \ncurl -L -o res/sudoku_cluewise.zip https://www.kaggle.com/api/v1/datasets/download/informoney/4-million-sudoku-puzzles-easytohard && unzip res/sudoku_data.zip -d res\n#################### MESSAGE DE LEO ####################\n\n"
+            );
             panic!();
         }
         let sudoku_data = sudoku_data.unwrap();
@@ -237,7 +231,11 @@ mod tests {
             if len == 0 {
                 break;
             }
-            let zeros = line.chars().take(81).filter(|char| char.eq(&'0')).count();
+            let zeros = line
+                .chars()
+                .take(81)
+                .filter(|char| char.eq(&'0'))
+                .count();
             if total_zeroes[zeros] >= max_sudoku_per_zeros {
                 line.clear();
                 continue;
@@ -247,8 +245,7 @@ mod tests {
 
             let sudoku_string = line
                 .split_at(81)
-                .0
-                .chars()
+                .0.chars()
                 .enumerate()
                 .flat_map(|(index, char)| {
                     if index % 9 == 0 {
@@ -264,14 +261,17 @@ mod tests {
             let thread_n_finished = Arc::clone(&n_finished);
 
             let join_handle = std::thread::spawn(move || {
-                let mut sudoku_rule_usage: Vec<(bool, u128)> =
-                    vec![(false, 0); Sudoku::RULES.len()];
+                let mut sudoku_rule_usage: Vec<
+                    (bool, u128)
+                > = vec![(false, 0); Sudoku::RULES.len()];
                 loop {
                     let start = std::time::Instant::now();
                     let rule_solve_result = sudoku.rule_solve(None, None);
                     let elapsed = start.elapsed().as_millis();
                     match rule_solve_result {
-                        Ok(None) => break,
+                        Ok(None) => {
+                            break;
+                        }
                         Ok(Some(rule_used)) => {
                             sudoku_rule_usage[rule_used].0 = true;
                             sudoku_rule_usage[rule_used].1 += elapsed;
@@ -285,15 +285,11 @@ mod tests {
                 let mut n_finished = thread_n_finished.lock().unwrap();
                 *n_finished += 1;
 
-                print!(
-                    "{} sudoku • {}\r",
-                    n_finished,
-                    if sudoku.is_filled() {
-                        "solved"
-                    } else {
-                        "unsolved"
-                    },
-                );
+                print!("{} sudoku • {}\r", n_finished, if sudoku.is_filled() {
+                    "solved"
+                } else {
+                    "unsolved"
+                });
                 (sudoku.is_filled(), sudoku_rule_usage)
             });
 
@@ -301,7 +297,7 @@ mod tests {
             line.clear();
         }
 
-        println!("\nwaiting for threads",);
+        println!("\nwaiting for threads");
 
         let mut sudoku_solved: usize = 0;
         let mut sudoku_total: usize = 0;
@@ -325,18 +321,20 @@ mod tests {
         let mut sudoku_rules_info: Vec<_> = sudoku_rules_info.into_iter().enumerate().collect();
         sudoku_rules_info.sort_by(|(_, (usage1, _)), (_, (usage2, _))| usage2.cmp(usage1));
 
-        let trailing_zeroes = sudoku_rules_info[0].1 .0.to_string().len() + 1;
+        let trailing_zeroes = sudoku_rules_info[0].1.0.to_string().len() + 1;
 
         println!(
             "rules info: \n{}",
             sudoku_rules_info
                 .into_iter()
-                .map(|(rule_id, (n, time))| format!(
-                    "rule {:2}: used {:0>trailing_zeroes$} times ({:.3}ms avg)",
-                    rule_id,
-                    n,
-                    time as f64 / n as f64
-                ))
+                .map(|(rule_id, (n, time))|
+                    format!(
+                        "rule {:2}: used {:0>trailing_zeroes$} times ({:.3}ms avg)",
+                        rule_id,
+                        n,
+                        (time as f64) / (n as f64)
+                    )
+                )
                 .collect::<Vec<String>>()
                 .join("\n")
         );
@@ -345,7 +343,7 @@ mod tests {
             "\n{}/{} = {:.3}% sudoku solved",
             sudoku_solved,
             sudoku_total,
-            100. * sudoku_solved as f64 / sudoku_total as f64
+            (100.0 * (sudoku_solved as f64)) / (sudoku_total as f64)
         );
     }
 
@@ -364,12 +362,16 @@ mod tests {
                 let min = samples.first().unwrap_or(&0);
                 let max = samples.last().unwrap_or(&0);
 
-                let average = samples.iter().sum::<u128>() as f32 / iterations as f32;
+                let average = (samples.iter().sum::<u128>() as f32) / (iterations as f32);
                 let median = samples.get(samples.len() / 2).unwrap_or(&0);
 
                 println!(
                     "Difficulty {}:\n\tmin: {}ms\n\tmax: {}ms\n\taverage {:.2} ms\n\tmedian: {}ms",
-                    difficulty, min, max, average, median
+                    difficulty,
+                    min,
+                    max,
+                    average,
+                    median
                 );
             }
         };

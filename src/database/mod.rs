@@ -1,5 +1,5 @@
 use diesel::MysqlConnection;
-use schema::{simple_sudoku_canonical, simple_sudoku_canonical_squares, simple_sudoku_games};
+use schema::{ simple_sudoku_canonical, simple_sudoku_canonical_squares, simple_sudoku_games };
 
 pub mod db;
 pub mod schema;
