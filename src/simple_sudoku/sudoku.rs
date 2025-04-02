@@ -44,6 +44,10 @@ impl Sudoku {
         &self.possibility_board
     }
 
+    pub fn get_filled_cells(&self) -> usize {
+        self.filled_cells
+    }
+
     pub fn get_difficulty(&self) -> SudokuDifficulty {
         self.difficulty
     }
@@ -109,15 +113,16 @@ impl Sudoku {
         self.filled_cells += 1;
         self.board[y][x] = value;
         self.possibility_board[y][x].clear();
+        let mut res = Ok(());
         for (x1, y1) in self.get_cell_group(x, y, All) {
             self.possibility_board[y1][x1].remove(&value);
             if self.board[y1][x1] == value && (x, y) != (x1, y1) {
-                return Err(SudokuError::SameValueCells(((x, y), (x1, y1))));
+                res = Err(SudokuError::SameValueCells(((x, y), (x1, y1))));
             } else if self.board[y1][x1] == 0 && self.possibility_board[y1][x1].is_empty() {
-                return Err(SudokuError::NoPossibilityCell((x1, y1)));
+                res = Err(SudokuError::NoPossibilityCell((x1, y1)));
             }
         }
-        Ok(())
+        res
     }
 
     pub fn insert_possibility(
@@ -150,13 +155,13 @@ impl Sudoku {
     ) -> Result<bool, SudokuError> {
         if value == 0 || value > self.n2 {
             return Err(SudokuError::WrongInput(format!(
-                "set_value({x}, {y}, {value}); value should be in [1..{}]",
+                "remove_possibility({x}, {y}, {value}); value should be in [1..{}]",
                 self.n2
             )));
         }
         if self.board[y][x] != 0 {
             return Err(SudokuError::InvalidState(format!(
-                "remove_value({x}, {y}) when board[y][x] = {}",
+                "remove_possibility({x}, {y}, {value}) when board[y][x] = {}",
                 self.board[y][x]
             )));
         }
@@ -805,7 +810,7 @@ impl Sudoku {
         // try the rules and set the difficulty in consequence
         for &&(rule_id, difficulty, rule) in rules.iter() {
             // if the rule can't be applied, then pass to the next one
-            if !rule(self) {
+            if !rule(self).unwrap_or(false) {
                 continue;
             }
 
@@ -925,6 +930,86 @@ impl Sudoku {
             self.remove_value(x, y).unwrap();
         }
         self.possibility_board[y][x] = possible_values;
+    }
+
+    pub fn to_string_lines(&self) -> Vec<String> {
+        let mut lines: Vec<String> = Vec::new();
+        if self.is_canonical {
+            lines.push(format!(
+                "CANONICAL, difficulty:{}, filled_cells:{}, canonical_board_hash:{}",
+                self.difficulty, self.filled_cells, self.canonical_board_hash
+            ));
+        } else {
+            lines.push(format!(
+				"RANDOMIZED, difficulty:{}, filled_cells:{}, canonical_board_hash:{}, values_swap:{:?}, rows_swap:{:?}",
+				self.difficulty,
+				self.filled_cells,
+				self.canonical_board_hash,
+				self.values_swap,self.rows_swap
+			));
+        }
+
+        for y in 0..self.n2 {
+            if y != 0 && y % self.n == 0 {
+                let temp = "━".repeat(2 * self.n2 + 4 * self.n + 1);
+                lines.push(format!("━{}", vec![temp; self.n].join("╋")));
+            }
+            let mut this_row_lines: Vec<String> = vec![" ".to_string(); self.n];
+            for x in 0..self.n2 {
+                if x != 0 && x % self.n == 0 {
+                    for line in this_row_lines.iter_mut() {
+                        line.push_str(" ┃");
+                    }
+                }
+                if self.board[y][x] != 0 {
+                    for (i, line) in this_row_lines.iter_mut().enumerate() {
+                        if i == self.n / 2 {
+                            line.push_str(&format!(
+                                " {}{}{}",
+                                " ".repeat(self.n + 1),
+                                BASE_64[self.board[y][x]],
+                                " ".repeat(self.n + 1)
+                            ));
+                        } else {
+                            line.push_str(&" ".repeat(2 * (self.n + 2)));
+                        }
+                    }
+                    continue;
+                }
+
+                this_row_lines.get_mut(0).unwrap().push_str(" ⎧");
+                for line in this_row_lines.iter_mut().skip(1).take(self.n - 2) {
+                    line.push_str(" ⎪");
+                }
+                this_row_lines.get_mut(self.n - 1).unwrap().push_str(" ⎩");
+
+                for i in 0..self.n {
+                    for j in 0..self.n {
+                        let value = i * self.n + j + 1;
+                        let displayed_char = if self.possibility_board[y][x].contains(&value) {
+                            BASE_64[value]
+                        } else {
+                            '·'
+                        };
+                        this_row_lines
+                            .get_mut(i)
+                            .unwrap()
+                            .push_str(&format!(" {displayed_char}"));
+                    }
+                }
+
+                this_row_lines.get_mut(0).unwrap().push_str(" ⎫");
+                for line in this_row_lines.iter_mut().skip(1).take(self.n - 2) {
+                    line.push_str(" ⎪");
+                }
+                this_row_lines.get_mut(self.n - 1).unwrap().push_str(" ⎭");
+            }
+
+            for line in this_row_lines.into_iter() {
+                lines.push(line);
+            }
+        }
+        lines
     }
 
     // DATABASE
@@ -1057,70 +1142,7 @@ const BASE_64: [char; 65] = [
 
 impl std::fmt::Display for Sudoku {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut lines: Vec<String> = Vec::new();
-        lines.push(format!("DIFFICULTY: {}", self.difficulty));
-
-        for y in 0..self.n2 {
-            if y != 0 && y % self.n == 0 {
-                let temp = "━".repeat(2 * self.n2 + 4 * self.n + 1);
-                lines.push(format!("━{}", vec![temp; self.n].join("╋")));
-            }
-            let mut this_row_lines: Vec<String> = vec![" ".to_string(); self.n];
-            for x in 0..self.n2 {
-                if x != 0 && x % self.n == 0 {
-                    for line in this_row_lines.iter_mut() {
-                        line.push_str(" ┃");
-                    }
-                }
-                if self.board[y][x] != 0 {
-                    for (i, line) in this_row_lines.iter_mut().enumerate() {
-                        if i == self.n / 2 {
-                            line.push_str(&format!(
-                                " {}{}{}",
-                                " ".repeat(self.n + 1),
-                                BASE_64[self.board[y][x]],
-                                " ".repeat(self.n + 1)
-                            ));
-                        } else {
-                            line.push_str(&" ".repeat(2 * (self.n + 2)));
-                        }
-                    }
-                    continue;
-                }
-
-                this_row_lines.get_mut(0).unwrap().push_str(" ⎧");
-                for line in this_row_lines.iter_mut().skip(1).take(self.n - 2) {
-                    line.push_str(" ⎪");
-                }
-                this_row_lines.get_mut(self.n - 1).unwrap().push_str(" ⎩");
-
-                for i in 0..self.n {
-                    for j in 0..self.n {
-                        let value = i * self.n + j + 1;
-                        let displayed_char = if self.possibility_board[y][x].contains(&value) {
-                            BASE_64[value]
-                        } else {
-                            '·'
-                        };
-                        this_row_lines
-                            .get_mut(i)
-                            .unwrap()
-                            .push_str(&format!(" {displayed_char}"));
-                    }
-                }
-
-                this_row_lines.get_mut(0).unwrap().push_str(" ⎫");
-                for line in this_row_lines.iter_mut().skip(1).take(self.n - 2) {
-                    line.push_str(" ⎪");
-                }
-                this_row_lines.get_mut(self.n - 1).unwrap().push_str(" ⎭");
-            }
-
-            for line in this_row_lines.into_iter() {
-                lines.push(line);
-            }
-        }
-        write!(f, "{}", lines.join("\n"))
+        write!(f, "{}", self.to_string_lines().join("\n"))
     }
 }
 

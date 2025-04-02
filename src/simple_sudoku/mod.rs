@@ -135,7 +135,7 @@ impl std::fmt::Display for SudokuError {
     }
 }
 
-pub type SudokuRule = fn(&mut Sudoku) -> bool;
+pub type SudokuRule = fn(&mut Sudoku) -> Result<bool, SudokuError>;
 type GroupMap = HashMap<SudokuGroups, Vec<HashSet<Coords>>>;
 type CellGroupMap = HashMap<(Coords, SudokuGroups), HashSet<Coords>>;
 

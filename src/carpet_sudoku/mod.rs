@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::collections::{ HashMap, HashSet };
 
-use crate::simple_sudoku::{Sudoku, SudokuDifficulty};
+use crate::simple_sudoku::{ Sudoku, SudokuDifficulty };
 
 pub mod sudoku;
 
@@ -10,8 +10,7 @@ pub struct CarpetSudoku {
     n: usize,
     n2: usize,
     sudokus: Vec<Sudoku>,
-    links: HashMap<usize, Vec<(usize, usize, usize)>>,
-    filled_cells: usize,
+    links: HashMap<usize, HashSet<(usize, usize, usize)>>,
     difficulty: SudokuDifficulty,
 }
 
