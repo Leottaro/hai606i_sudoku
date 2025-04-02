@@ -3,10 +3,9 @@ use crate::carpet_sudoku::{CarpetPattern, CarpetSudoku};
 use crate::database::Database;
 use crate::simple_sudoku::{Coords, Sudoku, SudokuDifficulty, SudokuGroups::*};
 
-use super::{
-    Button, ButtonFunction, SudokuDisplay,
-};
+use super::{Button, ButtonFunction, SudokuDisplay};
 use macroquad::prelude::*;
+use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -22,7 +21,10 @@ impl SudokuDisplay {
 
         let mode = "Play".to_string();
         let player_pboard_history = Vec::new();
-        let player_pboard = vec![vec![vec![HashSet::new(); carpet.get_n2()]; carpet.get_n2()]; carpet.get_n_sudokus()];
+        let player_pboard = vec![
+            vec![vec![HashSet::new(); carpet.get_n2()]; carpet.get_n2()];
+            carpet.get_n_sudokus()
+        ];
         let correction_board = vec![vec![1; carpet.get_n2()]; carpet.get_n2()];
         let note = false;
         let mut button_list = Vec::new();
@@ -133,7 +135,11 @@ impl SudokuDisplay {
         actions_boutons.insert(
             "Create".to_string(),
             Rc::new(Box::new(|sudoku_display| {
-                sudoku_display.new_game(CarpetPattern::Diagonal(3),sudoku_display.difficulty, false);
+                sudoku_display.new_game(
+                    CarpetPattern::Diagonal(3),
+                    sudoku_display.difficulty,
+                    false,
+                );
             })),
         );
 
@@ -152,7 +158,11 @@ impl SudokuDisplay {
         actions_boutons.insert(
             "Browse".to_string(),
             Rc::new(Box::new(|sudoku_display| {
-                sudoku_display.new_game(CarpetPattern::Diagonal(3), sudoku_display.difficulty, true);
+                sudoku_display.new_game(
+                    CarpetPattern::Diagonal(3),
+                    sudoku_display.difficulty,
+                    true,
+                );
             })),
         );
 
@@ -320,7 +330,11 @@ impl SudokuDisplay {
         self.lifes = 3;
         self.selected_cell = None;
         self.player_pboard_history.clear();
-        self.player_pboard = vec![vec![vec![HashSet::new(); self.carpet.get_n2()]; self.carpet.get_n2()]; self.carpet.get_n_sudokus()];
+        self.player_pboard =
+            vec![
+                vec![vec![HashSet::new(); self.carpet.get_n2()]; self.carpet.get_n2()];
+                self.carpet.get_n_sudokus()
+            ];
         self.note = false;
         self.new_game_available = false;
         self.difficulty = SudokuDifficulty::Easy;
@@ -378,7 +392,7 @@ impl SudokuDisplay {
         }
     }
 
-    fn new_game(&mut self, shape : CarpetPattern, difficulty: SudokuDifficulty, browse: bool) {
+    fn new_game(&mut self, shape: CarpetPattern, difficulty: SudokuDifficulty, browse: bool) {
         self.init();
         #[cfg(feature = "database")]
         match (browse, &mut self.database) {
@@ -431,22 +445,34 @@ impl SudokuDisplay {
     }
 
     pub fn solve_once(&mut self) {
-        let previous_boards = self.carpet.get_sudokus().into_iter().map(|sudoku| sudoku.get_board().clone()).collect::<Vec<_>>();
+        let previous_boards = self
+            .carpet
+            .get_sudokus()
+            .into_iter()
+            .map(|sudoku| sudoku.get_board().clone())
+            .collect::<Vec<_>>();
         loop {
             match self.carpet.rule_solve(None) {
-                Ok((_,true)) => break,
+                Ok((_, true)) => break,
                 Ok(_) => (),
                 Err(err) => {
                     eprintln!("{err}");
                 }
             }
         }
-        let board = self.carpet.get_sudokus().into_iter().map(|sudoku| sudoku.get_board().clone()).collect::<Vec<_>>();
-        for sudoku_i in 0..self.carpet.get_n_sudokus(){
+        let board = self
+            .carpet
+            .get_sudokus()
+            .into_iter()
+            .map(|sudoku| sudoku.get_board().clone())
+            .collect::<Vec<_>>();
+        for sudoku_i in 0..self.carpet.get_n_sudokus() {
             for x in 0..self.carpet.get_n2() {
                 for y in 0..self.carpet.get_n2() {
                     if previous_boards[sudoku_i][y][x] != board[sudoku_i][y][x] {
-                        self.carpet.get_cell_possibilities_mut(sudoku_i, x, y).clear();
+                        self.carpet
+                            .get_cell_possibilities_mut(sudoku_i, x, y)
+                            .clear();
                         self.player_pboard[sudoku_i][y][x].clear();
                         let value = board[sudoku_i][y][x];
                         for (x1, y1) in self.carpet.get_cell_group(sudoku_i, x, y, All) {
@@ -481,10 +507,12 @@ impl SudokuDisplay {
     fn fill_notes_btn(&mut self) {
         let mut changed = false;
         let old_pboard = self.player_pboard.clone();
-        for sudoku_i in 0..self.carpet.get_n_sudokus(){
+        for sudoku_i in 0..self.carpet.get_n_sudokus() {
             for x in 0..self.carpet.get_n2() {
                 for y in 0..self.carpet.get_n2() {
-                    if self.player_pboard[sudoku_i][y][x].is_empty() && self.carpet.get_cell_value(sudoku_i, x, y) == 0 {
+                    if self.player_pboard[sudoku_i][y][x].is_empty()
+                        && self.carpet.get_cell_value(sudoku_i, x, y) == 0
+                    {
                         changed = true;
                         for i in 1..=self.carpet.get_n2() {
                             self.player_pboard[sudoku_i][y][x].insert(i);
@@ -529,13 +557,15 @@ impl SudokuDisplay {
                     for (x, y) in self.carpet.get_cell_group(sudoku_i, x1, y1, All) {
                         if self.carpet.get_cell_value(sudoku_i, x, y) == 0 {
                             self.player_pboard[sudoku_i][y][x].remove(&value);
-                            self.carpet.get_cell_possibilities_mut(sudoku_i, x, y).remove(&value);
+                            self.carpet
+                                .get_cell_possibilities_mut(sudoku_i, x, y)
+                                .remove(&value);
                         }
                     }
                 } else {
                     self.lifes -= 1;
                     if let Some((sudoku_i, a, b)) = self.selected_cell {
-                        self.draw_cell((a, b) , Color::from_hex(0xff0000));
+                        self.draw_cell((a, b), Color::from_hex(0xff0000));
                     }
                 }
             }
@@ -598,7 +628,11 @@ impl SudokuDisplay {
             }
         }
 
-        for (y, line) in self.carpet.get_sudokus()[sudoku_i].get_board().iter().enumerate() {
+        for (y, line) in self.carpet.get_sudokus()[sudoku_i]
+            .get_board()
+            .iter()
+            .enumerate()
+        {
             for (x, &cell) in line.iter().enumerate() {
                 if cell == 0 {
                     continue;
@@ -669,15 +703,49 @@ impl SudokuDisplay {
         }
     }
 
-    async fn draw_diag_sudoku(&mut self, font: Font, taille: usize) {
+    async fn draw_diag_sudoku(&mut self, font: Font) {
         let n = self.carpet.get_n();
         let n2 = self.carpet.get_n2();
-        for i in 0..taille {
+        let n_sudokus = self.carpet.get_n_sudokus();
+        for i in 0..n_sudokus {
             let x1 = i * (n2 - n);
-            let y1 = (taille - i - 1) * (n2 - n);
+            let y1 = (n_sudokus - i - 1) * (n2 - n);
             self.draw_simple_sudoku(font.clone(), i, x1, y1).await;
             self.draw_simple_sudoku(font.clone(), i, x1, y1).await;
         }
+    }
+
+    pub fn diag_click(&mut self, x: usize, y: usize) {
+        let n = self.carpet.get_n();
+        let n2 = self.carpet.get_n2();
+        let n_sudokus = self.carpet.get_n_sudokus();
+        if let Some((sudoku_i, x1, y1)) = self.selected_cell {
+            if (x, y)
+                == (
+                    x1 + sudoku_i * (n2 - n),
+                    y1 + (n_sudokus - sudoku_i - 1) * (n2 - n),
+                )
+            {
+                self.selected_cell = None;
+                return;
+            }
+        }
+        let mut sudoku_i = n_sudokus;
+        for i in 0..n_sudokus {
+            if x < i * (n2 - n) + n2
+                && x >= i * (n2 - n)
+                && y < (n_sudokus - i - 1) * (n2 - n) + n2
+                && y >= (n_sudokus - i - 1) * (n2 - n)
+            {
+                sudoku_i = i;
+            }
+        }
+        if sudoku_i == n_sudokus {
+            return;
+        }
+        let x1 = x - sudoku_i * (n2 - n);
+        let y1 = y - (n_sudokus - sudoku_i - 1) * (n2 - n);
+        self.selected_cell = Some((sudoku_i, x1, y1));
     }
 
     // ==========================================
@@ -733,7 +801,7 @@ impl SudokuDisplay {
                         }
                     }
                 } else {
-                    for i in self.carpet.get_cell_possibilities(sudoku_i, x,y).clone() {
+                    for i in self.carpet.get_cell_possibilities(sudoku_i, x, y).clone() {
                         for button in self.button_list.iter_mut() {
                             if button.text == i.to_string() {
                                 button.set_clicked(true);
@@ -751,17 +819,6 @@ impl SudokuDisplay {
                     }
                 }
             }
-        }
-    }
-
-    pub fn diag_click(&mut self, taille: usize, x: usize, y: usize) {
-        if let Some((sudoku_i, x1, y1)) = self.selected_cell{
-            if (x, y) == (x1, y1){
-                self.selected_cell = None;
-            }
-        }
-        else{
-            self.selected_cell = Some((0,0,0));
         }
     }
 
@@ -815,7 +872,7 @@ impl SudokuDisplay {
             && sudoku_y > 0.0
         {
             if is_mouse_button_pressed(MouseButton::Left) {
-                self.diag_click(3, x, y);
+                self.diag_click(x, y);
             }
             self.draw_cell((x, y), Color::from_hex(0xf1f5f9));
         }
@@ -828,7 +885,7 @@ impl SudokuDisplay {
         }
 
         //self.draw_simple_sudoku(font.clone(),0, 0).await;
-        self.draw_diag_sudoku(font.clone(), 3).await;
+        self.draw_diag_sudoku(font.clone()).await;
         let mut action = None;
         for bouton in self.button_list.iter_mut() {
             if bouton.text.contains("Lifes: ") {
@@ -934,7 +991,7 @@ impl SudokuDisplay {
                 _ => (),
             }
         }
-        match get_last_key_pressed(){
+        match get_last_key_pressed() {
             Some(KeyCode::N) => {
                 if let Some(action) = self.actions_boutons.get("Note").cloned() {
                     action(self);
