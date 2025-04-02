@@ -552,26 +552,28 @@ impl SudokuDisplay {
         );
     }
 
-    async fn draw_sudoku(&self, font: Font) {
+    async fn draw_simple_sudoku(&self, font: Font, x1: usize, y1: usize) {
         let n = self.sudoku.get_n();
         let n2 = self.sudoku.get_n2();
+        let sudoku_x_offset = self.x_offset + x1 as f32 * self.pixel_per_cell;
+        let sudoku_y_offset = self.y_offset + y1 as f32 * self.pixel_per_cell;
         for i in 0..n2 {
             let i = i as f32;
             // row
             draw_line(
-                0.0 + self.x_offset,
-                i * self.pixel_per_cell + self.y_offset,
-                self.grid_size + self.x_offset,
-                i * self.pixel_per_cell + self.y_offset,
+                0.0 + sudoku_x_offset,
+                i * self.pixel_per_cell + sudoku_y_offset,
+                self.pixel_per_cell * n2 as f32 + sudoku_x_offset,
+                i * self.pixel_per_cell + sudoku_y_offset,
                 1.0,
                 Color::from_hex(0xc0c5d3),
             );
             // col
             draw_line(
-                i * self.pixel_per_cell + self.x_offset,
-                0.0 + self.y_offset,
-                i * self.pixel_per_cell + self.x_offset,
-                self.grid_size + self.y_offset,
+                i * self.pixel_per_cell + sudoku_x_offset,
+                0.0 + sudoku_y_offset,
+                i * self.pixel_per_cell + sudoku_x_offset,
+                self.pixel_per_cell * n2 as f32 + sudoku_y_offset,
                 1.0,
                 Color::from_hex(0xc0c5d3),
             );
@@ -580,8 +582,8 @@ impl SudokuDisplay {
         for y in 0..n {
             for x in 0..n {
                 draw_rectangle_lines(
-                    (x * n) as f32 * self.pixel_per_cell + self.x_offset,
-                    (y * n) as f32 * self.pixel_per_cell + self.y_offset,
+                    (x * n) as f32 * self.pixel_per_cell + sudoku_x_offset,
+                    (y * n) as f32 * self.pixel_per_cell + sudoku_y_offset,
                     n as f32 * self.pixel_per_cell,
                     n as f32 * self.pixel_per_cell,
                     2.0,
@@ -604,8 +606,8 @@ impl SudokuDisplay {
                     + (self.pixel_per_cell + text_dimensions.height) / 2.0;
                 draw_text_ex(
                     &text,
-                    text_x + self.x_offset,
-                    text_y + self.y_offset,
+                    text_x + sudoku_x_offset,
+                    text_y + sudoku_y_offset,
                     TextParams {
                         font: Some(&font),
                         font_size,
@@ -646,8 +648,8 @@ impl SudokuDisplay {
                             + (self.pixel_per_cell / n as f32 + text_dimensions.height) / 2.0;
                         draw_text_ex(
                             &text,
-                            text_x + self.x_offset,
-                            text_y + self.y_offset,
+                            text_x + sudoku_x_offset,
+                            text_y + sudoku_y_offset,
                             TextParams {
                                 font: Some(&font),
                                 font_size,
@@ -661,6 +663,22 @@ impl SudokuDisplay {
         }
     }
 
+    async fn draw_diag_sudoku(&mut self, font: Font, taille: usize){
+        let n = self.sudoku.get_n();
+        let n2 = self.sudoku.get_n2();
+        for i in 0..taille{
+            let x1 = i * (n2 - n);
+            let y1 = (taille - i - 1) * (n2 - n);
+            self.draw_simple_sudoku(font.clone(), x1, y1).await;
+        }
+    }
+
+    // ==========================================
+
+    // ================= UPDATE =================
+
+    // ==========================================
+
     pub fn update_scale(&mut self) {
         let ratio = screen_width() / screen_height();
         let ratio_voulu = 411. / 245.;
@@ -671,7 +689,8 @@ impl SudokuDisplay {
         }
 
         self.grid_size = 900.0 * self.scale_factor;
-        self.pixel_per_cell = self.grid_size / self.sudoku.get_n2() as f32;
+        //self.pixel_per_cell = self.grid_size / self.sudoku.get_n2() as f32;
+        self.pixel_per_cell = self.grid_size / (((self.sudoku.get_n2() - self.sudoku.get_n()) as f32) * 3.0 + self.sudoku.get_n() as f32);
         self.x_offset = 250.0 * self.scale_factor;
         self.y_offset = 150.0 * self.scale_factor;
     }
@@ -792,7 +811,8 @@ impl SudokuDisplay {
             self.draw_cell((x, y), Color::from_hex(0xc2ddf8));
         }
 
-        self.draw_sudoku(font.clone()).await;
+        //self.draw_simple_sudoku(font.clone(),0, 0).await;
+        self.draw_diag_sudoku(font.clone(), 3).await;
         let mut action = None;
         for bouton in self.button_list.iter_mut() {
             if bouton.text.contains("Lifes: ") {
