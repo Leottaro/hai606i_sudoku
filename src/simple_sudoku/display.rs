@@ -687,16 +687,25 @@ impl SudokuDisplay {
                 }
             }
             else{
+                for i in 1..=self.sudoku.get_n2(){
+                    for button in self.button_list.iter_mut(){
+                        if button.text == i.to_string(){
+                            button.set_clicked(false);
+                            button.set_clickable(true);
+                        }
+                    }
+                }
                 if self.mode == "Play".to_string(){
-                    for i in 1..=self.sudoku.get_n2(){
+                    for i in self.player_pboard[y][x].clone(){
                         for button in self.button_list.iter_mut(){
                             if button.text == i.to_string(){
-                                button.set_clicked(false);
-                                button.set_clickable(true);
+                                button.set_clicked(true);
                             }
                         }
                     }
-                    for i in self.player_pboard[y][x].clone(){
+                }
+                else{
+                    for i in self.sudoku.possibility_board[y][x].clone(){
                         for button in self.button_list.iter_mut(){
                             if button.text == i.to_string(){
                                 button.set_clicked(true);
