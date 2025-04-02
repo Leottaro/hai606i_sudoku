@@ -1,12 +1,12 @@
-use super::{ CarpetPattern, CarpetSudoku };
-use crate::simple_sudoku::{ Coords, Sudoku, SudokuDifficulty, SudokuError, SudokuGroups };
+use super::{CarpetPattern, CarpetSudoku};
+use crate::simple_sudoku::{Coords, Sudoku, SudokuDifficulty, SudokuError, SudokuGroups};
 use log::warn;
-use rand::{ seq::SliceRandom, thread_rng, Rng };
+use rand::{seq::SliceRandom, thread_rng, Rng};
 use std::{
-    collections::{ HashMap, HashSet },
+    collections::{HashMap, HashSet},
     ops::AddAssign,
-    sync::{ mpsc, Arc, Mutex },
-    thread::{ available_parallelism, JoinHandle },
+    sync::{mpsc, Arc, Mutex},
+    thread::JoinHandle,
 };
 
 type RawLink = ((usize, usize), (usize, usize));
@@ -47,11 +47,22 @@ impl CarpetSudoku {
         self.sudokus[sudoku_id].get_cell_possibilities(x, y).clone()
     }
 
-    pub fn get_cell_possibilities_mut(&mut self, sudoku_id: usize, x: usize, y: usize) -> &mut HashSet<usize> {
+    pub fn get_cell_possibilities_mut(
+        &mut self,
+        sudoku_id: usize,
+        x: usize,
+        y: usize,
+    ) -> &mut HashSet<usize> {
         self.sudokus[sudoku_id].get_cell_possibilities_mut(x, y)
     }
 
-    pub fn get_cell_group(&self, sudoku_id: usize, x: usize, y: usize, groups: SudokuGroups) -> HashSet<Coords>{
+    pub fn get_cell_group(
+        &self,
+        sudoku_id: usize,
+        x: usize,
+        y: usize,
+        groups: SudokuGroups,
+    ) -> HashSet<Coords> {
         self.sudokus[sudoku_id].get_cell_group(x, y, groups)
     }
 
@@ -62,11 +73,14 @@ impl CarpetSudoku {
             .sum()
     }
 
-    pub fn get_possibility_board(&self) -> Vec<Vec<Vec<HashSet<usize>>>>{
-        self.sudokus.iter().map(|sudoku| sudoku.get_possibility_board().clone()).collect()
+    pub fn get_possibility_board(&self) -> Vec<Vec<Vec<HashSet<usize>>>> {
+        self.sudokus
+            .iter()
+            .map(|sudoku| sudoku.get_possibility_board().clone())
+            .collect()
     }
 
-    pub fn get_sudoku_possibility_board(&self, sudoku_i: usize) -> Vec<Vec<HashSet<usize>>>{
+    pub fn get_sudoku_possibility_board(&self, sudoku_i: usize) -> Vec<Vec<HashSet<usize>>> {
         self.sudokus[sudoku_i].get_possibility_board().clone()
     }
 
@@ -104,7 +118,9 @@ impl CarpetSudoku {
 
     fn new_diagonal(n: usize, n_sudokus: usize) -> (Vec<Sudoku>, Vec<RawLink>) {
         let sudokus = vec![Sudoku::new(n); n_sudokus];
-        let links = (1..n_sudokus).map(|i| ((i - 1, n - 1), (i, n * (n - 1)))).collect();
+        let links = (1..n_sudokus)
+            .map(|i| ((i - 1, n - 1), (i, n * (n - 1))))
+            .collect();
         (sudokus, links)
     }
 
@@ -114,13 +130,13 @@ impl CarpetSudoku {
             Sudoku::new(n), // top left sudoku
             Sudoku::new(n), // top right sudoku
             Sudoku::new(n), // bottom left sudoku
-            Sudoku::new(n) // bottom right sudoku
+            Sudoku::new(n), // bottom right sudoku
         ];
         let links = vec![
             ((0, 0), (1, n * n - 1)),
             ((0, n - 1), (2, 2 * n)),
             ((0, 2 * n), (3, n - 1)),
-            ((0, n * n - 1), (4, 0))
+            ((0, n * n - 1), (4, 0)),
         ];
         (sudokus, links)
     }
@@ -150,10 +166,14 @@ impl CarpetSudoku {
                         let value2 = self.sudokus[sudoku2].get_cell_value(x2 + dx, y2 + dy);
                         if value1 != value2 {
                             if value1 != 0 {
-                                self.sudokus[sudoku2].set_value(x2 + dx, y2 + dy, value1).unwrap();
+                                self.sudokus[sudoku2]
+                                    .set_value(x2 + dx, y2 + dy, value1)
+                                    .unwrap();
                                 continue;
                             } else if value2 != 0 {
-                                self.sudokus[sudoku1].set_value(x1 + dx, y1 + dy, value2).unwrap();
+                                self.sudokus[sudoku1]
+                                    .set_value(x1 + dx, y1 + dy, value2)
+                                    .unwrap();
                                 continue;
                             } else {
                                 panic!("ALORS LÀ J'AI PAS COMPRIS");
@@ -171,13 +191,17 @@ impl CarpetSudoku {
                             if possibilities2.contains(p) {
                                 continue;
                             }
-                            self.sudokus[sudoku1].remove_possibility(x1 + dx, y1 + dy, *p).unwrap();
+                            self.sudokus[sudoku1]
+                                .remove_possibility(x1 + dx, y1 + dy, *p)
+                                .unwrap();
                         }
                         for p in possibilities2.iter() {
                             if possibilities1.contains(p) {
                                 continue;
                             }
-                            self.sudokus[sudoku2].remove_possibility(x2 + dx, y2 + dy, *p).unwrap();
+                            self.sudokus[sudoku2]
+                                .remove_possibility(x2 + dx, y2 + dy, *p)
+                                .unwrap();
                         }
                     }
                 }
@@ -190,7 +214,7 @@ impl CarpetSudoku {
         sudoku_id: usize,
         x: usize,
         y: usize,
-        value: usize
+        value: usize,
     ) -> Result<(), SudokuError> {
         let dx = x % self.n;
         let dy = y % self.n;
@@ -229,7 +253,9 @@ impl CarpetSudoku {
 
                 let y2 = (square2 / self.n) * self.n;
                 let x2 = (square2 % self.n) * self.n;
-                self.sudokus[sudoku2].get_cell_possibilities_mut(x2 + dx, y2 + dy).remove(&value);
+                self.sudokus[sudoku2]
+                    .get_cell_possibilities_mut(x2 + dx, y2 + dy)
+                    .remove(&value);
             }
         }
 
@@ -240,7 +266,7 @@ impl CarpetSudoku {
         &mut self,
         sudoku_id: usize,
         x: usize,
-        y: usize
+        y: usize,
     ) -> Result<usize, SudokuError> {
         let dx = x % self.n;
         let dy = y % self.n;
@@ -280,13 +306,14 @@ impl CarpetSudoku {
                 let y2 = (square2 / self.n) * self.n;
                 let x2 = (square2 % self.n) * self.n;
 
-                if
-                    self.sudokus[sudoku2]
-                        .get_cell_group(x2 + dx, y2 + dy, SudokuGroups::All)
-                        .into_iter()
-                        .any(|(x3, y3)| self.sudokus[sudoku2].get_cell_value(x3, y3) == value)
+                if self.sudokus[sudoku2]
+                    .get_cell_group(x2 + dx, y2 + dy, SudokuGroups::All)
+                    .into_iter()
+                    .any(|(x3, y3)| self.sudokus[sudoku2].get_cell_value(x3, y3) == value)
                 {
-                    self.sudokus[sudoku_id].get_cell_possibilities_mut(x, y).remove(&value);
+                    self.sudokus[sudoku_id]
+                        .get_cell_possibilities_mut(x, y)
+                        .remove(&value);
                 } else {
                     self.sudokus[sudoku2]
                         .get_cell_possibilities_mut(x2 + dx, y2 + dy)
@@ -304,7 +331,7 @@ impl CarpetSudoku {
 
     pub fn rule_solve(
         &mut self,
-        max_difficulty: Option<SudokuDifficulty>
+        max_difficulty: Option<SudokuDifficulty>,
     ) -> Result<(bool, bool), SudokuError> {
         let mut modified_possibility = false;
         let mut modified_value = false;
@@ -412,9 +439,8 @@ impl CarpetSudoku {
                 Arc::new(Mutex::new((self.clone(), filled_cells)))
             };
             let to_explore: Arc<Mutex<Vec<SudokuFilledCells>>> = Arc::new(Default::default());
-            let explored_filled_cells: Arc<Mutex<HashSet<Vec<bool>>>> = Arc::new(
-                Default::default()
-            );
+            let explored_filled_cells: Arc<Mutex<HashSet<Vec<bool>>>> =
+                Arc::new(Default::default());
             let total: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
             let skipped: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
 
@@ -707,9 +733,8 @@ impl PartialEq for CarpetSudoku {
 
             for x in 0..self.n2 {
                 for y in 0..self.n2 {
-                    if
-                        sudoku1.get_cell_value(x, y) != sudoku2.get_cell_value(x, y) ||
-                        sudoku1
+                    if sudoku1.get_cell_value(x, y) != sudoku2.get_cell_value(x, y)
+                        || sudoku1
                             .get_cell_possibilities(x, y)
                             .ne(sudoku2.get_cell_possibilities(x, y))
                     {

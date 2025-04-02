@@ -1,11 +1,6 @@
 pub type Coords = (usize, usize);
 
-use std::{
-    collections::{HashMap, HashSet},
-    rc::Rc,
-};
-
-
+use std::collections::{HashMap, HashSet};
 
 #[cfg(feature = "database")]
 use crate::database::Database;
@@ -151,5 +146,3 @@ pub struct Sudoku {
     values_swap: HashMap<usize, (usize, usize)>, // 1 -> (2, 3) exprime les règles 1 donne 2 et 3 donne 1
     rows_swap: HashMap<usize, (usize, usize)>,
 }
-
-

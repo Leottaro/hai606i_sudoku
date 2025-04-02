@@ -5,7 +5,7 @@ use std::{collections::{HashMap, HashSet}, rc::Rc};
 
 use macroquad::texture::Texture2D;
 
-use crate::{carpet_sudoku::CarpetSudoku, simple_sudoku::{Coords, Sudoku, SudokuDifficulty}};
+use crate::{carpet_sudoku::CarpetSudoku, simple_sudoku::SudokuDifficulty};
 
 pub type ButtonFunction = Rc<Box<dyn Fn(&mut SudokuDisplay)>>;
 pub struct SudokuDisplay {

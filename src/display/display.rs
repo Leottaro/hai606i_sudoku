@@ -1,11 +1,10 @@
 use crate::carpet_sudoku::{CarpetPattern, CarpetSudoku};
 #[cfg(feature = "database")]
 use crate::database::Database;
-use crate::simple_sudoku::{Coords, Sudoku, SudokuDifficulty, SudokuGroups::*};
+use crate::simple_sudoku::{Coords, SudokuDifficulty, SudokuGroups::*};
 
 use super::{Button, ButtonFunction, SudokuDisplay};
 use macroquad::prelude::*;
-use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -137,7 +136,6 @@ impl SudokuDisplay {
             Rc::new(Box::new(|sudoku_display| {
                 sudoku_display.new_game(
                     CarpetPattern::Diagonal(3),
-                    sudoku_display.difficulty,
                     false,
                 );
             })),
@@ -160,7 +158,6 @@ impl SudokuDisplay {
             Rc::new(Box::new(|sudoku_display| {
                 sudoku_display.new_game(
                     CarpetPattern::Diagonal(3),
-                    sudoku_display.difficulty,
                     true,
                 );
             })),
@@ -392,7 +389,7 @@ impl SudokuDisplay {
         }
     }
 
-    fn new_game(&mut self, shape: CarpetPattern, difficulty: SudokuDifficulty, browse: bool) {
+    fn new_game(&mut self, shape: CarpetPattern, browse: bool) {
         self.init();
         #[cfg(feature = "database")]
         match (browse, &mut self.database) {
@@ -564,7 +561,7 @@ impl SudokuDisplay {
                     }
                 } else {
                     self.lifes -= 1;
-                    if let Some((sudoku_i, a, b)) = self.selected_cell {
+                    if let Some((_sudoku_i, a, b)) = self.selected_cell {
                         self.draw_cell((a, b), Color::from_hex(0xff0000));
                     }
                 }
@@ -766,9 +763,7 @@ impl SudokuDisplay {
         if sudoku_i == n_sudokus {
             return;
         }
-        let x1 = x - sudoku_i * (n2 - n);
-        let y1 = y - (n_sudokus - sudoku_i - 1) * (n2 - n);
-        self.draw_cell((x1, y1), Color::from_hex(0xf1f5f9));
+        self.draw_cell((x, y), Color::from_hex(0xf1f5f9));
     }
 
     // ==========================================
@@ -944,7 +939,7 @@ impl SudokuDisplay {
             action(self);
         }
 
-        if let Some((sudoku_i, x1, y1)) = &mut self.selected_cell {
+        if let Some((_sudoku_i, x1, y1)) = &mut self.selected_cell {
             match get_last_key_pressed() {
                 Some(KeyCode::Up) => {
                     *y1 = if *y1 == 0 {
