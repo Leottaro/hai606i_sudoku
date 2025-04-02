@@ -748,6 +748,29 @@ impl SudokuDisplay {
         self.selected_cell = Some((sudoku_i, x1, y1));
     }
 
+    pub fn diag_hover(&mut self, x: usize, y: usize){
+        let n = self.carpet.get_n();
+        let n2 = self.carpet.get_n2();
+        let n_sudokus = self.carpet.get_n_sudokus();
+
+        let mut sudoku_i = n_sudokus;
+        for i in 0..n_sudokus {
+            if x < i * (n2 - n) + n2
+                && x >= i * (n2 - n)
+                && y < (n_sudokus - i - 1) * (n2 - n) + n2
+                && y >= (n_sudokus - i - 1) * (n2 - n)
+            {
+                sudoku_i = i;
+            }
+        }
+        if sudoku_i == n_sudokus {
+            return;
+        }
+        let x1 = x - sudoku_i * (n2 - n);
+        let y1 = y - (n_sudokus - sudoku_i - 1) * (n2 - n);
+        self.draw_cell((x1, y1), Color::from_hex(0xf1f5f9));
+    }
+
     // ==========================================
 
     // ================= UPDATE =================
@@ -874,7 +897,7 @@ impl SudokuDisplay {
             if is_mouse_button_pressed(MouseButton::Left) {
                 self.diag_click(x, y);
             }
-            self.draw_cell((x, y), Color::from_hex(0xf1f5f9));
+            self.diag_hover(x, y);
         }
 
         if let Some((sudoku_i, x, y)) = self.selected_cell {
