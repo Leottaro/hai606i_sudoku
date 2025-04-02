@@ -2,6 +2,7 @@
 #[cfg(feature = "database")]
 extern crate diesel;
 
+pub mod carpet_sudoku;
 #[cfg(feature = "database")]
 pub mod database;
 pub mod simple_sudoku;

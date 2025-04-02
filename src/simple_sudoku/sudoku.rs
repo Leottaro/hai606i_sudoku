@@ -44,6 +44,10 @@ impl Sudoku {
         &self.possibility_board
     }
 
+    pub fn get_filled_cells(&self) -> usize {
+        self.filled_cells
+    }
+
     pub fn get_difficulty(&self) -> SudokuDifficulty {
         self.difficulty
     }
@@ -84,16 +88,19 @@ impl Sudoku {
         self.is_canonical
     }
 
+    pub fn get_values_swap(&self) -> HashMap<usize, (usize, usize)> {
+        self.values_swap.clone()
+    }
+
+    pub fn get_rows_swap(&self) -> HashMap<usize, (usize, usize)> {
+        self.rows_swap.clone()
+    }
+
     pub fn set_value(&mut self, x: usize, y: usize, value: usize) -> Result<(), SudokuError> {
         if value == 0 || value > self.n2 {
             return Err(SudokuError::WrongInput(format!(
                 "set_value({x}, {y}, {value}); value should be in [1..{}]",
                 self.n2
-            )));
-        }
-        if self.is_canonical {
-            return Err(SudokuError::InvalidState(format!(
-                "set_value({x}, {y}, {value}) when this sudoku is canonical {self}"
             )));
         }
         if self.board[y][x] != 0 {
@@ -106,23 +113,63 @@ impl Sudoku {
         self.filled_cells += 1;
         self.board[y][x] = value;
         self.possibility_board[y][x].clear();
+        let mut res = Ok(());
         for (x1, y1) in self.get_cell_group(x, y, All) {
             self.possibility_board[y1][x1].remove(&value);
             if self.board[y1][x1] == value && (x, y) != (x1, y1) {
-                return Err(SudokuError::SameValueCells(((x, y), (x1, y1))));
+                res = Err(SudokuError::SameValueCells(((x, y), (x1, y1))));
             } else if self.board[y1][x1] == 0 && self.possibility_board[y1][x1].is_empty() {
-                return Err(SudokuError::NoPossibilityCell((x1, y1)));
+                res = Err(SudokuError::NoPossibilityCell((x1, y1)));
             }
         }
-        Ok(())
+        res
+    }
+
+    pub fn insert_possibility(
+        &mut self,
+        x: usize,
+        y: usize,
+        value: usize,
+    ) -> Result<bool, SudokuError> {
+        if value == 0 || value > self.n2 {
+            return Err(SudokuError::WrongInput(format!(
+                "set_value({x}, {y}, {value}); value should be in [1..{}]",
+                self.n2
+            )));
+        }
+        if self.board[y][x] != 0 {
+            return Err(SudokuError::InvalidState(format!(
+                "remove_value({x}, {y}) when board[y][x] = {}",
+                self.board[y][x]
+            )));
+        }
+
+        Ok(self.possibility_board[y][x].insert(value))
+    }
+
+    pub fn remove_possibility(
+        &mut self,
+        x: usize,
+        y: usize,
+        value: usize,
+    ) -> Result<bool, SudokuError> {
+        if value == 0 || value > self.n2 {
+            return Err(SudokuError::WrongInput(format!(
+                "remove_possibility({x}, {y}, {value}); value should be in [1..{}]",
+                self.n2
+            )));
+        }
+        if self.board[y][x] != 0 {
+            return Err(SudokuError::InvalidState(format!(
+                "remove_possibility({x}, {y}, {value}) when board[y][x] = {}",
+                self.board[y][x]
+            )));
+        }
+
+        Ok(self.possibility_board[y][x].remove(&value))
     }
 
     pub fn remove_value(&mut self, x: usize, y: usize) -> Result<usize, SudokuError> {
-        if self.is_canonical {
-            return Err(SudokuError::InvalidState(format!(
-                "remove_value({x}, {y}) when sudoku is canonical"
-            )));
-        }
         if self.board[y][x] == 0 {
             return Err(SudokuError::InvalidState(format!(
                 "remove_value({x}, {y}) when board[y][x] = {}",
@@ -182,6 +229,8 @@ impl Sudoku {
         let is_canonical = false;
         let filled_cells = 0;
         let canonical_board_hash = 0;
+        let values_swap = HashMap::new();
+        let rows_swap = HashMap::new();
 
         if GROUPS.read().unwrap().contains_key(&n) && CELL_GROUPS.read().unwrap().contains_key(&n) {
             return Self {
@@ -191,8 +240,11 @@ impl Sudoku {
                 possibility_board,
                 filled_cells,
                 difficulty,
+
                 is_canonical,
                 canonical_board_hash,
+                values_swap,
+                rows_swap,
             };
         }
 
@@ -258,9 +310,12 @@ impl Sudoku {
             board,
             possibility_board,
             difficulty,
-            is_canonical,
             filled_cells,
+
+            is_canonical,
             canonical_board_hash,
+            values_swap,
+            rows_swap,
         }
     }
 
@@ -325,58 +380,79 @@ impl Sudoku {
         sudoku
     }
 
-    pub fn randomize(&mut self) -> Result<(), SudokuError> {
+    pub fn randomize(
+        &mut self,
+        rows_swap: Option<HashMap<usize, (usize, usize)>>,
+        values_swap: Option<HashMap<usize, (usize, usize)>>,
+    ) -> Result<(), SudokuError> {
         if !self.is_filled() {
             return Err(SudokuError::InvalidState(format!(
                 "randomize() when this sudoku isn't filled: {self}"
             )));
         }
+        if !self.is_canonical {
+            return Err(SudokuError::InvalidState(format!(
+                "randomize() when this sudoku is already randomized: {self}"
+            )));
+        }
         let mut rng = thread_rng();
 
-        ////////////////////////////////////////////////////
-        // swap rows randomly (keep the first line in place)
-        let first_line = 0;
-        let mut first_floor = (1..self.n).collect::<Vec<_>>();
-        let mut floors = (self.n..self.n2)
-            .collect::<Vec<_>>()
-            .chunks(self.n)
-            .map(|floor| floor.to_vec())
-            .collect::<Vec<_>>();
+        self.rows_swap = rows_swap.unwrap_or({
+            let mut floors = (0..self.n2)
+                .collect::<Vec<_>>()
+                .chunks(self.n)
+                .map(|floor| floor.to_vec())
+                .collect::<Vec<_>>();
 
-        // shuffle each floor (not the first floor)
-        floors.shuffle(&mut rng);
+            // shuffle each floor (not the first floor)
+            floors.shuffle(&mut rng);
 
-        // shuffle each row inside a floor (not the first row)
-        first_floor.shuffle(&mut rng);
-        for floor in floors.iter_mut() {
-            floor.shuffle(&mut rng);
+            // shuffle each row inside a floor (not the first row)
+            for floor in floors.iter_mut() {
+                floor.shuffle(&mut rng);
+            }
+
+            let shuffled_rows = floors.into_iter().flatten().enumerate().collect::<Vec<_>>();
+
+            let mut rows_swap = (0..self.n2).map(|y| (y, (0, 0))).collect::<HashMap<_, _>>();
+            for (y, to_y) in shuffled_rows {
+                rows_swap.get_mut(&y).unwrap().0 = to_y;
+                rows_swap.get_mut(&to_y).unwrap().1 = y;
+            }
+            rows_swap
+        });
+
+        self.values_swap = values_swap.unwrap_or({
+            let mut values_swap = (1..=self.n2)
+                .map(|y| (y, (0, 0)))
+                .collect::<HashMap<_, _>>();
+
+            let mut values = (1..=self.n2).collect::<Vec<_>>();
+            values.shuffle(&mut rng);
+
+            for (i, to_value) in values.into_iter().enumerate() {
+                let value = i + 1;
+                values_swap.get_mut(&value).unwrap().0 = to_value;
+                values_swap.get_mut(&to_value).unwrap().1 = value;
+            }
+
+            values_swap
+        });
+
+        // swap rows randomly following self.rows_swap rules
+        let mut new_board = vec![Vec::new(); self.n2];
+        for y in 0..self.n2 {
+            let (to_y, _) = self.rows_swap[&y];
+            new_board[to_y] = self.board[y].clone();
         }
+        self.board = new_board;
 
-        let rows_swap = {
-            let mut temp = vec![first_line];
-            temp.extend(first_floor);
-            temp.extend(floors.into_iter().flatten());
-            temp
-        };
-
-        self.board = rows_swap
-            .into_iter()
-            .map(|shuffled_y| self.board[shuffled_y].clone())
-            .collect();
-
-        ////////////////////////////////////////////////////
-        // swap random values
-        let values_swap: HashMap<usize, usize> = {
-            let mut values_input = (1..=self.n2).collect::<Vec<_>>();
-            let mut values_output = values_input.clone();
-            values_input.shuffle(&mut rng);
-            values_output.shuffle(&mut rng);
-            values_input.into_iter().zip(values_output).collect()
-        };
-
+        // swap value randomly
         for y in 0..self.n2 {
             for x in 0..self.n2 {
-                self.board[y][x] = *values_swap.get(&self.board[y][x]).unwrap();
+                let value = self.board[y][x];
+                let (to_value, _) = self.values_swap[&value];
+                self.board[y][x] = to_value;
             }
         }
 
@@ -396,38 +472,23 @@ impl Sudoku {
             )));
         }
 
-        ///////////////////////////////////////////////////
-        // swap values to get 1 2 3 4 5... in the first row
-        let values_swap: HashMap<usize, usize> =
-            (0..self.n2).map(|x| (self.board[0][x], x + 1)).collect();
+        // swap back rows using self.rows_swap
+        let mut new_board = vec![Vec::new(); self.n2];
+        for y in 0..self.n2 {
+            let (_, from_y) = self.rows_swap[&y];
+            new_board[from_y] = self.board[y].clone();
+        }
+        self.board = new_board;
 
+        // swap back values using self.values_swap
         for y in 0..self.n2 {
             for x in 0..self.n2 {
-                self.board[y][x] = *values_swap.get(&self.board[y][x]).unwrap();
+                let value = self.board[y][x];
+                let (_, from_value) = self.values_swap[&value];
+                self.board[y][x] = from_value;
             }
         }
 
-        ///////////////////////////////////////////////////
-        // swap rows logically
-
-        // extract floors
-        let mut floors = self
-            .board
-            .chunks(self.n)
-            .map(|floor| floor.to_vec())
-            .collect::<Vec<_>>();
-
-        // within each floor, sort the rows by their first cell
-        for floor in floors.iter_mut() {
-            floor.sort_by(|row1, row2| row1[0].cmp(&row2[0]));
-        }
-
-        // sort the rows batch by their upper left cell
-        floors.sort_by(|floor1, floor2| floor1[0][0].cmp(&floor2[0][0]));
-
-        self.board = floors.into_iter().flatten().collect::<Vec<_>>();
-
-        ////////////////////////////////////////////////////////////////////
         // check if the board is the same as the hash of the canonical board
         let board_hash = {
             let mut hasher = DefaultHasher::new();
@@ -436,8 +497,14 @@ impl Sudoku {
         };
 
         if board_hash != self.canonical_board_hash {
-            Err(SudokuError::CanonizationMismatch(self.clone(), board_hash))
+            Err(SudokuError::CanonizationMismatch(
+                Box::new(self.clone()),
+                board_hash,
+            ))
         } else {
+            self.is_canonical = false;
+            self.rows_swap.clear();
+            self.values_swap.clear();
             Ok(())
         }
     }
@@ -449,12 +516,6 @@ impl Sudoku {
     ->  ONLY 2 POSSIBILITIES		->  2! + 2! + ... + 17! (un peu moins que ça grâce à REMOVE REDUNDANCY)
     */
     pub fn generate_from(&self, aimed_difficulty: SudokuDifficulty) -> Result<Self, SudokuError> {
-        if self.is_canonical {
-            return Err(SudokuError::InvalidState(format!(
-                "generate_from({aimed_difficulty}) when this sudoku is canonical"
-            )));
-        }
-
         let n2 = self.n2;
         let (tx, rx) = mpsc::channel();
         type SudokuFilledCells = (Sudoku, Vec<bool>);
@@ -665,7 +726,7 @@ impl Sudoku {
 
     pub fn generate_new(n: usize, aimed_difficulty: SudokuDifficulty) -> Result<Self, SudokuError> {
         let mut sudoku_base = Sudoku::generate_full(n);
-        sudoku_base.randomize().unwrap();
+        sudoku_base.randomize(None, None).unwrap();
         sudoku_base.generate_from(aimed_difficulty)
     }
 
@@ -725,13 +786,6 @@ impl Sudoku {
         specific_rules: Option<Range<usize>>,
         max_difficulty: Option<SudokuDifficulty>,
     ) -> Result<Option<usize>, SudokuError> {
-        if self.is_canonical {
-            return Err(SudokuError::InvalidState(format!(
-                "rule_solve({:?}, {:?}) when this sudoku is canonical {self}",
-                specific_rules, max_difficulty
-            )));
-        }
-
         let rules: Vec<_> = Sudoku::RULES
             .iter()
             .filter(|(rule_id, difficulty, _rule)| {
@@ -756,7 +810,7 @@ impl Sudoku {
         // try the rules and set the difficulty in consequence
         for &&(rule_id, difficulty, rule) in rules.iter() {
             // if the rule can't be applied, then pass to the next one
-            if !rule(self) {
+            if !rule(self).unwrap_or(false) {
                 continue;
             }
 
@@ -876,6 +930,86 @@ impl Sudoku {
             self.remove_value(x, y).unwrap();
         }
         self.possibility_board[y][x] = possible_values;
+    }
+
+    pub fn to_string_lines(&self) -> Vec<String> {
+        let mut lines: Vec<String> = Vec::new();
+        if self.is_canonical {
+            lines.push(format!(
+                "CANONICAL, difficulty:{}, filled_cells:{}, canonical_board_hash:{}",
+                self.difficulty, self.filled_cells, self.canonical_board_hash
+            ));
+        } else {
+            lines.push(format!(
+				"RANDOMIZED, difficulty:{}, filled_cells:{}, canonical_board_hash:{}, values_swap:{:?}, rows_swap:{:?}",
+				self.difficulty,
+				self.filled_cells,
+				self.canonical_board_hash,
+				self.values_swap,self.rows_swap
+			));
+        }
+
+        for y in 0..self.n2 {
+            if y != 0 && y % self.n == 0 {
+                let temp = "━".repeat(2 * self.n2 + 4 * self.n + 1);
+                lines.push(format!("━{}", vec![temp; self.n].join("╋")));
+            }
+            let mut this_row_lines: Vec<String> = vec![" ".to_string(); self.n];
+            for x in 0..self.n2 {
+                if x != 0 && x % self.n == 0 {
+                    for line in this_row_lines.iter_mut() {
+                        line.push_str(" ┃");
+                    }
+                }
+                if self.board[y][x] != 0 {
+                    for (i, line) in this_row_lines.iter_mut().enumerate() {
+                        if i == self.n / 2 {
+                            line.push_str(&format!(
+                                " {}{}{}",
+                                " ".repeat(self.n + 1),
+                                BASE_64[self.board[y][x]],
+                                " ".repeat(self.n + 1)
+                            ));
+                        } else {
+                            line.push_str(&" ".repeat(2 * (self.n + 2)));
+                        }
+                    }
+                    continue;
+                }
+
+                this_row_lines.get_mut(0).unwrap().push_str(" ⎧");
+                for line in this_row_lines.iter_mut().skip(1).take(self.n - 2) {
+                    line.push_str(" ⎪");
+                }
+                this_row_lines.get_mut(self.n - 1).unwrap().push_str(" ⎩");
+
+                for i in 0..self.n {
+                    for j in 0..self.n {
+                        let value = i * self.n + j + 1;
+                        let displayed_char = if self.possibility_board[y][x].contains(&value) {
+                            BASE_64[value]
+                        } else {
+                            '·'
+                        };
+                        this_row_lines
+                            .get_mut(i)
+                            .unwrap()
+                            .push_str(&format!(" {displayed_char}"));
+                    }
+                }
+
+                this_row_lines.get_mut(0).unwrap().push_str(" ⎫");
+                for line in this_row_lines.iter_mut().skip(1).take(self.n - 2) {
+                    line.push_str(" ⎪");
+                }
+                this_row_lines.get_mut(self.n - 1).unwrap().push_str(" ⎭");
+            }
+
+            for line in this_row_lines.into_iter() {
+                lines.push(line);
+            }
+        }
+        lines
     }
 
     // DATABASE
@@ -1008,70 +1142,7 @@ const BASE_64: [char; 65] = [
 
 impl std::fmt::Display for Sudoku {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut lines: Vec<String> = Vec::new();
-        lines.push(format!("DIFFICULTY: {}", self.difficulty));
-
-        for y in 0..self.n2 {
-            if y != 0 && y % self.n == 0 {
-                let temp = "━".repeat(2 * self.n2 + 4 * self.n + 1);
-                lines.push(format!("━{}", vec![temp; self.n].join("╋")));
-            }
-            let mut this_row_lines: Vec<String> = vec![" ".to_string(); self.n];
-            for x in 0..self.n2 {
-                if x != 0 && x % self.n == 0 {
-                    for line in this_row_lines.iter_mut() {
-                        line.push_str(" ┃");
-                    }
-                }
-                if self.board[y][x] != 0 {
-                    for (i, line) in this_row_lines.iter_mut().enumerate() {
-                        if i == self.n / 2 {
-                            line.push_str(&format!(
-                                " {}{}{}",
-                                " ".repeat(self.n + 1),
-                                BASE_64[self.board[y][x]],
-                                " ".repeat(self.n + 1)
-                            ));
-                        } else {
-                            line.push_str(&" ".repeat(2 * (self.n + 2)));
-                        }
-                    }
-                    continue;
-                }
-
-                this_row_lines.get_mut(0).unwrap().push_str(" ⎧");
-                for line in this_row_lines.iter_mut().skip(1).take(self.n - 2) {
-                    line.push_str(" ⎪");
-                }
-                this_row_lines.get_mut(self.n - 1).unwrap().push_str(" ⎩");
-
-                for i in 0..self.n {
-                    for j in 0..self.n {
-                        let value = i * self.n + j + 1;
-                        let displayed_char = if self.possibility_board[y][x].contains(&value) {
-                            BASE_64[value]
-                        } else {
-                            '·'
-                        };
-                        this_row_lines
-                            .get_mut(i)
-                            .unwrap()
-                            .push_str(&format!(" {displayed_char}"));
-                    }
-                }
-
-                this_row_lines.get_mut(0).unwrap().push_str(" ⎫");
-                for line in this_row_lines.iter_mut().skip(1).take(self.n - 2) {
-                    line.push_str(" ⎪");
-                }
-                this_row_lines.get_mut(self.n - 1).unwrap().push_str(" ⎭");
-            }
-
-            for line in this_row_lines.into_iter() {
-                lines.push(line);
-            }
-        }
-        write!(f, "{}", lines.join("\n"))
+        write!(f, "{}", self.to_string_lines().join("\n"))
     }
 }
 

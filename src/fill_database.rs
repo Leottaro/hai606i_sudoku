@@ -115,7 +115,7 @@ fn games() {
         for difficulty in SudokuDifficulty::iter() {
             println!("{difficulty}{}", " ".repeat(50));
 
-            sudoku.randomize().unwrap();
+            sudoku.randomize(None, None).unwrap();
             let game = sudoku.generate_from(difficulty).unwrap();
             let mut game_db = game.db_to_randomized().unwrap();
             game_db.game_difficulty = difficulty as u8;
