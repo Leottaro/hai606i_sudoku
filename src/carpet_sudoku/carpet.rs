@@ -664,7 +664,7 @@ impl CarpetSudoku {
                 continue;
             }
 
-            // panic if generated a wrong carpet
+            // verify the generated carpet
             let mut verify_carpet = carpet.clone();
             while let Ok((true, _)) = verify_carpet.rule_solve(None) {}
 

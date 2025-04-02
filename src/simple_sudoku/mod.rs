@@ -1,9 +1,6 @@
 pub type Coords = (usize, usize);
 
-use std:: collections::{ HashMap, HashSet } ;
-
-#[cfg(feature = "database")]
-use crate::database::Database;
+use std::collections::{ HashMap, HashSet };
 
 pub mod rules;
 pub mod sudoku;

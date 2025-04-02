@@ -1,11 +1,12 @@
 pub mod button;
 pub mod display;
 
-use std::{collections::{HashMap, HashSet}, rc::Rc};
-
+use std::{ collections::{ HashMap, HashSet }, rc::Rc };
 use macroquad::texture::Texture2D;
+use crate::{ carpet_sudoku::CarpetSudoku, simple_sudoku::SudokuDifficulty };
 
-use crate::{carpet_sudoku::CarpetSudoku, simple_sudoku::SudokuDifficulty};
+#[cfg(feature = "database")]
+use crate::database::Database;
 
 pub type ButtonFunction = Rc<Box<dyn Fn(&mut SudokuDisplay)>>;
 pub struct SudokuDisplay {
@@ -17,7 +18,7 @@ pub struct SudokuDisplay {
     scale_factor: f32,
     grid_size: f32,
     pixel_per_cell: f32,
-    selected_cell: Option<(usize,usize,usize)>,
+    selected_cell: Option<(usize, usize, usize)>,
     x_offset: f32,
     y_offset: f32,
     mode: String,
