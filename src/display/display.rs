@@ -404,9 +404,10 @@ impl SudokuDisplay {
         self.init();
         #[cfg(feature = "database")]
         match (browse, &mut self.database) {
-            // (true, Some(database)) => {
-            //     self.sudoku = Sudoku::load_game_from_db(database, self.sudoku.get_n(), difficulty)
-            // }
+            (true, Some(database)) => {
+                // self.sudoku = Sudoku::load_game_from_db(database, self.sudoku.get_n(), difficulty);
+                self.carpet = CarpetSudoku::generate_new(self.carpet.get_n(), pattern, difficulty);
+            }
             _ => {
                 self.carpet = CarpetSudoku::generate_new(self.carpet.get_n(), pattern, difficulty);
             }

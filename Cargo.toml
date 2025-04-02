@@ -14,6 +14,7 @@ name = "generation_benchmark"
 path = "src/generation_benchmark.rs"
 
 [dependencies]
+mysqlclient-sys = { version = "0.4.3", features = ["bundled"], optional = true }
 diesel = { version = "2.2.8", features = ["mysql"], optional = true }
 dotenv = { version = "0.15.0", optional = true }
 
@@ -24,4 +25,4 @@ macroquad = "0.4"
 rand = "0.8.5"
 
 [features]
-database = ["diesel", "dotenv"]
+database = ["diesel", "dotenv", "mysqlclient-sys"]

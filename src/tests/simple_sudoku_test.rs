@@ -188,7 +188,7 @@ mod tests {
             let mut randomized1 = canonical1.clone();
             randomized1.randomize(None, None).unwrap();
 
-            let game1 = randomized1.generate_from(difficulty).unwrap();
+            let game1 = randomized1.generate_from(difficulty);
             let db_game = game1.db_to_randomized().unwrap();
             let game2 = Sudoku::db_from_game(db_game);
             if game1.ne(&game2) {
