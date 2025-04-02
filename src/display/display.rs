@@ -133,9 +133,10 @@ impl SudokuDisplay {
         button_list.push(bouton_create);
         actions_boutons.insert(
             "Create".to_string(),
-            Rc::new(Box::new(|sudoku_display| {
+            Rc::new(Box::new(move |sudoku_display| {
                 sudoku_display.new_game(
                     CarpetPattern::Diagonal(3),
+					difficulty,
                     false,
                 );
             })),
@@ -155,9 +156,10 @@ impl SudokuDisplay {
         button_list.push(bouton_browse);
         actions_boutons.insert(
             "Browse".to_string(),
-            Rc::new(Box::new(|sudoku_display| {
+            Rc::new(Box::new(move |sudoku_display| {
                 sudoku_display.new_game(
                     CarpetPattern::Diagonal(3),
+					difficulty,
                     true,
                 );
             })),
@@ -291,7 +293,7 @@ impl SudokuDisplay {
         Self {
             #[cfg(feature = "database")]
             database: None,
-            carpet: carpet,
+            carpet,
             max_height,
             max_width,
             scale_factor,
@@ -389,22 +391,22 @@ impl SudokuDisplay {
         }
     }
 
-    fn new_game(&mut self, shape: CarpetPattern, browse: bool) {
+    fn new_game(&mut self, pattern: CarpetPattern, difficulty: SudokuDifficulty, browse: bool) {
         self.init();
         #[cfg(feature = "database")]
         match (browse, &mut self.database) {
-            (true, Some(database)) => {
-                self.sudoku = Sudoku::load_game_from_db(database, self.sudoku.get_n(), difficulty)
-            }
-            _ => self.sudoku = Sudoku::generate_new(self.sudoku.get_n(), difficulty).unwrap(),
+            // (true, Some(database)) => {
+            //     self.sudoku = Sudoku::load_game_from_db(database, self.sudoku.get_n(), difficulty)
+            // }
+            _ => self.carpet = CarpetSudoku::generate_new(self.carpet.get_n(), pattern, difficulty),
         };
 
         #[cfg(not(feature = "database"))]
         if browse {
             eprintln!("SudokuDisplay Error: Cannot fetch a game from database because the database feature isn't enabled");
-            self.carpet = CarpetSudoku::generate_full(self.carpet.get_n(), shape);
+            self.carpet = CarpetSudoku::generate_new(self.carpet.get_n(), pattern, difficulty);
         } else {
-            self.carpet = CarpetSudoku::generate_full(self.carpet.get_n(), shape);
+            self.carpet = CarpetSudoku::generate_new(self.carpet.get_n(), pattern, difficulty);
         };
 
         for button in self.button_list.iter_mut() {
@@ -495,7 +497,7 @@ impl SudokuDisplay {
     fn notes_btn(&mut self) {
         self.note = !self.note;
         for bouton in self.button_list.iter_mut() {
-            if bouton.text == *"Note" {
+            if bouton.text.eq("Note") {
                 bouton.set_clicked(!bouton.clicked());
             }
         }
@@ -655,7 +657,7 @@ impl SudokuDisplay {
             }
         }
 
-        let pb = if self.mode == *"Play" {
+        let pb = if self.mode.eq("Play") {
             self.player_pboard[sudoku_i].clone()
         } else {
             self.carpet.get_sudoku_possibility_board(sudoku_i)
@@ -810,7 +812,7 @@ impl SudokuDisplay {
                         }
                     }
                 }
-                if self.mode == "Play".to_string() {
+                if self.mode.eq("Play") {
                     for i in self.player_pboard[sudoku_i][y][x].clone() {
                         for button in self.button_list.iter_mut() {
                             if button.text == i.to_string() {

@@ -2,7 +2,7 @@ use std::collections::{ HashMap, HashSet };
 
 use crate::simple_sudoku::{ Sudoku, SudokuDifficulty };
 
-pub mod sudoku;
+pub mod carpet;
 
 pub type CarpetLink = ((usize, usize), (usize, usize)); // (usize, usize) == (sudoku_i, square_i)
 #[derive(Clone)]
