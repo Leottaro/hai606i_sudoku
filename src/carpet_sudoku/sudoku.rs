@@ -1,5 +1,5 @@
 use super::{ CarpetPattern, CarpetSudoku };
-use crate::simple_sudoku::{ Sudoku, SudokuDifficulty, SudokuError, SudokuGroups };
+use crate::simple_sudoku::{ Coords, Sudoku, SudokuDifficulty, SudokuError, SudokuGroups };
 use log::warn;
 use rand::{ seq::SliceRandom, thread_rng, Rng };
 use std::{
@@ -43,8 +43,16 @@ impl CarpetSudoku {
         self.sudokus[sudoku_id].get_cell_value(x, y)
     }
 
-    pub fn get_cell_posibilities(&self, sudoku_id: usize, x: usize, y: usize) -> HashSet<usize> {
+    pub fn get_cell_possibilities(&self, sudoku_id: usize, x: usize, y: usize) -> HashSet<usize> {
         self.sudokus[sudoku_id].get_cell_possibilities(x, y).clone()
+    }
+
+    pub fn get_cell_possibilities_mut(&mut self, sudoku_id: usize, x: usize, y: usize) -> &mut HashSet<usize> {
+        self.sudokus[sudoku_id].get_cell_possibilities_mut(x, y)
+    }
+
+    pub fn get_cell_group(&self, sudoku_id: usize, x: usize, y: usize, groups: SudokuGroups) -> HashSet<Coords>{
+        self.sudokus[sudoku_id].get_cell_group(x, y, groups)
     }
 
     pub fn get_filled_cells(&self) -> usize {
@@ -52,6 +60,14 @@ impl CarpetSudoku {
             .iter()
             .map(|sudoku| sudoku.get_filled_cells())
             .sum()
+    }
+
+    pub fn get_possibility_board(&self) -> Vec<Vec<Vec<HashSet<usize>>>>{
+        self.sudokus.iter().map(|sudoku| sudoku.get_possibility_board().clone()).collect()
+    }
+
+    pub fn get_sudoku_possibility_board(&self, sudoku_i: usize) -> Vec<Vec<HashSet<usize>>>{
+        self.sudokus[sudoku_i].get_possibility_board().clone()
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

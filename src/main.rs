@@ -10,7 +10,7 @@ use std::{
 #[cfg(feature = "database")]
 use hai606i_sudoku::database::Database;
 
-use hai606i_sudoku::{display::SudokuDisplay, simple_sudoku::Sudoku};
+use hai606i_sudoku::{carpet_sudoku::{CarpetPattern, CarpetSudoku}, display::SudokuDisplay, simple_sudoku::Sudoku};
 use macroquad::prelude::*;
 
 fn window_conf() -> Conf {
@@ -29,7 +29,8 @@ async fn main() {
         .await
         .unwrap();
 
-    let mut sudoku_display = SudokuDisplay::new(Sudoku::new(3), font.clone()).await;
+    let carpet = CarpetSudoku::new(3, CarpetPattern::Diagonal(3));
+    let mut sudoku_display = SudokuDisplay::new(carpet, font.clone()).await;
 
     #[cfg(feature = "database")]
     let (tx, rx) = mpsc::channel::<Option<Database>>();
