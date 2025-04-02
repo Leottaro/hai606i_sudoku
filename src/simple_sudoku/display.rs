@@ -446,10 +446,12 @@ impl SudokuDisplay {
                     self.sudoku.get_cell_possibilities_mut(x, y).clear();
                     self.player_pboard[y][x].clear();
                     let value = board[y][x];
-                    for (x1,y1) in self.sudoku.get_cell_group(x,y,All){
+                    for (x1, y1) in self.sudoku.get_cell_group(x, y, All) {
                         if self.sudoku.get_cell_value(x1, y1) == 0 {
                             self.player_pboard[y1][x1].remove(&value);
-                            self.sudoku.get_cell_possibilities_mut(x1, y1).remove(&value);
+                            self.sudoku
+                                .get_cell_possibilities_mut(x1, y1)
+                                .remove(&value);
                         }
                     }
                 }
@@ -518,7 +520,7 @@ impl SudokuDisplay {
                     self.sudoku.set_value(x1, y1, value).unwrap();
                     self.player_pboard[y1][x1].clear();
 
-                    for (x,y) in self.sudoku.get_cell_group(x1,y1,All){
+                    for (x, y) in self.sudoku.get_cell_group(x1, y1, All) {
                         if self.sudoku.get_cell_value(x, y) == 0 {
                             self.player_pboard[y][x].remove(&value);
                             self.sudoku.get_cell_possibilities_mut(x, y).remove(&value);
@@ -674,51 +676,48 @@ impl SudokuDisplay {
         self.y_offset = 150.0 * self.scale_factor;
     }
 
-    pub fn update_selected_buttons(&mut self){
-        if let Some((x,y)) = self.selected_cell{
-            if self.sudoku.get_cell_value(x,y)!=0{
-                for i in 1..=self.sudoku.get_n2(){
-                    for button in self.button_list.iter_mut(){
-                        if button.text == i.to_string(){
+    pub fn update_selected_buttons(&mut self) {
+        if let Some((x, y)) = self.selected_cell {
+            if self.sudoku.get_cell_value(x, y) != 0 {
+                for i in 1..=self.sudoku.get_n2() {
+                    for button in self.button_list.iter_mut() {
+                        if button.text == i.to_string() {
                             button.set_clicked(false);
                             button.set_clickable(false);
                         }
                     }
                 }
-            }
-            else{
-                for i in 1..=self.sudoku.get_n2(){
-                    for button in self.button_list.iter_mut(){
-                        if button.text == i.to_string(){
+            } else {
+                for i in 1..=self.sudoku.get_n2() {
+                    for button in self.button_list.iter_mut() {
+                        if button.text == i.to_string() {
                             button.set_clicked(false);
                             button.set_clickable(true);
                         }
                     }
                 }
-                if self.mode == "Play".to_string(){
-                    for i in self.player_pboard[y][x].clone(){
-                        for button in self.button_list.iter_mut(){
-                            if button.text == i.to_string(){
+                if self.mode == "Play".to_string() {
+                    for i in self.player_pboard[y][x].clone() {
+                        for button in self.button_list.iter_mut() {
+                            if button.text == i.to_string() {
                                 button.set_clicked(true);
                             }
                         }
                     }
-                }
-                else{
-                    for i in self.sudoku.possibility_board[y][x].clone(){
-                        for button in self.button_list.iter_mut(){
-                            if button.text == i.to_string(){
+                } else {
+                    for i in self.sudoku.possibility_board[y][x].clone() {
+                        for button in self.button_list.iter_mut() {
+                            if button.text == i.to_string() {
                                 button.set_clicked(true);
                             }
                         }
                     }
                 }
             }
-        }
-        else{
-            for i in 1..=self.sudoku.get_n2(){
-                for button in self.button_list.iter_mut(){
-                    if button.text == i.to_string(){
+        } else {
+            for i in 1..=self.sudoku.get_n2() {
+                for button in self.button_list.iter_mut() {
+                    if button.text == i.to_string() {
                         button.set_clicked(false);
                         button.set_clickable(true);
                     }
@@ -851,8 +850,83 @@ impl SudokuDisplay {
                 Some(KeyCode::Right) => {
                     selected_cell.0 = (selected_cell.0 + 1) % self.sudoku.get_n2();
                 }
+                Some(KeyCode::N) => {
+                    if let Some(action) = self.actions_boutons.get("Note").cloned() {
+                        action(self);
+                    }
+                }
+                Some(KeyCode::F) => {
+                    if let Some(action) = self.actions_boutons.get("Fill Notes").cloned() {
+                        action(self);
+                    }
+                }
+                Some(KeyCode::U) => {
+                    if let Some(action) = self.actions_boutons.get("Undo").cloned() {
+                        action(self);
+                    }
+                }
+                Some(KeyCode::Escape) => {
+                    self.selected_cell = None;
+                }
                 Some(KeyCode::A) => {
-                    debug!("salut c'est le 1 !");
+                    if let Some(action) = self.actions_boutons.get("Analyse").cloned() {
+                        action(self);
+                    }
+                }
+                Some(KeyCode::P) => {
+                    if let Some(action) = self.actions_boutons.get("Play").cloned() {
+                        action(self);
+                    }
+                }
+                Some(KeyCode::S) => {
+                    if let Some(action) = self.actions_boutons.get("Solve").cloned() {
+                        action(self);
+                    }
+                }
+                Some(KeyCode::Kp1) => {
+                    if let Some(action) = self.actions_boutons.get("1").cloned() {
+                        action(self);
+                    }
+                }
+                Some(KeyCode::Kp2) => {
+                    if let Some(action) = self.actions_boutons.get("2").cloned() {
+                        action(self);
+                    }
+                }
+                Some(KeyCode::Kp3) => {
+                    if let Some(action) = self.actions_boutons.get("3").cloned() {
+                        action(self);
+                    }
+                }
+                Some(KeyCode::Kp4) => {
+                    if let Some(action) = self.actions_boutons.get("4").cloned() {
+                        action(self);
+                    }
+                }
+                Some(KeyCode::Kp5) => {
+                    if let Some(action) = self.actions_boutons.get("5").cloned() {
+                        action(self);
+                    }
+                }
+                Some(KeyCode::Kp6) => {
+                    if let Some(action) = self.actions_boutons.get("6").cloned() {
+                        action(self);
+                    }
+                }
+                Some(KeyCode::Kp7) => {
+                    if let Some(action) = self.actions_boutons.get("7").cloned() {
+                        action(self);
+                    }
+                }
+                Some(KeyCode::Kp8) => {
+                    if let Some(action) = self.actions_boutons.get("8").cloned() {
+                        action(self);
+                    }
+                }
+                Some(KeyCode::Kp9) => {
+                    if let Some(action) = self.actions_boutons.get("9").cloned() {
+                        action(self);
+                    }
                 }
                 _ => (),
             }
