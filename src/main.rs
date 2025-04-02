@@ -10,7 +10,7 @@ use std::{
 #[cfg(feature = "database")]
 use hai606i_sudoku::database::Database;
 
-use hai606i_sudoku::simple_sudoku::{Sudoku, SudokuDisplay};
+use hai606i_sudoku::{display::SudokuDisplay, simple_sudoku::Sudoku};
 use macroquad::prelude::*;
 
 fn window_conf() -> Conf {

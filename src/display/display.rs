@@ -1,8 +1,9 @@
 #[cfg(feature = "database")]
 use crate::database::Database;
+use crate::simple_sudoku::{Coords, Sudoku, SudokuDifficulty, SudokuGroups::*};
 
 use super::{
-    Button, ButtonFunction, Coords, Sudoku, SudokuDifficulty, SudokuDisplay, SudokuGroups::*,
+    Button, ButtonFunction, SudokuDisplay,
 };
 use macroquad::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -389,9 +390,9 @@ impl SudokuDisplay {
         #[cfg(not(feature = "database"))]
         if browse {
             eprintln!("SudokuDisplay Error: Cannot fetch a game from database because the database feature isn't enabled");
-            self.sudoku = Sudoku::generate_new(self.sudoku.n, difficulty).unwrap()
+            self.sudoku = Sudoku::generate_new(self.sudoku.get_n(), difficulty).unwrap()
         } else {
-            self.sudoku = Sudoku::generate_new(self.sudoku.n, difficulty).unwrap()
+            self.sudoku = Sudoku::generate_new(self.sudoku.get_n(), difficulty).unwrap()
         };
 
         for button in self.button_list.iter_mut() {
@@ -727,7 +728,7 @@ impl SudokuDisplay {
                         }
                     }
                 } else {
-                    for i in self.sudoku.possibility_board[y][x].clone() {
+                    for i in self.sudoku.get_cell_possibilities(x,y).clone() {
                         for button in self.button_list.iter_mut() {
                             if button.text == i.to_string() {
                                 button.set_clicked(true);

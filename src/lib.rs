@@ -7,6 +7,7 @@ pub mod carpet_sudoku;
 pub mod database;
 pub mod simple_sudoku;
 pub mod tests;
+pub mod display;
 
 #[macro_export]
 macro_rules! debug_only {
