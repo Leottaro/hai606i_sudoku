@@ -119,7 +119,7 @@ impl std::fmt::Display for SudokuError {
                 write!(
                     f,
                     "SudokuError: Canonization mismatch this sudoku \n{sudoku}\nExpected board hash {}, got {}",
-                    sudoku.canonical_board_hash,
+                    sudoku.canonical_filled_board_hash,
                     board_hash
                 )
             }
@@ -162,7 +162,7 @@ pub struct Sudoku {
     difficulty: SudokuDifficulty,
 
     is_canonical: bool,
-    canonical_board_hash: u64,
+    canonical_filled_board_hash: u64,
     values_swap: HashMap<usize, (usize, usize)>, // 1 -> (2, 3) exprime les règles 1 donne 2 et 3 donne 1
     rows_swap: HashMap<usize, (usize, usize)>,
 }

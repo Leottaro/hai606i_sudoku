@@ -1,7 +1,7 @@
 use super::{ CarpetPattern, CarpetSudoku };
 use crate::simple_sudoku::{ Coords, Sudoku, SudokuDifficulty, SudokuError, SudokuGroups };
 use log::warn;
-use rand::{ seq::SliceRandom, thread_rng, Rng };
+use rand::{ seq::SliceRandom, rng, Rng };
 use std::{
     collections::{ HashMap, HashSet },
     ops::AddAssign,
@@ -379,7 +379,7 @@ impl CarpetSudoku {
             .iter()
             .cloned()
             .collect::<Vec<_>>();
-        possibilities.shuffle(&mut thread_rng());
+        possibilities.shuffle(&mut rng());
         for value in possibilities {
             match self.set_value(sudoku_id, x, y, value) {
                 Ok(()) => (),
@@ -454,7 +454,7 @@ impl CarpetSudoku {
                 ::new()
                 .name(format!("thread {thread_id}"))
                 .spawn(move || {
-                    let mut rng = rand::thread_rng();
+                    let mut rng = rand::rng();
                     while thread_rx.try_recv().is_err() {
                         let (carpet, filled_cells) = thread_to_explore
                             .lock()
@@ -475,19 +475,19 @@ impl CarpetSudoku {
                         );
                         std::io::Write::flush(&mut std::io::stdout()).unwrap();
 
-                        let mut i1 = rng.gen_range(0..filled_cells.len());
-                        let mut i2 = rng.gen_range(0..filled_cells.len());
+                        let mut i1 = rng.random_range(0..filled_cells.len());
+                        let mut i2 = rng.random_range(0..filled_cells.len());
                         loop {
                             if !filled_cells[i1] {
-                                i1 = rng.gen_range(0..filled_cells.len());
+                                i1 = rng.random_range(0..filled_cells.len());
                                 continue;
                             }
                             if !filled_cells[i2] {
-                                i2 = rng.gen_range(0..filled_cells.len());
+                                i2 = rng.random_range(0..filled_cells.len());
                                 continue;
                             }
                             if i1 == i2 {
-                                i2 = rng.gen_range(0..filled_cells.len());
+                                i2 = rng.random_range(0..filled_cells.len());
                                 continue;
                             }
                             break;

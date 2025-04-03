@@ -47,8 +47,8 @@ fn canonical(inserted_number: usize) {
             .name(thread_id.to_string())
             .spawn(move || {
                 while *remaining_number.lock().unwrap() > 0 {
-                    let sudoku_base: Sudoku = Sudoku::generate_full(3);
-                    let inserted_data = sudoku_base.db_to_canonical().unwrap();
+                    let sudoku_base = Sudoku::generate_full(3);
+                    let inserted_data = sudoku_base.filled_to_db().unwrap();
                     thread_data.lock().unwrap().push(inserted_data);
                 }
             })
@@ -72,7 +72,7 @@ fn canonical(inserted_number: usize) {
 
         let total_rows = passed_sudokus.len() + passed_squares.len();
         let (just_inserted_sudokus, just_inserted_squares) = database
-            .insert_multiple_simple_sudoku_canonical(passed_sudokus, passed_squares)
+            .insert_multiple_canonical_sudokus(passed_sudokus, passed_squares)
             .unwrap_or_else(|err| panic!("ERROR COULDN'T INSERT SUDOKU FILLED IN DATABSE: {err}"));
 
         remaining_number.lock().unwrap().sub_assign(just_inserted_sudokus);
@@ -89,23 +89,22 @@ fn games() {
     let database = Arc::new(Mutex::new(Database::connect().unwrap()));
 
     let (mut remaining_canonicals, canonicals) = {
-        let temp = database.lock().unwrap().get_all_simple_sudoku_canonical().unwrap();
+        let temp = database.lock().unwrap().get_all_canonical_sudokus().unwrap();
         (temp.len(), temp.into_iter())
     };
 
     for canonical in canonicals {
         remaining_canonicals.sub_assign(1);
-        let mut sudoku = Sudoku::db_from_canonical(canonical);
+        let sudoku = Sudoku::db_from_canonical(canonical);
         let mut passed_games = Vec::new();
         println!("{} canonicals left:{}", remaining_canonicals, " ".repeat(50));
 
         for difficulty in SudokuDifficulty::iter() {
             println!("{difficulty}{}", " ".repeat(50));
 
-            sudoku.randomize(None, None).unwrap();
             let game = sudoku.generate_from(difficulty);
-            let mut game_db = game.db_to_randomized().unwrap();
-            game_db.game_difficulty = difficulty as u8;
+            let mut game_db = game.game_to_db().unwrap();
+            game_db.game_difficulty = difficulty as i16;
             passed_games.push(game_db);
         }
 
@@ -114,7 +113,7 @@ fn games() {
             thread_database
                 .lock()
                 .unwrap()
-                .insert_multiple_simple_sudoku_game(passed_games)
+                .insert_multiple_canonical_sudoku_game(passed_games)
                 .unwrap_or_else(|err| {
                     panic!("ERROR COULDN'T INSERT SUDOKU GAME IN DATABSE: {err}")
                 });

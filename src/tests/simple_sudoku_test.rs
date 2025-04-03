@@ -177,7 +177,7 @@ mod tests {
     #[cfg(feature = "database")]
     fn to_from_db() {
         let canonical1 = Sudoku::generate_full(3);
-        let (db_canonical_sudoku, _db_canonical_squares) = canonical1.db_to_canonical().unwrap();
+        let (db_canonical_sudoku, _db_canonical_squares) = canonical1.filled_to_db().unwrap();
         let canonical2 = Sudoku::db_from_canonical(db_canonical_sudoku);
 
         if canonical1.ne(&canonical2) {
@@ -185,20 +185,11 @@ mod tests {
         }
 
         for difficulty in SudokuDifficulty::iter() {
-            let mut randomized1 = canonical1.clone();
-            randomized1.randomize(None, None).unwrap();
-
-            let game1 = randomized1.generate_from(difficulty);
-            let db_game = game1.db_to_randomized().unwrap();
+            let game1 = canonical1.generate_from(difficulty);
+            let db_game = game1.game_to_db().unwrap();
             let game2 = Sudoku::db_from_game(db_game);
             if game1.ne(&game2) {
                 panic!("randomized_to_db game PROBLEME");
-            }
-
-            let db_randomized = randomized1.db_to_randomized().unwrap();
-            let randomized2 = Sudoku::db_from_game(db_randomized);
-            if randomized1.ne(&randomized2) {
-                panic!("randomized_to_db PROBLEME");
             }
         }
     }
@@ -208,10 +199,9 @@ mod tests {
     fn rule_analyse() {
         let sudoku_data = std::fs::File::open("res/sudoku_cluewise.csv");
         if sudoku_data.is_err() {
-            println!(
+            panic!(
                 "\n\n#################### MESSAGE DE LEO ####################\nres/sudoku_cluewise.csv not found ! Try executing: \ncurl -L -o res/sudoku_cluewise.zip https://www.kaggle.com/api/v1/datasets/download/informoney/4-million-sudoku-puzzles-easytohard && unzip res/sudoku_data.zip -d res\n#################### MESSAGE DE LEO ####################\n\n"
             );
-            panic!();
         }
         let sudoku_data = sudoku_data.unwrap();
 
