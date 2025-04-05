@@ -223,7 +223,9 @@ impl SudokuDisplay {
         );
         actions_boutons.insert(
             button_note_fill.text.to_string(),
-            Rc::new(Box::new(SudokuDisplay::fill_notes_btn)),
+            Rc::new(Box::new(|sudoku_display| {
+                sudoku_display.fill_notes_btn(false);
+            })),
         );
         button_list.push(button_note_fill);
 
@@ -502,7 +504,7 @@ impl SudokuDisplay {
         }
     }
 
-    fn fill_notes_btn(&mut self) {
+    fn fill_notes_btn(&mut self, easy: bool) {
         let mut changed = false;
         let old_pboard = self.player_pboard.clone();
         for sudoku_i in 0..self.carpet.get_n_sudokus() {
@@ -512,8 +514,14 @@ impl SudokuDisplay {
                         && self.carpet.get_cell_value(sudoku_i, x, y) == 0
                     {
                         changed = true;
-                        for i in 1..=self.carpet.get_n2() {
-                            self.player_pboard[sudoku_i][y][x].insert(i);
+                        if easy {
+                            for i in self.carpet.get_cell_possibilities(sudoku_i, x, y) {
+                                self.player_pboard[sudoku_i][y][x].insert(i);
+                            }
+                        } else {
+                            for i in 1..=self.carpet.get_n2() {
+                                self.player_pboard[sudoku_i][y][x].insert(i);
+                            }
                         }
                     }
                 }
