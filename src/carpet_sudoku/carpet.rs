@@ -23,6 +23,10 @@ impl CarpetSudoku {
         self.n2
     }
 
+    pub fn get_pattern(&self) -> CarpetPattern {
+        self.pattern
+    }
+
     pub fn get_sudokus(&self) -> Vec<Sudoku> {
         self.sudokus.clone()
     }
@@ -113,6 +117,7 @@ impl CarpetSudoku {
             difficulty: SudokuDifficulty::Unknown,
             sudokus,
             links,
+            pattern,
         }
     }
 

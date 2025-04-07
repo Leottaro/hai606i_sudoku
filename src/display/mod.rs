@@ -33,7 +33,7 @@ pub struct SudokuDisplay {
     lifes: usize,
     new_game_available: bool,
     difficulty: SudokuDifficulty,
-    correction_board: Vec<Vec<usize>>,
+    correction_board: Vec<Vec<Vec<usize>>>,
 }
 
 pub struct Button {

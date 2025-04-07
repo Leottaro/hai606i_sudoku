@@ -12,8 +12,10 @@ pub struct CarpetSudoku {
     sudokus: Vec<Sudoku>,
     links: HashMap<usize, HashSet<(usize, usize, usize)>>,
     difficulty: SudokuDifficulty,
+    pattern: CarpetPattern,
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub enum CarpetPattern {
     Double,
     Diagonal(usize),

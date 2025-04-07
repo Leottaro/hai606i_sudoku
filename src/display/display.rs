@@ -24,7 +24,8 @@ impl SudokuDisplay {
             vec![vec![HashSet::new(); carpet.get_n2()]; carpet.get_n2()];
             carpet.get_n_sudokus()
         ];
-        let correction_board = vec![vec![1; carpet.get_n2()]; carpet.get_n2()];
+        let correction_board =
+            vec![vec![vec![0 as usize; carpet.get_n2()]; carpet.get_n2()]; carpet.get_n_sudokus()];
         let note = false;
         let mut button_list = Vec::new();
         let mut actions_boutons: HashMap<String, ButtonFunction> = HashMap::new();
@@ -134,7 +135,7 @@ impl SudokuDisplay {
         actions_boutons.insert(
             "Create".to_string(),
             Rc::new(Box::new(move |sudoku_display| {
-                sudoku_display.new_game(CarpetPattern::Diagonal(3), difficulty, false);
+                sudoku_display.new_game(sudoku_display.carpet.get_pattern(), difficulty, false);
             })),
         );
 
@@ -153,7 +154,7 @@ impl SudokuDisplay {
         actions_boutons.insert(
             "Browse".to_string(),
             Rc::new(Box::new(move |sudoku_display| {
-                sudoku_display.new_game(CarpetPattern::Diagonal(3), difficulty, true);
+                sudoku_display.new_game(sudoku_display.carpet.get_pattern(), difficulty, true);
             })),
         );
 
@@ -224,7 +225,7 @@ impl SudokuDisplay {
         actions_boutons.insert(
             button_note_fill.text.to_string(),
             Rc::new(Box::new(|sudoku_display| {
-                sudoku_display.fill_notes_btn(false);
+                sudoku_display.fill_notes_btn(true);
             })),
         );
         button_list.push(button_note_fill);
@@ -320,7 +321,7 @@ impl SudokuDisplay {
 
     pub fn init(&mut self) {
         self.set_mode("Play");
-        self.lifes = 3;
+        self.lifes = 300;
         self.selected_cell = None;
         self.player_pboard_history.clear();
         self.player_pboard =
@@ -416,7 +417,13 @@ impl SudokuDisplay {
             }
         }
 
-        //self.correction_board = self.carpet.solve();
+        let mut corrected_board = self.carpet.clone();
+        while let Ok((true, _)) = corrected_board.rule_solve(None) {}
+        self.correction_board = corrected_board
+            .get_sudokus()
+            .iter()
+            .map(|sudoku| sudoku.get_board().clone())
+            .collect();
     }
 
     fn set_mode(&mut self, mode: &str) {
@@ -554,11 +561,13 @@ impl SudokuDisplay {
                     }
                 }
             } else if !self.note {
-                if self.correction_board[y1][x1] == value {
+                if self.correction_board[sudoku_i][y1][x1] == value {
                     self.player_pboard_history.clear();
-                    info!("Bonne réponse !");
-                    self.carpet.set_value(sudoku_i, x1, y1, value).unwrap();
-                    self.player_pboard[y1][x1].clear();
+                    if let Err(err) = self.carpet.set_value(sudoku_i, x1, y1, value) {
+                        eprintln!("Error setting value: {err}");
+                        // return;
+                    }
+                    self.player_pboard[sudoku_i][y1][x1].clear();
 
                     for (x, y) in self.carpet.get_cell_group(sudoku_i, x1, y1, All) {
                         if self.carpet.get_cell_value(sudoku_i, x, y) == 0 {
