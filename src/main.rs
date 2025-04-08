@@ -40,6 +40,10 @@ async fn main() {
         sleep(Duration::from_secs(5));
     });
 
+	for i in 1..=3 {
+		CarpetSudoku::new_carpet(i, i);
+	}
+
     loop {
         #[cfg(feature = "database")]
         if let Ok(db) = rx.try_recv() {

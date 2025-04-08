@@ -18,4 +18,5 @@ pub enum CarpetPattern {
     Double,
     Diagonal(usize),
     Samurai,
+    Carpet(usize),
 }
