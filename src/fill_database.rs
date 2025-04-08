@@ -95,7 +95,7 @@ fn games() {
 
     for canonical in canonicals {
         remaining_canonicals.sub_assign(1);
-        let sudoku = Sudoku::db_from_canonical(canonical);
+        let sudoku = Sudoku::db_from_filled(canonical);
         let mut passed_games = Vec::new();
         println!("{} canonicals left:{}", remaining_canonicals, " ".repeat(50));
 
@@ -104,7 +104,7 @@ fn games() {
 
             let game = sudoku.generate_from(difficulty);
             let mut game_db = game.game_to_db().unwrap();
-            game_db.game_difficulty = difficulty as i16;
+            game_db.sudoku_game_difficulty = difficulty as i16;
             passed_games.push(game_db);
         }
 

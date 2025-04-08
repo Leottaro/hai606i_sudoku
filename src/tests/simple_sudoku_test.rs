@@ -176,20 +176,20 @@ mod tests {
     #[test]
     #[cfg(feature = "database")]
     fn to_from_db() {
-        let canonical1 = Sudoku::generate_full(3);
-        let (db_canonical_sudoku, _db_canonical_squares) = canonical1.filled_to_db().unwrap();
-        let canonical2 = Sudoku::db_from_canonical(db_canonical_sudoku);
+        let filled1 = Sudoku::generate_full(3);
+        let (db_canonical_sudoku, _db_canonical_squares) = filled1.filled_to_db().unwrap();
+        let filled2 = Sudoku::db_from_filled(db_canonical_sudoku.clone());
 
-        if canonical1.ne(&canonical2) {
-            panic!("canonical_to_db PROBLEME");
+        if filled1.ne(&filled2) {
+            panic!("filled_to_db or db_from_filled : {filled1}\n!=\n{filled2}");
         }
 
         for difficulty in SudokuDifficulty::iter() {
-            let game1 = canonical1.generate_from(difficulty);
+            let game1 = filled1.generate_from(difficulty);
             let db_game = game1.game_to_db().unwrap();
-            let game2 = Sudoku::db_from_game(db_game);
+            let game2 = Sudoku::db_from_game(db_game, db_canonical_sudoku.clone());
             if game1.ne(&game2) {
-                panic!("randomized_to_db game PROBLEME");
+                panic!("game_to_db or db_from_game : {game1}\n!=\n{game2}");
             }
         }
     }

@@ -1,6 +1,4 @@
 use crate::carpet_sudoku::{ CarpetPattern, CarpetSudoku };
-#[cfg(feature = "database")]
-use crate::database::Database;
 use crate::simple_sudoku::{ Coords, SudokuDifficulty, SudokuGroups::* };
 
 use super::{ Button, ButtonFunction, SudokuDisplay };
@@ -348,7 +346,7 @@ impl SudokuDisplay {
     }
 
     #[cfg(feature = "database")]
-    pub fn set_db(&mut self, database: Option<Database>) {
+    pub fn set_db(&mut self, database: Option<crate::database::Database>) {
         for button in self.button_list.iter_mut() {
             if button.text.eq("Browse") && button.clickable != database.is_some() {
                 button.set_clickable(database.is_some());

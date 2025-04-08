@@ -1,3 +1,12 @@
+DROP INDEX IF EXISTS idx_carpet_game_carpet_id;
+DROP TABLE IF EXISTS canonical_carpet_games;
+DROP INDEX IF EXISTS idx_carpet_sudoku_filled_board_hash;
+DROP INDEX IF EXISTS idx_carpet_sudoku_carpet_id;
+DROP TABLE IF EXISTS canonical_carpet_sudokus;
+DROP TABLE IF EXISTS canonical_carpets;
+DROP INDEX IF EXISTS idx_sudoku_difficulty_filled_cells;
+DROP INDEX IF EXISTS idx_sudoku_game_filled_board_hash;
 DROP TABLE IF EXISTS canonical_sudoku_games;
+DROP INDEX IF EXISTS idx_square_hash;
 DROP TABLE IF EXISTS canonical_sudoku_squares;
 DROP TABLE IF EXISTS canonical_sudokus;

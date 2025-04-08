@@ -7,13 +7,6 @@ use super::{
     SudokuError,
     SudokuGroups::{ self, * },
 };
-#[cfg(feature = "database")]
-use crate::database::{
-    Database,
-    DBNewCanonicalSudokuGame,
-    DBCanonicalSudoku,
-    DBCanonicalSudokuSquare,
-};
 use crate::debug_only;
 use log::{ info, warn };
 use rand::{ seq::SliceRandom, rng, Rng };
@@ -93,6 +86,10 @@ impl Sudoku {
 
     pub fn is_canonical(&self) -> bool {
         self.is_canonical
+    }
+
+    pub fn get_canonical_filled_board_hash(&self) -> u64 {
+        self.canonical_filled_board_hash
     }
 
     pub fn get_values_swap(&self) -> HashMap<usize, (usize, usize)> {
@@ -1051,18 +1048,19 @@ impl Sudoku {
         }
         lines
     }
+}
 
-    // DATABASE
+#[cfg(feature = "database")]
+use crate::database::{
+    Database,
+    DBNewCanonicalSudokuGame,
+    DBCanonicalSudoku,
+    DBCanonicalSudokuSquare,
+};
 
-    pub fn wrap_to_u64(x: i64) -> u64 {
-        (x as u64).wrapping_add(u64::MAX / 2 + 1)
-    }
-    pub fn wrap_to_i64(x: u64) -> i64 {
-        x.wrapping_sub(u64::MAX / 2 + 1) as i64
-    }
-
-    #[cfg(feature = "database")]
-    pub fn db_from_canonical(origin: DBCanonicalSudoku) -> Self {
+#[cfg(feature = "database")]
+impl Sudoku {
+    pub fn db_from_filled(origin: DBCanonicalSudoku) -> Self {
         let mut sudoku = Sudoku::new(origin.sudoku_n as usize);
         sudoku.is_canonical = true;
         sudoku.canonical_filled_board_hash = (origin.filled_board_hash as u64).wrapping_add(
@@ -1080,28 +1078,29 @@ impl Sudoku {
         sudoku
     }
 
-    #[cfg(feature = "database")]
-    pub fn db_from_game(origin: impl Into<DBNewCanonicalSudokuGame>) -> Self {
-        let origin: DBNewCanonicalSudokuGame = origin.into();
-        let mut sudoku = Sudoku::new(origin.game_n as usize);
+    pub fn db_from_game(
+        game_info: impl Into<DBNewCanonicalSudokuGame>,
+        filled_info: DBCanonicalSudoku
+    ) -> Self {
+        let game_info: DBNewCanonicalSudokuGame = game_info.into();
+
+        let mut sudoku = Sudoku::new(filled_info.sudoku_n as usize);
         sudoku.is_canonical = true;
-        sudoku.canonical_filled_board_hash = (origin.game_filled_board_hash as u64).wrapping_add(
+        sudoku.canonical_filled_board_hash = (filled_info.filled_board_hash as u64).wrapping_add(
             u64::MAX / 2 + 1
         );
         for y in 0..sudoku.n2 {
             for x in 0..sudoku.n2 {
-                let value = origin.game_board
-                    [y * (origin.game_n as usize) * (origin.game_n as usize) + x] as usize;
-                if value != 0 {
-                    sudoku.set_value(x, y, value).unwrap();
+                let i = y * sudoku.n * sudoku.n + x;
+                if game_info.sudoku_game_filled_cells[i] == 1 {
+                    sudoku.set_value(x, y, filled_info.canonical_board[i] as usize).unwrap();
                 }
             }
         }
-        sudoku.difficulty = SudokuDifficulty::from(origin.game_difficulty as u8);
+        sudoku.difficulty = SudokuDifficulty::from(game_info.sudoku_game_difficulty as u8);
         sudoku
     }
 
-    #[cfg(feature = "database")]
     pub fn game_to_db(&self) -> Result<DBNewCanonicalSudokuGame, SudokuError> {
         if !self.is_canonical {
             return Err(
@@ -1120,22 +1119,20 @@ impl Sudoku {
             );
         }
 
-        let board: Vec<u8> = self.board
-            .iter()
-            .flat_map(|line| line.iter().map(|cell| *cell as u8))
+        let filled_cells: Vec<u8> = (0..self.n2 * self.n2)
+            .map(|i| (self.board[i / self.n2][i % self.n2] > 0) as u8)
             .collect();
         Ok(DBNewCanonicalSudokuGame {
-            game_filled_board_hash: self.canonical_filled_board_hash.wrapping_sub(
+            sudoku_game_filled_board_hash: self.canonical_filled_board_hash.wrapping_sub(
                 u64::MAX / 2 + 1
             ) as i64,
-            game_n: self.n as i16,
-            game_board: board,
-            game_difficulty: self.difficulty as i16,
-            game_filled_cells: self.filled_cells as i16,
+            sudoku_game_n: self.n as i16,
+            sudoku_game_difficulty: self.difficulty as i16,
+            sudoku_game_filled_cells: filled_cells,
+            sudoku_game_filled_cells_count: self.filled_cells as i16,
         })
     }
 
-    #[cfg(feature = "database")]
     pub fn filled_to_db(
         &self
     ) -> Result<(DBCanonicalSudoku, Vec<DBCanonicalSudokuSquare>), SudokuError> {
@@ -1191,18 +1188,16 @@ impl Sudoku {
         Ok((simple_sudoku_canonical, simple_sudoku_canonical_squares))
     }
 
-    #[cfg(feature = "database")]
     pub fn load_filled_from_db(database: &mut Database, n: usize) -> Self {
         database.get_random_canonical_sudokus(n as u8).unwrap()
     }
 
-    #[cfg(feature = "database")]
     pub fn load_game_from_db(
         database: &mut Database,
         n: usize,
         difficulty: SudokuDifficulty
     ) -> Self {
-        database.get_random_canonical_sudoku_game(n as u8, difficulty).unwrap()
+        database.get_random_canonical_sudoku_game(n as i16, difficulty as i16).unwrap()
     }
 }
 

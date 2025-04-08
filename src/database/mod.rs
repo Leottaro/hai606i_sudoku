@@ -30,33 +30,76 @@ pub struct DBCanonicalSudokuSquare {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[diesel(table_name = canonical_sudoku_games)]
 pub struct DBCanonicalSudokuGame {
-    pub game_id: i32,
-    pub game_filled_board_hash: i64,
-    pub game_n: i16,
-    pub game_board: Vec<u8>,
-    pub game_difficulty: i16,
-    pub game_filled_cells: i16,
+    pub sudoku_game_id: i32,
+    pub sudoku_game_filled_board_hash: i64,
+    pub sudoku_game_n: i16,
+    pub sudoku_game_difficulty: i16,
+    pub sudoku_game_filled_cells: Vec<u8>,
+    pub sudoku_game_filled_cells_count: i16,
 }
 
 #[derive(Insertable, Clone)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[diesel(table_name = canonical_sudoku_games)]
 pub struct DBNewCanonicalSudokuGame {
-    pub game_filled_board_hash: i64,
-    pub game_n: i16,
-    pub game_board: Vec<u8>,
-    pub game_difficulty: i16,
-    pub game_filled_cells: i16,
+    pub sudoku_game_filled_board_hash: i64,
+    pub sudoku_game_n: i16,
+    pub sudoku_game_difficulty: i16,
+    pub sudoku_game_filled_cells: Vec<u8>,
+    pub sudoku_game_filled_cells_count: i16,
 }
 
 impl From<DBCanonicalSudokuGame> for DBNewCanonicalSudokuGame {
     fn from(game: DBCanonicalSudokuGame) -> Self {
-        Self {
-            game_filled_board_hash: game.game_filled_board_hash,
-            game_n: game.game_n,
-            game_board: game.game_board,
-            game_difficulty: game.game_difficulty,
-            game_filled_cells: game.game_filled_cells,
+        DBNewCanonicalSudokuGame {
+            sudoku_game_filled_board_hash: game.sudoku_game_filled_board_hash,
+            sudoku_game_n: game.sudoku_game_n,
+            sudoku_game_difficulty: game.sudoku_game_difficulty,
+            sudoku_game_filled_cells: game.sudoku_game_filled_cells,
+            sudoku_game_filled_cells_count: game.sudoku_game_filled_cells_count,
         }
     }
+}
+
+#[derive(Queryable, Selectable, Insertable, Clone)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = canonical_carpets)]
+pub struct DBCanonicalCarpet {
+    pub carpet_filled_board_hash: i64,
+    pub carpet_n: i16,
+    pub carpet_sudoku_number: i16,
+    pub carpet_pattern: i16,
+    pub carpet_pattern_size: Option<i16>,
+}
+
+#[derive(Queryable, Selectable, Insertable, Clone)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = canonical_carpet_sudokus)]
+pub struct DBCanonicalCarpetSudoku {
+    pub carpet_sudoku_carpet_filled_board_hash: i64,
+    pub carpet_sudoku_i: i16,
+    pub carpet_sudoku_filled_board_hash: i64,
+}
+
+#[derive(Queryable, Selectable, Clone)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = canonical_carpet_games)]
+pub struct DBCanonicalCarpetGame {
+    pub carpet_game_id: i32,
+    pub carpet_game_carpet_filled_board_hash: i64,
+    pub carpet_game_n: i16,
+    pub carpet_game_difficulty: i16,
+    pub carpet_game_filled_cells: Vec<u8>,
+    pub carpet_game_filled_cells_count: i16,
+}
+
+#[derive(Insertable, Clone)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(table_name = canonical_carpet_games)]
+pub struct DBNewCanonicalCarpetGame {
+    pub carpet_game_carpet_filled_board_hash: i64,
+    pub carpet_game_n: i16,
+    pub carpet_game_difficulty: i16,
+    pub carpet_game_filled_cells: Vec<u8>,
+    pub carpet_game_filled_cells_count: i16,
 }

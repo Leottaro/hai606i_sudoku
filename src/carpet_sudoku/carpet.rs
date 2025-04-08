@@ -1,9 +1,13 @@
 use super::{ CarpetPattern, CarpetSudoku };
-use crate::simple_sudoku::{ Coords, Sudoku, SudokuDifficulty, SudokuError, SudokuGroups };
+use crate::{
+    database::{ DBCanonicalCarpet, DBCanonicalCarpetSudoku, DBNewCanonicalCarpetGame },
+    simple_sudoku::{ Coords, Sudoku, SudokuDifficulty, SudokuError, SudokuGroups },
+};
 use log::warn;
 use rand::{ seq::SliceRandom, rng, Rng };
 use std::{
     collections::{ HashMap, HashSet },
+    hash::{ DefaultHasher, Hash, Hasher },
     ops::AddAssign,
     sync::{ mpsc, Arc, Mutex },
     thread::{ available_parallelism, JoinHandle },
@@ -61,9 +65,9 @@ impl CarpetSudoku {
         sudoku_id: usize,
         x: usize,
         y: usize,
-        groups: SudokuGroups
+        group: SudokuGroups
     ) -> HashSet<Coords> {
-        self.sudokus[sudoku_id].get_cell_group(x, y, groups)
+        self.sudokus[sudoku_id].get_cell_group(x, y, group)
     }
 
     pub fn get_filled_cells(&self) -> usize {
@@ -93,6 +97,7 @@ impl CarpetSudoku {
             CarpetPattern::Double => Self::new_diagonal(n, 2),
             CarpetPattern::Diagonal(n_sudokus) => Self::new_diagonal(n, n_sudokus),
             CarpetPattern::Samurai => Self::new_samurai(n),
+            CarpetPattern::Carpet(_) => todo!("CarpetPattern \"Carpet\" not yet implemented !"),
         };
 
         let mut links: HashMap<usize, HashSet<(usize, usize, usize)>> = HashMap::new();
@@ -107,12 +112,22 @@ impl CarpetSudoku {
             sudoku2_links.insert((square2, sudoku1, square1));
         }
 
+        let board_hash = {
+            let mut hasher = DefaultHasher::new();
+            for sudoku in sudokus.iter() {
+                sudoku.get_board().hash(&mut hasher);
+            }
+            hasher.finish()
+        };
+
         Self {
             n,
             n2: n * n,
+            pattern,
             difficulty: SudokuDifficulty::Unknown,
             sudokus,
             links,
+            filled_board_hash: board_hash,
         }
     }
 
@@ -752,6 +767,87 @@ impl CarpetSudoku {
         }
 
         current_solutions
+    }
+}
+
+#[cfg(feature = "database")]
+use crate::database::{ Database };
+
+#[cfg(feature = "database")]
+impl CarpetSudoku {
+    pub fn db_to_filled(
+        &self
+    ) -> Result<(DBCanonicalCarpet, Vec<DBCanonicalCarpetSudoku>), SudokuError> {
+        // if !self.is_canonical {
+        //     return Err(
+        //         SudokuError::InvalidState(
+        //             format!("filled_to_db() when this sudoku isn't canonical: {self}")
+        //         )
+        //     );
+        // }
+        if !self.is_filled() {
+            return Err(
+                SudokuError::WrongFunction(
+                    format!(
+                        "filled_to_db() when the sudoku isn't filled. Try calling game_to_db() instead.\n{self}"
+                    )
+                )
+            );
+        }
+
+        let (pattern, pattern_size) = self.pattern.to_db();
+        let db_carpet = DBCanonicalCarpet {
+            carpet_filled_board_hash: self.filled_board_hash.wrapping_sub(u64::MAX / 2 + 1) as i64,
+            carpet_n: self.n as i16,
+            carpet_sudoku_number: self.sudokus.len() as i16,
+            carpet_pattern: pattern,
+            carpet_pattern_size: pattern_size,
+        };
+
+        let db_sudokus = self.sudokus
+            .iter()
+            .enumerate()
+            .map(|(i, sudoku)| DBCanonicalCarpetSudoku {
+                carpet_sudoku_carpet_filled_board_hash: self.filled_board_hash.wrapping_sub(
+                    u64::MAX / 2 + 1
+                ) as i64,
+                carpet_sudoku_i: i as i16,
+                carpet_sudoku_filled_board_hash: sudoku
+                    .get_canonical_filled_board_hash()
+                    .wrapping_sub(u64::MAX / 2 + 1) as i64,
+            })
+            .collect::<Vec<_>>();
+
+        Ok((db_carpet, db_sudokus))
+    }
+
+    pub fn db_to_game(&self) -> DBNewCanonicalCarpetGame {
+        let filled_cells: Vec<u8> = (0..self.sudokus.len() * self.n2 * self.n2)
+            .map(|i| {
+                let sudoku_id = i / (self.n2 * self.n2);
+                let cell_i = i - sudoku_id * self.n2 * self.n2;
+                let y = cell_i / self.n2;
+                let x = cell_i % self.n2;
+                (self.sudokus[sudoku_id].get_cell_value(x, y) > 0) as u8
+            })
+            .collect();
+        DBNewCanonicalCarpetGame {
+            carpet_game_carpet_filled_board_hash: self.filled_board_hash.wrapping_sub(
+                u64::MAX / 2 + 1
+            ) as i64,
+            carpet_game_n: self.n as i16,
+            carpet_game_difficulty: self.difficulty as i16,
+            carpet_game_filled_cells: filled_cells.clone(),
+            carpet_game_filled_cells_count: filled_cells.len() as i16,
+        }
+    }
+
+    pub fn db_from_filled() -> Self {
+        todo!()
+    }
+
+    pub fn db_from_game() -> Self {
+        todo!()
     }
 }
 
