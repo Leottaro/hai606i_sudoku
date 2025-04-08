@@ -1,5 +1,4 @@
 use std::collections::{ HashMap, HashSet };
-
 use crate::simple_sudoku::{ Sudoku, SudokuDifficulty };
 
 pub mod carpet;
@@ -12,6 +11,8 @@ pub struct CarpetSudoku {
     sudokus: Vec<Sudoku>,
     links: HashMap<usize, HashSet<(usize, usize, usize)>>,
     difficulty: SudokuDifficulty,
+
+    is_canonical: bool,
 }
 
 pub enum CarpetPattern {

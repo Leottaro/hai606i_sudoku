@@ -114,6 +114,7 @@ impl CarpetSudoku {
             difficulty: SudokuDifficulty::Unknown,
             sudokus,
             links,
+            is_canonical: false,
         }
     }
 
@@ -163,7 +164,13 @@ impl CarpetSudoku {
 
     pub fn generate_full(n: usize, pattern: CarpetPattern) -> Self {
         let mut carpet = Self::new(n, pattern);
-        carpet.backtrack_solve(0, 0, 0);
+
+        carpet.sudokus[0] = Sudoku::generate_full(n);
+        let _ = carpet.update_link();
+        for sudoku_i in 1..carpet.sudokus.len() {
+            carpet.sudokus[sudoku_i] = carpet.sudokus[sudoku_i].generate_full_from();
+        }
+
         carpet
     }
 
@@ -701,6 +708,61 @@ impl CarpetSudoku {
 
             return carpet;
         }
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////   CANONIZATION   ///////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    pub fn randomize(&mut self) -> Result<(), SudokuError> {
+        if !self.is_filled() {
+            return Err(
+                SudokuError::InvalidState(
+                    format!("randomize() when this carpet isn't filled: {self}")
+                )
+            );
+        }
+        if !self.is_canonical {
+            return Err(
+                SudokuError::InvalidState(
+                    format!("randomize() when this carpet is already randomized: {self}")
+                )
+            );
+        }
+
+        self.sudokus[0].randomize(None, None)?;
+        let rows_swap = self.sudokus[0].get_rows_swap();
+        let values_swap = self.sudokus[0].get_values_swap();
+        for sudoku in self.sudokus.iter_mut().skip(1) {
+            sudoku.randomize(Some(rows_swap.clone()), Some(values_swap.clone()))?;
+        }
+
+        self.is_canonical = false;
+        Ok(())
+    }
+
+    pub fn canonize(&mut self) -> Result<(), SudokuError> {
+        if !self.is_filled() {
+            return Err(
+                SudokuError::InvalidState(
+                    format!("canonize() when this carpet isn't filled: {self}")
+                )
+            );
+        }
+        if !self.is_canonical {
+            return Err(
+                SudokuError::InvalidState(
+                    format!("canonize() when this carpet is already canonical: {self}")
+                )
+            );
+        }
+
+        for sudoku in self.sudokus.iter_mut() {
+            sudoku.canonize()?;
+        }
+
+        self.is_canonical = true;
+        Ok(())
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
