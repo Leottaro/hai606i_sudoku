@@ -790,6 +790,14 @@ impl SudokuDisplay {
                 self.draw_simple_sudoku(font.clone(), 0, n2 - n, n2 - n, self.selected_cell).await;
                 self.draw_simple_sudoku(font.clone(), sudoku_i, (2 * n2 - 2 * n) * x1, (2 * n2 - 2 * n) * y1, self.selected_cell).await;
             }
+            else{
+                for x in 0..2{
+                    for y in 0..2{
+                        self.draw_simple_sudoku(font.clone(), 1 + x + y * 2, (2 * n2 - 2 * n) * x, (2 * n2 - 2 * n) * y, self.selected_cell).await;
+                    }
+                }
+                self.draw_simple_sudoku(font.clone(), 0, n2 - n, n2 - n, self.selected_cell).await;
+            }
         }
         else {
             self.draw_simple_sudoku(font.clone(), 0, n2 - n, n2 - n, self.selected_cell).await;
@@ -830,6 +838,44 @@ impl SudokuDisplay {
                     .await;
             }
         }
+    }
+
+    pub fn samurai_click(&mut self, x: usize, y: usize){
+        let n = self.carpet.get_n();
+        let n2 = self.carpet.get_n2();
+
+        let mut temp : (usize, usize, usize) = (5, 0, 0);
+
+        if x < n2{
+            if y < n2{
+                temp = (1, x, y);
+            }
+            else if y >= n2 + n{
+                temp = (3, x, y - n2 -n);
+            }
+        }
+        else if x >= n2 + n{
+            if y < n2{
+                temp = (2, x - n2 - n, y);
+            }
+            else if y >= n2 + n{
+                temp = (4, x - n2 - n, y - n2 -n);
+            }
+        }
+        else if x >= n2 - n && x <= 2 * n2 - n && y >= n2 - n && y <= 2 * n2 - n{
+            temp = (0, x - (n2 - n), y - (n2 - n));
+        }
+
+        if let Some((sudoku_i, x1, y1)) = self.selected_cell {
+            if temp == (sudoku_i, x1, y1){
+                self.selected_cell = None;
+                return;
+            }
+        }
+        if temp != (5, 0, 0){
+            self.selected_cell = Some(temp);
+        }
+        println!("{:?}", self.selected_cell);
     }
 
     pub fn diag_click(&mut self, x: usize, y: usize) {
@@ -1022,7 +1068,17 @@ impl SudokuDisplay {
             && sudoku_y > 0.0
         {
             if is_mouse_button_pressed(MouseButton::Left) {
-                self.diag_click(x, y);
+                match self.carpet.get_pattern() {
+                    CarpetPattern::Diagonal(_) => {
+                        self.diag_click(x, y);
+                    }
+
+                    CarpetPattern::Samurai => {
+                        self.samurai_click(x, y);
+                    }
+
+                    _ => (),
+                }
             }
             self.diag_hover(x, y);
         }
@@ -1088,9 +1144,9 @@ impl SudokuDisplay {
                         }
                     } else {
                         if *y1 > 0 {
-                            *y1 += 1;
+                            *y1 -= 1;
                         } else {
-                            *y1 = 0;
+                            *y1 = self.carpet.get_n2()-1;
                         }
                     }
                 }
@@ -1114,7 +1170,7 @@ impl SudokuDisplay {
                             *y1 += 1;
                         }
                     } else {
-                        if *y1 < self.carpet.get_n2() {
+                        if *y1 < self.carpet.get_n2() - 1 {
                             *y1 += 1;
                         } else {
                             *y1 = 0;
@@ -1142,7 +1198,7 @@ impl SudokuDisplay {
                         }
                     } else {
                         if *x1 > 0 {
-                            *x1 += 1;
+                            *x1 -= 1;
                         } else {
                             *x1 = self.carpet.get_n2() - 1;
                         }
@@ -1169,7 +1225,7 @@ impl SudokuDisplay {
                             *x1 += 1;
                         }
                     } else {
-                        if *x1 < self.carpet.get_n2() {
+                        if *x1 < self.carpet.get_n2() - 1 {
                             *x1 += 1;
                         } else {
                             *x1 = 0;
