@@ -699,7 +699,9 @@ impl CarpetSudoku {
                 tx.send(()).unwrap();
                 handle.join().unwrap();
             }
-            carpet.update_link();
+            if carpet.update_link().is_err() {
+                warn!("Error while updating the link");
+            }
             return carpet;
         }
     }
