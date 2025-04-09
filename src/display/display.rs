@@ -1022,17 +1022,17 @@ impl SudokuDisplay {
             match get_last_key_pressed() {
                 Some(KeyCode::Up) => {
                     if *y1 == self.carpet.get_n()
-                        && *x1 >= self.carpet.get_n() * 2
+                        && *x1 >= self.carpet.get_n2() - self.carpet.get_n()
                         && *sudoku_i < self.carpet.get_n_sudokus() - 1
                     {
                         *sudoku_i += 1;
                         *y1 = self.carpet.get_n2() - 1;
-                        *x1 -= self.carpet.get_n() * 2;
+                        *x1 -= self.carpet.get_n2() - self.carpet.get_n();
                     } else if *y1 == 0 {
                         if *sudoku_i > 0 && *x1 < self.carpet.get_n() {
                             *sudoku_i -= 1;
                             *y1 = self.carpet.get_n2() - 1;
-                            *x1 += self.carpet.get_n() * 2;
+                            *x1 += self.carpet.get_n2() - self.carpet.get_n();
                         } else {
                             *y1 = self.carpet.get_n2() - 1;
                         }
@@ -1043,15 +1043,15 @@ impl SudokuDisplay {
                 Some(KeyCode::Down) => {
                     if *y1 == self.carpet.get_n2() - 1 {
                         if *sudoku_i < self.carpet.get_n_sudokus() - 1
-                            && *x1 > self.carpet.get_n() * 2
+                            && *x1 >= self.carpet.get_n2() - self.carpet.get_n()
                         {
                             *sudoku_i += 1;
                             *y1 = 0;
-                            *x1 -= self.carpet.get_n() * 2;
+                            *x1 -= self.carpet.get_n2() - self.carpet.get_n();  
                         } else if *sudoku_i > 0 && *x1 < self.carpet.get_n() {
                             *sudoku_i -= 1;
                             *y1 = self.carpet.get_n();
-                            *x1 += self.carpet.get_n() * 2;
+                            *x1 += self.carpet.get_n2() - self.carpet.get_n();
                         } else {
                             *y1 = 0;
                         }
@@ -1061,16 +1061,16 @@ impl SudokuDisplay {
                 }
                 Some(KeyCode::Left) => {
                     if *x1 == 0 {
-                        if *sudoku_i > 0 && *y1 >= self.carpet.get_n() * 2 {
+                        if *sudoku_i > 0 && *y1 >= self.carpet.get_n2() - self.carpet.get_n() {
                             *sudoku_i -= 1;
                             *x1 = self.carpet.get_n2() - self.carpet.get_n() - 1;
-                            *y1 -= self.carpet.get_n() * 2;
+                            *y1 -= self.carpet.get_n2() - self.carpet.get_n();
                         } else if *sudoku_i < self.carpet.get_n_sudokus() - 1
                             && *y1 < self.carpet.get_n()
                         {
                             *sudoku_i += 1;
                             *x1 = self.carpet.get_n2() - 1;
-                            *y1 += self.carpet.get_n() * 2;
+                            *y1 += self.carpet.get_n2() - self.carpet.get_n();
                         } else {
                             *x1 = self.carpet.get_n2() - 1;
                         }
@@ -1079,18 +1079,18 @@ impl SudokuDisplay {
                     }
                 }
                 Some(KeyCode::Right) => {
-                    if *x1 == self.carpet.get_n() * 2 - 1
+                    if *x1 == self.carpet.get_n2() - self.carpet.get_n() - 1
                         && *y1 < self.carpet.get_n()
                         && *sudoku_i < self.carpet.get_n_sudokus() - 1
                     {
                         *sudoku_i += 1;
                         *x1 = 0;
-                        *y1 += self.carpet.get_n() * 2;
+                        *y1 += self.carpet.get_n2() - self.carpet.get_n();
                     } else if *x1 == self.carpet.get_n2() - 1 {
-                        if *y1 > self.carpet.get_n() * 2 - 1 {
+                        if *y1 > self.carpet.get_n2() - self.carpet.get_n() - 1 {
                             *sudoku_i -= 1;
                             *x1 = 0;
-                            *y1 -= self.carpet.get_n() * 2;
+                            *y1 -= self.carpet.get_n2() - self.carpet.get_n();
                         } else {
                             *x1 = 0;
                         }
