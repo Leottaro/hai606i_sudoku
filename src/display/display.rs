@@ -768,6 +768,40 @@ impl SudokuDisplay {
         }
     }
 
+    async fn draw_samurai_sudoku(&mut self, font: Font){
+        let n = self.carpet.get_n();
+        let n2 = self.carpet.get_n2();
+
+        if let Some((sudoku_i, _, _)) = self.selected_cell {
+            if sudoku_i >= 1{
+                let mut x1: usize = 1;
+                let mut y1: usize = 1;
+                for x in 0..2{
+                    for y in 0..2{
+                        let i = 1 + x + y * 2;
+                        if i == sudoku_i{
+                            x1 = x;
+                            y1 = y;
+                            continue;
+                        }
+                        self.draw_simple_sudoku(font.clone(), 1 + x + y * 2, (2 * n2 - 2 * n) * x, (2 * n2 - 2 * n) * y, self.selected_cell).await;
+                    }
+                }
+                self.draw_simple_sudoku(font.clone(), 0, n2 - n, n2 - n, self.selected_cell).await;
+                self.draw_simple_sudoku(font.clone(), sudoku_i, (2 * n2 - 2 * n) * x1, (2 * n2 - 2 * n) * y1, self.selected_cell).await;
+            }
+        }
+        else {
+            self.draw_simple_sudoku(font.clone(), 0, n2 - n, n2 - n, self.selected_cell).await;
+            for x in 0..2{
+                for y in 0..2{
+                    self.draw_simple_sudoku(font.clone(), 1 + x + y * 2, (2 * n2 - 2 * n) * x, (2 * n2 - 2 * n) * y, self.selected_cell).await;
+                }
+            }
+        }
+        
+    }
+
     async fn draw_diag_sudoku(&mut self, font: Font) {
         let n = self.carpet.get_n();
         let n2 = self.carpet.get_n2();
@@ -859,6 +893,9 @@ impl SudokuDisplay {
     // ==========================================
 
     pub fn update_scale(&mut self) {
+        let n2 = self.carpet.get_n2();
+        let n = self.carpet.get_n();
+
         let ratio = screen_width() / screen_height();
         let ratio_voulu = 411.0 / 245.0;
         if ratio <= ratio_voulu {
@@ -868,10 +905,19 @@ impl SudokuDisplay {
         }
 
         self.grid_size = 900.0 * self.scale_factor;
-        //self.pixel_per_cell = self.grid_size / self.sudoku.get_n2() as f32;
-        self.pixel_per_cell = self.grid_size
-            / (((self.carpet.get_n2() - self.carpet.get_n()) as f32) * 3.0
-                + (self.carpet.get_n() as f32));
+
+        // DIAG //
+        if self.carpet.get_pattern() == CarpetPattern::Diagonal(self.carpet.get_n_sudokus()){
+            self.pixel_per_cell = self.grid_size
+                / (((n2 - n) as f32) * self.carpet.get_n_sudokus() as f32
+                    + (n as f32));
+        }
+        
+        // SAMURAI //
+        if self.carpet.get_pattern() == CarpetPattern::Samurai{
+            self.pixel_per_cell = self.grid_size / (n2 * 3 - 2 * n) as f32;
+        }
+
         self.x_offset = 250.0 * self.scale_factor;
         self.y_offset = 150.0 * self.scale_factor;
     }
@@ -982,7 +1028,7 @@ impl SudokuDisplay {
         }
 
         //self.draw_simple_sudoku(font.clone(),0, 0).await;
-        self.draw_diag_sudoku(font.clone()).await;
+        self.draw_samurai_sudoku(font.clone()).await;
         let mut action = None;
         for bouton in self.button_list.iter_mut() {
             if bouton.text.contains("Lifes: ") {
