@@ -216,7 +216,9 @@ impl CarpetSudoku {
                             }
                         }
 
-                        if value1 != 0 || value2 != 0 {
+                        if value1 != 0 && value2 != 0 {
+                            self.sudokus[sudoku1].clear_possibilities(x1 + dx, y1 + dy);
+                            self.sudokus[sudoku2].clear_possibilities(x2 + dx, y2 + dy);
                             continue;
                         }
 
@@ -670,7 +672,7 @@ impl CarpetSudoku {
         }
 
         loop {
-            let carpet = rx.recv().unwrap();
+            let mut carpet = rx.recv().unwrap();
 
             // verify that the carpet is unique
             if !carpet.clone().is_unique() {
@@ -697,7 +699,7 @@ impl CarpetSudoku {
                 tx.send(()).unwrap();
                 handle.join().unwrap();
             }
-
+            carpet.update_link();
             return carpet;
         }
     }

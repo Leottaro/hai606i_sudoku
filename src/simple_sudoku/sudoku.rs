@@ -134,6 +134,10 @@ impl Sudoku {
         res
     }
 
+    pub fn clear_possibilities(&mut self, x: usize, y: usize){
+        self.possibility_board[y][x].clear();
+    }
+
     pub fn insert_possibility(
         &mut self,
         x: usize,
