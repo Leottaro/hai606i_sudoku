@@ -497,8 +497,13 @@ impl SudokuDisplay {
     }
 
     fn solve(&mut self) {
-        while !self.carpet.is_filled() {
-            self.solve_once();
+        while let Ok((true, _)) = self.carpet.rule_solve(None) {}
+        for sudoku_i in 0..self.carpet.get_n_sudokus() {
+            for x in 0..self.carpet.get_n2() {
+                for y in 0..self.carpet.get_n2() {
+                    self.player_pboard[sudoku_i][y][x].clear();
+                }
+            }
         }
     }
 
@@ -565,7 +570,6 @@ impl SudokuDisplay {
                     self.player_pboard_history.clear();
                     if let Err(err) = self.carpet.set_value(sudoku_i, x1, y1, value) {
                         eprintln!("Error setting value: {err}");
-                        // return;
                     }
                     self.player_pboard[sudoku_i][y1][x1].clear();
 
@@ -579,8 +583,8 @@ impl SudokuDisplay {
                     }
                 } else {
                     self.lifes -= 1;
-                    if let Some((_sudoku_i, a, b)) = self.selected_cell {
-                        self.draw_cell((a, b), Color::from_hex(0xff0000));
+                    if let Some((i, a, b)) = self.selected_cell {
+                        self.draw_cell((i, a, b), Color::from_hex(0xff0000));
                     }
                 }
             }
@@ -593,10 +597,15 @@ impl SudokuDisplay {
 
     // =============================================
 
-    fn draw_cell(&self, (x, y): Coords, color: Color) {
+    fn draw_cell(&self, (i, x, y): (usize, usize, usize), color: Color) {
+        let n = self.carpet.get_n();
+        let n2 = self.carpet.get_n2();
+        let n_sudokus = self.carpet.get_n_sudokus();
+        let x1 = (i * (n2 - n)) as f32;
+        let y1 = ((n_sudokus - i - 1) * (n2 - n)) as f32;
         draw_rectangle(
-            (x as f32) * self.pixel_per_cell + self.x_offset,
-            (y as f32) * self.pixel_per_cell + self.y_offset,
+            (x as f32) * self.pixel_per_cell + self.x_offset + x1,
+            (y as f32) * self.pixel_per_cell + self.y_offset + y1,
             self.pixel_per_cell,
             self.pixel_per_cell,
             color,
@@ -624,69 +633,29 @@ impl SudokuDisplay {
         );
         if selected_cell.is_some() {
             let (selected_sudoku, selected_x, selected_y) = selected_cell.unwrap();
-            let mut selected_group: Vec<(usize, usize)> = Vec::new();
-            if selected_sudoku == sudoku_i + 1 {
-                if selected_y >= 2 * n {
-                    selected_group.extend(self.carpet.get_cell_group(
-                        sudoku_i,
-                        selected_x,
-                        selected_y - 2 * n,
-                        Row,
-                    ));
-                }
-                if selected_x < n {
-                    selected_group.extend(self.carpet.get_cell_group(
-                        sudoku_i,
-                        selected_x + 2 * n,
-                        selected_y,
-                        Column,
-                    ));
+            let selected_group =
+                self.carpet
+                    .get_golbal_cell_group(selected_sudoku, selected_x, selected_y, All);
+            for (i, x, y) in selected_group.iter() {
+                if *i == sudoku_i {
+                    draw_rectangle(
+                        (*x as f32) * self.pixel_per_cell + sudoku_x_offset,
+                        (*y as f32) * self.pixel_per_cell + sudoku_y_offset,
+                        self.pixel_per_cell,
+                        self.pixel_per_cell,
+                        Color::from_hex(0xe4ebf2),
+                    );
                 }
             }
-            if selected_sudoku + 1 == sudoku_i {
-                if selected_y < n {
-                    selected_group.extend(self.carpet.get_cell_group(
-                        sudoku_i,
-                        selected_x,
-                        selected_y + 2 * n,
-                        Row,
-                    ));
-                }
-                if selected_x >= 2 * n {
-                    selected_group.extend(self.carpet.get_cell_group(
-                        sudoku_i,
-                        selected_x - 2 * n,
-                        selected_y,
-                        Column,
-                    ));
-                }
-            }
+
             if selected_sudoku == sudoku_i {
-                selected_group.extend(
-                    self.carpet
-                        .get_cell_group(sudoku_i, selected_x, selected_y, All),
+                draw_rectangle(
+                    (selected_x as f32) * self.pixel_per_cell + sudoku_x_offset,
+                    (selected_y as f32) * self.pixel_per_cell + sudoku_y_offset,
+                    self.pixel_per_cell,
+                    self.pixel_per_cell,
+                    Color::from_hex(0xc2ddf8),
                 );
-            }
-            for x in 0..n2 {
-                for y in 0..n2 {
-                    if (selected_sudoku, x, y) == (sudoku_i, selected_x, selected_y) {
-                        draw_rectangle(
-                            (x as f32) * self.pixel_per_cell + sudoku_x_offset,
-                            (y as f32) * self.pixel_per_cell + sudoku_y_offset,
-                            self.pixel_per_cell,
-                            self.pixel_per_cell,
-                            Color::from_hex(0xc2ddf8),
-                        );
-                    } else if selected_group.contains(&(x, y)) {
-                        draw_rectangle(
-                            (x as f32) * self.pixel_per_cell + sudoku_x_offset,
-                            (y as f32) * self.pixel_per_cell + sudoku_y_offset,
-                            self.pixel_per_cell,
-                            self.pixel_per_cell,
-                            Color::from_hex(0xe4ebf2),
-                        );
-                    }
-                }
             }
         }
         for i in 0..n2 {
@@ -803,12 +772,29 @@ impl SudokuDisplay {
         let n = self.carpet.get_n();
         let n2 = self.carpet.get_n2();
         let n_sudokus = self.carpet.get_n_sudokus();
-        for i in 0..n_sudokus {
-            let x1 = i * (n2 - n);
-            let y1 = (n_sudokus - i - 1) * (n2 - n);
-            self.draw_simple_sudoku(font.clone(), i, x1, y1, self.selected_cell)
-                .await;
-            // self.draw_simple_sudoku(font.clone(), i, x1, y1, self.selected_cell).await;
+        if let Some((sudoku_i, _, _)) = self.selected_cell {
+            for i in 0..n_sudokus {
+                if i == sudoku_i {
+                    continue;
+                }
+                if i != sudoku_i {
+                    let x1 = i * (n2 - n);
+                    let y1 = (n_sudokus - i - 1) * (n2 - n);
+                    self.draw_simple_sudoku(font.clone(), i, x1, y1, self.selected_cell)
+                        .await;
+                }
+                let x1 = sudoku_i * (n2 - n);
+                let y1 = (n_sudokus - sudoku_i - 1) * (n2 - n);
+                self.draw_simple_sudoku(font.clone(), sudoku_i, x1, y1, self.selected_cell)
+                    .await;
+            }
+        } else {
+            for i in 0..n_sudokus {
+                let x1 = i * (n2 - n);
+                let y1 = (n_sudokus - i - 1) * (n2 - n);
+                self.draw_simple_sudoku(font.clone(), i, x1, y1, self.selected_cell)
+                    .await;
+            }
         }
     }
 
@@ -863,7 +849,7 @@ impl SudokuDisplay {
         if sudoku_i == n_sudokus {
             return;
         }
-        self.draw_cell((x, y), Color::from_hex(0xf1f5f9));
+        self.draw_cell((sudoku_i, x, y), Color::from_hex(0xf1f5f9));
     }
 
     // ==========================================
