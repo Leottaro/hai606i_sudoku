@@ -1,6 +1,6 @@
 pub type Coords = (usize, usize);
 
-use std::collections::{ HashMap, HashSet };
+use std::collections::{HashMap, HashSet};
 
 pub mod rules;
 pub mod sudoku;
@@ -60,8 +60,9 @@ impl SudokuDifficulty {
             SudokuDifficulty::Medium,
             SudokuDifficulty::Hard,
             SudokuDifficulty::Master,
-            SudokuDifficulty::Extreme
-        ].into_iter()
+            SudokuDifficulty::Extreme,
+        ]
+        .into_iter()
     }
 
     pub fn from(n: u8) -> Self {
@@ -136,7 +137,10 @@ impl std::fmt::Display for SudokuError {
                 write!(f, "SudokuError: couldn't open file {file_path}: {error}")
             }
             SudokuError::SameValueCells(((x1, y1), (x2, y2))) => {
-                write!(f, "SudokuError: Cells at ({x1},{y1}) and ({x2},{y2}) have the same value")
+                write!(
+                    f,
+                    "SudokuError: Cells at ({x1},{y1}) and ({x2},{y2}) have the same value"
+                )
             }
             SudokuError::WrongFunction(string) => {
                 write!(f, "SudokuError: Wrong function for {string}")

@@ -1,9 +1,12 @@
 pub mod button;
 pub mod display;
 
-use std::{ collections::{ HashMap, HashSet }, rc::Rc };
+use crate::{carpet_sudoku::CarpetSudoku, simple_sudoku::SudokuDifficulty};
 use macroquad::texture::Texture2D;
-use crate::{ carpet_sudoku::CarpetSudoku, simple_sudoku::SudokuDifficulty };
+use std::{
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
 
 #[cfg(feature = "database")]
 use crate::database::Database;

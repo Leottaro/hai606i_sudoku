@@ -5,9 +5,9 @@ extern crate diesel;
 pub mod carpet_sudoku;
 #[cfg(feature = "database")]
 pub mod database;
+pub mod display;
 pub mod simple_sudoku;
 pub mod tests;
-pub mod display;
 
 #[macro_export]
 macro_rules! debug_only {

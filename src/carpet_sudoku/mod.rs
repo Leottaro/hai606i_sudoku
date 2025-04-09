@@ -1,6 +1,6 @@
-use std::collections::{ HashMap, HashSet };
+use std::collections::{HashMap, HashSet};
 
-use crate::simple_sudoku::{ Sudoku, SudokuDifficulty };
+use crate::simple_sudoku::{Sudoku, SudokuDifficulty};
 
 pub mod carpet;
 

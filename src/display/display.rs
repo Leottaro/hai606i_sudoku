@@ -768,46 +768,74 @@ impl SudokuDisplay {
         }
     }
 
-    async fn draw_samurai_sudoku(&mut self, font: Font){
+    async fn draw_samurai_sudoku(&mut self, font: Font) {
         let n = self.carpet.get_n();
         let n2 = self.carpet.get_n2();
 
         if let Some((sudoku_i, _, _)) = self.selected_cell {
-            if sudoku_i >= 1{
+            if sudoku_i >= 1 {
                 let mut x1: usize = 1;
                 let mut y1: usize = 1;
-                for x in 0..2{
-                    for y in 0..2{
+                for x in 0..2 {
+                    for y in 0..2 {
                         let i = 1 + x + y * 2;
-                        if i == sudoku_i{
+                        if i == sudoku_i {
                             x1 = x;
                             y1 = y;
                             continue;
                         }
-                        self.draw_simple_sudoku(font.clone(), 1 + x + y * 2, (2 * n2 - 2 * n) * x, (2 * n2 - 2 * n) * y, self.selected_cell).await;
+                        self.draw_simple_sudoku(
+                            font.clone(),
+                            1 + x + y * 2,
+                            (2 * n2 - 2 * n) * x,
+                            (2 * n2 - 2 * n) * y,
+                            self.selected_cell,
+                        )
+                        .await;
                     }
                 }
-                self.draw_simple_sudoku(font.clone(), 0, n2 - n, n2 - n, self.selected_cell).await;
-                self.draw_simple_sudoku(font.clone(), sudoku_i, (2 * n2 - 2 * n) * x1, (2 * n2 - 2 * n) * y1, self.selected_cell).await;
-            }
-            else{
-                for x in 0..2{
-                    for y in 0..2{
-                        self.draw_simple_sudoku(font.clone(), 1 + x + y * 2, (2 * n2 - 2 * n) * x, (2 * n2 - 2 * n) * y, self.selected_cell).await;
+                self.draw_simple_sudoku(font.clone(), 0, n2 - n, n2 - n, self.selected_cell)
+                    .await;
+                self.draw_simple_sudoku(
+                    font.clone(),
+                    sudoku_i,
+                    (2 * n2 - 2 * n) * x1,
+                    (2 * n2 - 2 * n) * y1,
+                    self.selected_cell,
+                )
+                .await;
+            } else {
+                for x in 0..2 {
+                    for y in 0..2 {
+                        self.draw_simple_sudoku(
+                            font.clone(),
+                            1 + x + y * 2,
+                            (2 * n2 - 2 * n) * x,
+                            (2 * n2 - 2 * n) * y,
+                            self.selected_cell,
+                        )
+                        .await;
                     }
                 }
-                self.draw_simple_sudoku(font.clone(), 0, n2 - n, n2 - n, self.selected_cell).await;
+                self.draw_simple_sudoku(font.clone(), 0, n2 - n, n2 - n, self.selected_cell)
+                    .await;
             }
-        }
-        else {
-            self.draw_simple_sudoku(font.clone(), 0, n2 - n, n2 - n, self.selected_cell).await;
-            for x in 0..2{
-                for y in 0..2{
-                    self.draw_simple_sudoku(font.clone(), 1 + x + y * 2, (2 * n2 - 2 * n) * x, (2 * n2 - 2 * n) * y, self.selected_cell).await;
+        } else {
+            self.draw_simple_sudoku(font.clone(), 0, n2 - n, n2 - n, self.selected_cell)
+                .await;
+            for x in 0..2 {
+                for y in 0..2 {
+                    self.draw_simple_sudoku(
+                        font.clone(),
+                        1 + x + y * 2,
+                        (2 * n2 - 2 * n) * x,
+                        (2 * n2 - 2 * n) * y,
+                        self.selected_cell,
+                    )
+                    .await;
                 }
             }
         }
-        
     }
 
     async fn draw_diag_sudoku(&mut self, font: Font) {
@@ -840,39 +868,35 @@ impl SudokuDisplay {
         }
     }
 
-    pub fn samurai_click(&mut self, x: usize, y: usize){
+    pub fn samurai_click(&mut self, x: usize, y: usize) {
         let n = self.carpet.get_n();
         let n2 = self.carpet.get_n2();
 
-        let mut temp : (usize, usize, usize) = (5, 0, 0);
+        let mut temp: (usize, usize, usize) = (5, 0, 0);
 
-        if x < n2{
-            if y < n2{
+        if x < n2 {
+            if y < n2 {
                 temp = (1, x, y);
+            } else if y >= n2 + n {
+                temp = (3, x, y - n2 - n);
             }
-            else if y >= n2 + n{
-                temp = (3, x, y - n2 -n);
-            }
-        }
-        else if x >= n2 + n{
-            if y < n2{
+        } else if x >= n2 + n {
+            if y < n2 {
                 temp = (2, x - n2 - n, y);
+            } else if y >= n2 + n {
+                temp = (4, x - n2 - n, y - n2 - n);
             }
-            else if y >= n2 + n{
-                temp = (4, x - n2 - n, y - n2 -n);
-            }
-        }
-        else if x >= n2 - n && x <= 2 * n2 - n && y >= n2 - n && y <= 2 * n2 - n{
+        } else if x >= n2 - n && x <= 2 * n2 - n && y >= n2 - n && y <= 2 * n2 - n {
             temp = (0, x - (n2 - n), y - (n2 - n));
         }
 
         if let Some((sudoku_i, x1, y1)) = self.selected_cell {
-            if temp == (sudoku_i, x1, y1){
+            if temp == (sudoku_i, x1, y1) {
                 self.selected_cell = None;
                 return;
             }
         }
-        if temp != (5, 0, 0){
+        if temp != (5, 0, 0) {
             self.selected_cell = Some(temp);
         }
         println!("{:?}", self.selected_cell);
@@ -953,14 +977,13 @@ impl SudokuDisplay {
         self.grid_size = 900.0 * self.scale_factor;
 
         // DIAG //
-        if self.carpet.get_pattern() == CarpetPattern::Diagonal(self.carpet.get_n_sudokus()){
+        if self.carpet.get_pattern() == CarpetPattern::Diagonal(self.carpet.get_n_sudokus()) {
             self.pixel_per_cell = self.grid_size
-                / (((n2 - n) as f32) * self.carpet.get_n_sudokus() as f32
-                    + (n as f32));
+                / (((n2 - n) as f32) * self.carpet.get_n_sudokus() as f32 + (n as f32));
         }
-        
+
         // SAMURAI //
-        if self.carpet.get_pattern() == CarpetPattern::Samurai{
+        if self.carpet.get_pattern() == CarpetPattern::Samurai {
             self.pixel_per_cell = self.grid_size / (n2 * 3 - 2 * n) as f32;
         }
 
@@ -1146,7 +1169,7 @@ impl SudokuDisplay {
                         if *y1 > 0 {
                             *y1 -= 1;
                         } else {
-                            *y1 = self.carpet.get_n2()-1;
+                            *y1 = self.carpet.get_n2() - 1;
                         }
                     }
                 }

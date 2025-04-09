@@ -82,7 +82,11 @@ impl CarpetSudoku {
         let x0 = x - dx;
         let y0 = y - dy;
         let square_id = y0 + x0 / self.n;
-        let mut cell_group: HashSet<(usize, usize, usize)> = self.sudokus[sudoku_id].get_cell_group(x, y, group).into_iter().map(|(x,y)| (sudoku_id, x, y)).collect();
+        let mut cell_group: HashSet<(usize, usize, usize)> = self.sudokus[sudoku_id]
+            .get_cell_group(x, y, group)
+            .into_iter()
+            .map(|(x, y)| (sudoku_id, x, y))
+            .collect();
 
         for &(square1, sudoku2, square2) in self.links.to_owned().get(&sudoku_id).unwrap() {
             if square_id != square1 {
@@ -95,7 +99,7 @@ impl CarpetSudoku {
                 self.sudokus[sudoku2]
                     .get_cell_group(x2 + dx, y2 + dy, group)
                     .into_iter()
-                    .map(|(x,y)| (sudoku2, x, y))
+                    .map(|(x, y)| (sudoku2, x, y)),
             );
         }
         cell_group
