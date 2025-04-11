@@ -1,8 +1,5 @@
 use super::{ CarpetPattern, CarpetSudoku };
-use crate::{
-    database::DBCanonicalSudokuSquare,
-    simple_sudoku::{ Coords, Sudoku, SudokuDifficulty, SudokuError, SudokuGroups },
-};
+use crate::simple_sudoku::{ Coords, Sudoku, SudokuDifficulty, SudokuError, SudokuGroups };
 use log::warn;
 use rand::{ seq::SliceRandom, rng, Rng };
 use std::{
@@ -97,7 +94,7 @@ impl CarpetSudoku {
             CarpetPattern::Double => Self::new_diagonal(n, 2),
             CarpetPattern::Diagonal(n_sudokus) => Self::new_diagonal(n, n_sudokus),
             CarpetPattern::Samurai => Self::new_samurai(n),
-            CarpetPattern::Carpet(_) => todo!("CarpetPattern \"Carpet\" not yet implemented !"),
+            CarpetPattern::Carpet(n_sudokus) => Self::new_carpet(n, n_sudokus),
         };
 
         let mut links: HashMap<usize, HashSet<(usize, usize, usize)>> = HashMap::new();
@@ -128,6 +125,7 @@ impl CarpetSudoku {
             sudokus,
             links,
             filled_board_hash: board_hash,
+            is_canonical: false,
         }
     }
 
@@ -154,9 +152,36 @@ impl CarpetSudoku {
         (sudokus, links)
     }
 
+    pub fn new_carpet(n: usize, n_sudokus: usize) -> (Vec<Sudoku>, Vec<RawLink>) {
+        let sudokus = vec![Sudoku::new(n); n_sudokus*n_sudokus];
+        let links = (0..n_sudokus * n_sudokus - 1)
+            .flat_map(|i| {
+                let mut links = Vec::new();
+
+                let bottom_i = i + n_sudokus;
+                if bottom_i > 0 {
+                    links.extend((0..n).map(|k| ((i, n * (n - 1) + k), (bottom_i, k))));
+                }
+                let right_i = i + 1;
+                if right_i > 0 {
+                    links.extend((0..n).map(|k| ((i, n * k + (n - 1)), (right_i, n * k))));
+                }
+
+                links
+            })
+            .collect();
+        (sudokus, links)
+    }
+
     pub fn generate_full(n: usize, pattern: CarpetPattern) -> Self {
         let mut carpet = Self::new(n, pattern);
-        carpet.backtrack_solve(0, 0, 0);
+
+        carpet.sudokus[0] = Sudoku::generate_full(n);
+        let _ = carpet.update_link();
+        for sudoku_i in 1..carpet.sudokus.len() {
+            carpet.sudokus[sudoku_i] = carpet.sudokus[sudoku_i].generate_full_from();
+        }
+
         carpet
     }
 
@@ -697,6 +722,61 @@ impl CarpetSudoku {
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////   CANONIZATION   ///////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    pub fn randomize(&mut self) -> Result<(), SudokuError> {
+        if !self.is_filled() {
+            return Err(
+                SudokuError::InvalidState(
+                    format!("randomize() when this carpet isn't filled: {self}")
+                )
+            );
+        }
+        if !self.is_canonical {
+            return Err(
+                SudokuError::InvalidState(
+                    format!("randomize() when this carpet is already randomized: {self}")
+                )
+            );
+        }
+
+        self.sudokus[0].randomize(None, None)?;
+        let rows_swap = self.sudokus[0].get_rows_swap();
+        let values_swap = self.sudokus[0].get_values_swap();
+        for sudoku in self.sudokus.iter_mut().skip(1) {
+            sudoku.randomize(Some(rows_swap.clone()), Some(values_swap.clone()))?;
+        }
+
+        self.is_canonical = false;
+        Ok(())
+    }
+
+    pub fn canonize(&mut self) -> Result<(), SudokuError> {
+        if !self.is_filled() {
+            return Err(
+                SudokuError::InvalidState(
+                    format!("canonize() when this carpet isn't filled: {self}")
+                )
+            );
+        }
+        if !self.is_canonical {
+            return Err(
+                SudokuError::InvalidState(
+                    format!("canonize() when this carpet is already canonical: {self}")
+                )
+            );
+        }
+
+        for sudoku in self.sudokus.iter_mut() {
+            sudoku.canonize()?;
+        }
+
+        self.is_canonical = true;
+        Ok(())
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////   UTILITY   //////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -774,8 +854,9 @@ impl CarpetSudoku {
 use crate::database::{
     DBCanonicalCarpet,
     DBCanonicalCarpetSudoku,
-    DBCanonicalSudoku,
     DBNewCanonicalCarpetGame,
+    DBCanonicalSudoku,
+    DBCanonicalSudokuSquare,
 };
 
 #[cfg(feature = "database")]

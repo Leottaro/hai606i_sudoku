@@ -338,64 +338,81 @@ impl Sudoku {
     }
 
     pub fn generate_full(n: usize) -> Self {
-        let mut sudoku = Self::new(n);
-        let mut rng = rng();
+        Self::new(n).into_generate_full_from()
+    }
 
-        // upper row is 1 2 3 4 .....
-        for x in 0..sudoku.n2 {
-            sudoku.set_value(x, 0, x + 1).unwrap();
+    pub fn generate_full_from(&mut self) -> Self {
+        self.clone().into_generate_full_from()
+    }
+
+    pub fn into_generate_full_from(mut self) -> Self {
+        // fill the upper row with an ascending order
+        let first_line_possibilities = (0..self.n2)
+            .map(|x| {
+                let mut vec = self.possibility_board[0][x].iter().cloned().collect::<Vec<_>>();
+                vec.sort();
+                vec.into_iter()
+            })
+            .collect::<Vec<_>>();
+
+        let mut current_possibilities = first_line_possibilities.clone();
+        let mut x = 0;
+        while x < self.n2 {
+            let next_value = current_possibilities[x].next();
+            if next_value.is_none() {
+                x -= 1;
+                current_possibilities[x] = first_line_possibilities[x].clone();
+                continue;
+            }
+
+            match self.set_value(x, 0, next_value.unwrap()) {
+                Err(_) => {
+                    let _ = self.remove_value(x, 0);
+                }
+                Ok(()) => {
+                    x += 1;
+                }
+            }
         }
 
-        // left column filling (with each squares separated)
-        let mut column_squares: Vec<Vec<usize>> = Vec::new();
+        // fill the left collumn with an ascending order
+        let first_column_possibilities = (0..self.n2)
+            .map(|y| {
+                let mut vec = self.possibility_board[y][0].iter().cloned().collect::<Vec<_>>();
+                vec.sort();
+                vec.into_iter()
+            })
+            .collect::<Vec<_>>();
 
-        // upper left square can't have the n first values
-        let mut possible_values = {
-            let mut temp = (n + 1..=sudoku.n2).collect::<Vec<_>>();
-            temp.shuffle(&mut rng);
-            temp
-        };
+        let mut current_possibilities = first_column_possibilities.clone();
+        let mut y = 1;
+        while y < self.n2 {
+            let next_value = current_possibilities[y].next();
+            if next_value.is_none() {
+                y -= 1;
+                current_possibilities[y] = first_column_possibilities[y].clone();
+                continue;
+            }
 
-        // so we extract the first square
-        let mut first_square = vec![1];
-        for _y in 1..n {
-            first_square.push(possible_values.pop().unwrap());
+            match self.set_value(0, y, next_value.unwrap()) {
+                Err(_) => {
+                    let _ = self.remove_value(0, y);
+                }
+                Ok(()) => {
+                    y += 1;
+                }
+            }
         }
-        column_squares.push(first_square);
-
-        // add the first n values to the options and re shuffle
-        possible_values.extend(2..=sudoku.n);
-        possible_values.shuffle(&mut rng);
-
-        // extract the remaining squares from those values
-        column_squares.extend(possible_values.chunks(n).map(|square| square.to_vec()));
-
-        // within each square, sort the values (rows) in an ascending order
-        for square in column_squares.iter_mut() {
-            square.sort();
-        }
-
-        // sort the squares by first value
-        column_squares.sort_by(|square1, square2| square1[0].cmp(&square2[0]));
-
-        // get the rest of the final column and fill it
-        let column = column_squares.into_iter().flatten();
-        for (y, value) in column.enumerate().skip(1) {
-            sudoku.set_value(0, y, value).unwrap();
-        }
-
-        // fill the rest of the sudoku
-        sudoku.backtrack_solve(0, 0);
 
         // get the canonical board hash
-        sudoku.canonical_filled_board_hash = {
+        self.canonical_filled_board_hash = {
             let mut hasher = DefaultHasher::new();
-            sudoku.board.hash(&mut hasher);
+            self.board.hash(&mut hasher);
             hasher.finish()
         };
 
-        sudoku.is_canonical = true;
-        sudoku
+        self.is_canonical = true;
+        self
     }
 
     pub fn randomize(

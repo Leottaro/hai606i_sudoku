@@ -1,5 +1,4 @@
 use std::collections::{ HashMap, HashSet };
-
 use crate::simple_sudoku::{ Sudoku, SudokuDifficulty };
 
 pub mod carpet;
@@ -15,6 +14,7 @@ pub struct CarpetSudoku {
     difficulty: SudokuDifficulty,
 
     filled_board_hash: u64,
+    is_canonical: bool,
 }
 
 #[derive(PartialEq, Eq, Copy, Clone)]
