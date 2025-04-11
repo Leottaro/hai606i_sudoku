@@ -17,7 +17,7 @@ pub struct CarpetSudoku {
     filled_board_hash: u64,
 }
 
-#[derive(Clone)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub enum CarpetPattern {
     Double,
     Diagonal(usize),
@@ -42,6 +42,28 @@ impl CarpetPattern {
             (2, None) => CarpetPattern::Samurai,
             (3, Some(n)) => CarpetPattern::Carpet(n as usize),
             (a, b) => panic!("pattern:{a} & pattern_size:{:?} not recognized !", b),
+        }
+    }
+
+    pub fn iter() -> impl Iterator<Item = CarpetPattern> {
+        vec![
+            CarpetPattern::Diagonal(1),
+            CarpetPattern::Diagonal(2),
+            CarpetPattern::Diagonal(3),
+            CarpetPattern::Samurai,
+            CarpetPattern::Carpet(2),
+            CarpetPattern::Carpet(3)
+        ].into_iter()
+    }
+}
+
+impl std::fmt::Display for CarpetPattern {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CarpetPattern::Double => write!(f, "Double"),
+            CarpetPattern::Diagonal(n) => write!(f, "Diagonal({n})"),
+            CarpetPattern::Samurai => write!(f, "Samurai"),
+            CarpetPattern::Carpet(n) => write!(f, "Carpet({n})"),
         }
     }
 }

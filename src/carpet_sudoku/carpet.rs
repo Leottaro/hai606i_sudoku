@@ -1,6 +1,6 @@
 use super::{ CarpetPattern, CarpetSudoku };
 use crate::{
-    database::{ DBCanonicalCarpet, DBCanonicalCarpetSudoku, DBNewCanonicalCarpetGame },
+    database::DBCanonicalSudokuSquare,
     simple_sudoku::{ Coords, Sudoku, SudokuDifficulty, SudokuError, SudokuGroups },
 };
 use log::warn;
@@ -771,7 +771,12 @@ impl CarpetSudoku {
 }
 
 #[cfg(feature = "database")]
-use crate::database::{ Database };
+use crate::database::{
+    DBCanonicalCarpet,
+    DBCanonicalCarpetSudoku,
+    DBCanonicalSudoku,
+    DBNewCanonicalCarpetGame,
+};
 
 #[cfg(feature = "database")]
 impl CarpetSudoku {
@@ -804,7 +809,7 @@ impl CarpetSudoku {
             carpet_pattern_size: pattern_size,
         };
 
-        let db_sudokus = self.sudokus
+        let db_carpet_sudokus = self.sudokus
             .iter()
             .enumerate()
             .map(|(i, sudoku)| DBCanonicalCarpetSudoku {
@@ -818,7 +823,14 @@ impl CarpetSudoku {
             })
             .collect::<Vec<_>>();
 
-        Ok((db_carpet, db_sudokus))
+        Ok((db_carpet, db_carpet_sudokus))
+    }
+
+    pub fn db_sudokus_to_filled(&self) -> Vec<(DBCanonicalSudoku, Vec<DBCanonicalSudokuSquare>)> {
+        self.sudokus
+            .iter()
+            .map(|sudoku| sudoku.filled_to_db().unwrap())
+            .collect()
     }
 
     pub fn db_to_game(&self) -> DBNewCanonicalCarpetGame {
@@ -835,19 +847,62 @@ impl CarpetSudoku {
             carpet_game_carpet_filled_board_hash: self.filled_board_hash.wrapping_sub(
                 u64::MAX / 2 + 1
             ) as i64,
-            carpet_game_n: self.n as i16,
             carpet_game_difficulty: self.difficulty as i16,
             carpet_game_filled_cells: filled_cells.clone(),
             carpet_game_filled_cells_count: filled_cells.len() as i16,
         }
     }
 
-    pub fn db_from_filled() -> Self {
-        todo!()
+    pub fn db_from_filled(
+        db_carpet: DBCanonicalCarpet,
+        db_carpet_sudokus: Vec<DBCanonicalCarpetSudoku>,
+        db_sudokus: Vec<DBCanonicalSudoku>
+    ) -> Self {
+        let mut carpet = Self::new(
+            db_carpet.carpet_n as usize,
+            CarpetPattern::from_db(db_carpet.carpet_pattern, db_carpet.carpet_pattern_size)
+        );
+        carpet.filled_board_hash = (db_carpet.carpet_filled_board_hash as u64).wrapping_add(
+            u64::MAX / 2 + 1
+        );
+
+        for carpet_sudoku in db_carpet_sudokus {
+            let sudoku = db_sudokus
+                .iter()
+                .find(
+                    |sudoku|
+                        sudoku.filled_board_hash == carpet_sudoku.carpet_sudoku_filled_board_hash
+                )
+                .expect("Sudoku not found in db_sudokus");
+            carpet.sudokus[carpet_sudoku.carpet_sudoku_i as usize] = Sudoku::db_from_filled(
+                sudoku.clone()
+            );
+        }
+
+        carpet
     }
 
-    pub fn db_from_game() -> Self {
-        todo!()
+    pub fn db_from_game(
+        game_info: impl Into<DBNewCanonicalCarpetGame>,
+        db_carpet: DBCanonicalCarpet,
+        db_carpet_sudokus: Vec<DBCanonicalCarpetSudoku>,
+        db_sudokus: Vec<DBCanonicalSudoku>
+    ) -> Self {
+        let game_info = game_info.into();
+        let mut carpet = Self::db_from_filled(db_carpet, db_carpet_sudokus, db_sudokus);
+        carpet.difficulty = SudokuDifficulty::from(game_info.carpet_game_difficulty);
+
+        for (i, is_filled) in game_info.carpet_game_filled_cells.into_iter().enumerate() {
+            if is_filled == 0 {
+                let sudoku_id = i / (carpet.n2 * carpet.n2);
+                let cell_i = i - sudoku_id * carpet.n2 * carpet.n2;
+                let y = cell_i / carpet.n2;
+                let x = cell_i % carpet.n2;
+                carpet.remove_value(sudoku_id, x, y).unwrap();
+            }
+        }
+
+        carpet
     }
 }
 

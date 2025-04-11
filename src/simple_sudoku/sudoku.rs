@@ -1097,7 +1097,7 @@ impl Sudoku {
                 }
             }
         }
-        sudoku.difficulty = SudokuDifficulty::from(game_info.sudoku_game_difficulty as u8);
+        sudoku.difficulty = SudokuDifficulty::from(game_info.sudoku_game_difficulty);
         sudoku
     }
 
@@ -1126,7 +1126,6 @@ impl Sudoku {
             sudoku_game_filled_board_hash: self.canonical_filled_board_hash.wrapping_sub(
                 u64::MAX / 2 + 1
             ) as i64,
-            sudoku_game_n: self.n as i16,
             sudoku_game_difficulty: self.difficulty as i16,
             sudoku_game_filled_cells: filled_cells,
             sudoku_game_filled_cells_count: self.filled_cells as i16,

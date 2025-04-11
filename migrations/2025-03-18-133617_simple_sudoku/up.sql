@@ -17,7 +17,6 @@ CREATE INDEX IF NOT EXISTS idx_square_hash ON canonical_sudoku_squares(square_ha
 CREATE TABLE IF NOT EXISTS canonical_sudoku_games (
 	sudoku_game_id SERIAL,
 	sudoku_game_filled_board_hash BIGINT NOT NULL,
-	sudoku_game_n SMALLINT NOT NULL,
 	sudoku_game_difficulty SMALLINT NOT NULL,
 	sudoku_game_filled_cells BYTEA NOT NULL,
 	sudoku_game_filled_cells_count SMALLINT NOT NULL,
@@ -27,8 +26,6 @@ CREATE TABLE IF NOT EXISTS canonical_sudoku_games (
 );
 CREATE INDEX IF NOT EXISTS idx_sudoku_game_filled_board_hash ON canonical_sudoku_games(sudoku_game_filled_board_hash);
 CREATE INDEX IF NOT EXISTS idx_sudoku_difficulty_filled_cells ON canonical_sudoku_games(sudoku_game_difficulty, sudoku_game_filled_cells);
-
-
 
 CREATE TABLE IF NOT EXISTS canonical_carpets (
 	carpet_filled_board_hash BIGINT NOT NULL,
@@ -53,7 +50,6 @@ CREATE INDEX IF NOT EXISTS idx_carpet_sudoku_filled_board_hash ON canonical_carp
 CREATE TABLE IF NOT EXISTS canonical_carpet_games (
 	carpet_game_id SERIAL,
 	carpet_game_carpet_filled_board_hash BIGINT NOT NULL,
-	carpet_game_n SMALLINT NOT NULL,
 	carpet_game_difficulty SMALLINT NOT NULL,
 	carpet_game_filled_cells BYTEA NOT NULL,
 	carpet_game_filled_cells_count SMALLINT NOT NULL,

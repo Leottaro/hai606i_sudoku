@@ -1,13 +1,15 @@
 use diesel::{
+    connection::DefaultLoadingMode,
     BoolExpressionMethods,
     Connection,
     ExpressionMethods,
+    JoinOnDsl,
     PgConnection,
     QueryDsl,
     RunQueryDsl,
 };
 
-use crate::simple_sudoku::{ Sudoku as SimpleSudoku, SudokuDifficulty };
+use crate::{ carpet_sudoku::CarpetSudoku, simple_sudoku::Sudoku as SimpleSudoku };
 
 use super::{
     *,
@@ -101,10 +103,44 @@ impl Database {
         &mut self,
         n: i64
     ) -> Result<Vec<DBCanonicalCarpet>, diesel::result::Error> {
-        canonical_carpets
-            .order(rand())
-            .limit(n)
-            .get_results::<DBCanonicalCarpet>(&mut self.connection)
+        // let truuc = canonical_carpets.left_join();
+
+        // let db_carpets = canonical_carpets
+        //     .order(rand())
+        //     .limit(n)
+        //     .load_iter::<DBCanonicalCarpet, DefaultLoadingMode>(&mut self.connection)?
+        //     .filter_map(|a| (
+        //         if let Ok(db_carpet) = a {
+        //             let (db_carpet_sudokus, db_sudokus): (Vec<_>, Vec<_>) = canonical_carpet_sudokus
+        //                 .left_join(
+        //                     canonical_sudokus.on(
+        //                         filled_board_hash.eq(carpet_sudoku_filled_board_hash)
+        //                     )
+        //                 )
+        //                 .filter(
+        //                     carpet_sudoku_carpet_filled_board_hash.eq(
+        //                         db_carpet.carpet_filled_board_hash
+        //                     )
+        //                 )
+        //                 .order_by(carpet_sudoku_i)
+        //                 .load_iter::<
+        //                     (DBCanonicalCarpetSudoku, Option<DBCanonicalSudoku>),
+        //                     DefaultLoadingMode
+        //                 >(&mut self.connection)?
+        //                 .filter_map(|a| (
+        //                     if let Ok((db_carpet_sudoku, Some(db_sudoku))) = a {
+        //                         Some((db_carpet_sudoku, db_sudoku))
+        //                     } else {
+        //                         None
+        //                     }
+        //                 ))
+        //                 .unzip();
+        //             Some((db_carpet, db_carpet_sudokus, db_sudokus))
+        //         } else {
+        //             None
+        //         }
+        //     ));
+        todo!()
     }
 
     pub fn get_n_canonical_carpet_games(
@@ -145,13 +181,13 @@ impl Database {
     pub fn insert_canonical_carpet(
         &mut self,
         carpet: DBCanonicalCarpet,
-        sudokus: Vec<DBCanonicalCarpetSudoku>
+        carpet_sudokus: Vec<DBCanonicalCarpetSudoku>
     ) -> Result<usize, diesel::result::Error> {
         diesel
             ::insert_into(canonical_carpets)
             .values(&carpet)
             .get_result::<DBCanonicalCarpet>(&mut self.connection)?;
-        let inserted_sudokus_count = self.insert_multiple_canonical_carpet_sudokus(sudokus)?;
+        let inserted_sudokus_count = self.insert_multiple_canonical_carpet_sudokus(carpet_sudokus)?;
 
         Ok(1 + inserted_sudokus_count)
     }
@@ -225,9 +261,11 @@ impl Database {
 
     pub fn insert_multiple_canonical_carpets(
         &mut self,
-        carpets: Vec<DBCanonicalCarpet>
-    ) -> Result<usize, diesel::result::Error> {
+        carpets: Vec<DBCanonicalCarpet>,
+        carpets_sudokus: Vec<DBCanonicalCarpetSudoku>
+    ) -> Result<(usize, usize), diesel::result::Error> {
         let mut inserted_carpets = 0;
+        let mut inserted_carpet_sudokus = 0;
 
         for carpets_chunk in carpets.chunks(16348) {
             inserted_carpets += diesel
@@ -236,7 +274,14 @@ impl Database {
                 .execute(&mut self.connection)?;
         }
 
-        Ok(inserted_carpets)
+        for carpets_sudokus_chunk in carpets_sudokus.chunks(16348) {
+            inserted_carpet_sudokus += diesel
+                ::insert_into(canonical_carpet_sudokus)
+                .values(carpets_sudokus_chunk)
+                .execute(&mut self.connection)?;
+        }
+
+        Ok((inserted_carpets, inserted_carpet_sudokus))
     }
 
     pub fn insert_multiple_canonical_carpet_games(
@@ -270,19 +315,108 @@ impl Database {
         n: i16,
         difficulty: i16
     ) -> Result<SimpleSudoku, diesel::result::Error> {
-        let game_info = canonical_sudoku_games
-            .filter(sudoku_game_n.eq(n).and(sudoku_game_difficulty.eq(difficulty)))
+        let (game_info, filled_info) = canonical_sudoku_games
+            .left_join(canonical_sudokus.on(filled_board_hash.eq(sudoku_game_filled_board_hash)))
+            .filter(sudoku_n.eq(n).and(sudoku_game_difficulty.eq(difficulty)))
             .order(rand())
             .limit(1)
-            .get_result::<DBCanonicalSudokuGame>(&mut self.connection)?;
-
-        canonical_sudokus
-            .filter(filled_board_hash.eq(game_info.sudoku_game_filled_board_hash))
-            .get_result::<DBCanonicalSudoku>(&mut self.connection)
-            .map(|filled_info| SimpleSudoku::db_from_game(game_info, filled_info))
+            .get_result::<(DBCanonicalSudokuGame, Option<DBCanonicalSudoku>)>(
+                &mut self.connection
+            )?;
+        Ok(SimpleSudoku::db_from_game(game_info, filled_info.unwrap()))
     }
 
-    pub fn get_random_canonical_carpet(&mut self, n: i16, difficulty: i16, pattern: i16) {
-        todo!()
+    pub fn get_random_canonical_carpet(
+        &mut self,
+        n: i16,
+        (pattern, pattern_size): (i16, Option<i16>)
+    ) -> Result<CarpetSudoku, diesel::result::Error> {
+        let db_carpet = canonical_carpets
+            .filter(
+                carpet_n
+                    .eq(n)
+                    .and(carpet_pattern.eq(pattern))
+                    .and(carpet_pattern_size.eq(pattern_size))
+            )
+            .order(rand())
+            .limit(1)
+            .get_result::<DBCanonicalCarpet>(&mut self.connection)?;
+
+        let (db_carpet_sudokus, db_sudokus): (Vec<_>, Vec<_>) = canonical_carpet_sudokus
+            .left_join(canonical_sudokus.on(filled_board_hash.eq(carpet_sudoku_filled_board_hash)))
+            .filter(carpet_sudoku_carpet_filled_board_hash.eq(db_carpet.carpet_filled_board_hash))
+            .order_by(carpet_sudoku_i)
+            .load_iter::<(DBCanonicalCarpetSudoku, Option<DBCanonicalSudoku>), DefaultLoadingMode>(
+                &mut self.connection
+            )?
+            .filter_map(|a| (
+                if let Ok((db_carpet_sudoku, Some(db_sudoku))) = a {
+                    Some((db_carpet_sudoku, db_sudoku))
+                } else {
+                    None
+                }
+            ))
+            .unzip();
+
+        if
+            db_carpet_sudokus.len() != db_sudokus.len() ||
+            db_sudokus.len() != (db_carpet.carpet_sudoku_number as usize)
+        {
+            Err(diesel::result::Error::NotFound)
+        } else {
+            Ok(CarpetSudoku::db_from_filled(db_carpet, db_carpet_sudokus, db_sudokus))
+        }
+    }
+
+    pub fn get_random_canonical_carpet_game(
+        &mut self,
+        n: i16,
+        (pattern, pattern_size): (i16, Option<i16>),
+        difficulty: i16
+    ) -> Result<CarpetSudoku, diesel::result::Error> {
+        let (game_info, db_carpet) = canonical_carpet_games
+            .left_join(
+                canonical_carpets.on(
+                    carpet_game_carpet_filled_board_hash.eq(carpet_filled_board_hash)
+                )
+            )
+            .filter(
+                carpet_n
+                    .eq(n)
+                    .and(carpet_pattern.eq(pattern))
+                    .and(carpet_pattern_size.eq(pattern_size))
+                    .and(carpet_game_difficulty.eq(difficulty))
+            )
+            .order(rand())
+            .limit(1)
+            .get_result::<(DBCanonicalCarpetGame, Option<DBCanonicalCarpet>)>(
+                &mut self.connection
+            )?;
+        let db_carpet = db_carpet.unwrap();
+
+        let (db_carpet_sudokus, db_sudokus): (Vec<_>, Vec<_>) = canonical_carpet_sudokus
+            .left_join(canonical_sudokus.on(filled_board_hash.eq(carpet_sudoku_filled_board_hash)))
+            .filter(carpet_sudoku_carpet_filled_board_hash.eq(db_carpet.carpet_filled_board_hash))
+            .order_by(carpet_sudoku_i)
+            .load_iter::<(DBCanonicalCarpetSudoku, Option<DBCanonicalSudoku>), DefaultLoadingMode>(
+                &mut self.connection
+            )?
+            .filter_map(|a| (
+                if let Ok((db_carpet_sudoku, Some(db_sudoku))) = a {
+                    Some((db_carpet_sudoku, db_sudoku))
+                } else {
+                    None
+                }
+            ))
+            .unzip();
+
+        if
+            db_carpet_sudokus.len() != db_sudokus.len() ||
+            db_sudokus.len() != (db_carpet.carpet_sudoku_number as usize)
+        {
+            Err(diesel::result::Error::NotFound)
+        } else {
+            Ok(CarpetSudoku::db_from_game(game_info, db_carpet, db_carpet_sudokus, db_sudokus))
+        }
     }
 }
