@@ -132,6 +132,7 @@ impl CarpetSudoku {
             CarpetPattern::Double => Self::new_diagonal(n, 2),
             CarpetPattern::Diagonal(n_sudokus) => Self::new_diagonal(n, n_sudokus),
             CarpetPattern::Samurai => Self::new_samurai(n),
+            CarpetPattern::Simple => Self::new_simple(n),
         };
 
         let mut links: HashMap<usize, HashSet<(usize, usize, usize)>> = HashMap::new();
@@ -154,6 +155,12 @@ impl CarpetSudoku {
             links,
             pattern,
         }
+    }
+
+    fn new_simple(n: usize) -> (Vec<Sudoku>, Vec<RawLink>) {
+        let sudokus = vec![Sudoku::new(n)];
+        let links = vec![];
+        (sudokus, links)
     }
 
     fn new_diagonal(n: usize, n_sudokus: usize) -> (Vec<Sudoku>, Vec<RawLink>) {

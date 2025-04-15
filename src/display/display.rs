@@ -899,7 +899,6 @@ impl SudokuDisplay {
         if temp != (5, 0, 0) {
             self.selected_cell = Some(temp);
         }
-        println!("{:?}", self.selected_cell);
     }
 
     pub fn diag_click(&mut self, x: usize, y: usize) {
@@ -1107,7 +1106,19 @@ impl SudokuDisplay {
         }
 
         //self.draw_simple_sudoku(font.clone(),0, 0).await;
-        self.draw_samurai_sudoku(font.clone()).await;
+        match self.carpet.get_pattern() {
+            CarpetPattern::Diagonal(_) => {
+                self.draw_diag_sudoku(font.clone()).await;
+            }
+            CarpetPattern::Samurai => {
+                self.draw_samurai_sudoku(font.clone()).await;
+            }
+            CarpetPattern::Simple => {
+                self.draw_simple_sudoku(font.clone(), 0, 0, 0, self.selected_cell)
+                    .await;
+            }
+            _ => (),
+        }
         let mut action = None;
         for bouton in self.button_list.iter_mut() {
             if bouton.text.contains("Lifes: ") {
@@ -1144,9 +1155,20 @@ impl SudokuDisplay {
         }
 
         if let Some((sudoku_i, x1, y1)) = &mut self.selected_cell {
+            draw_text_ex(
+                &format!("Debug: sudoku_i: {}, x1: {}, y1: {}", sudoku_i, x1, y1),
+                10.0,
+                20.0,
+                TextParams {
+                    font: Some(&font),
+                    font_size: 20,
+                    color: Color::from_hex(0x000000),
+                    ..Default::default()
+                },
+            );
             match get_last_key_pressed() {
-                Some(KeyCode::Up) => {
-                    if matches!(self.carpet.get_pattern(), CarpetPattern::Diagonal(_)) {
+                Some(KeyCode::Up) => match self.carpet.get_pattern() {
+                    CarpetPattern::Diagonal(_) => {
                         if *y1 == self.carpet.get_n()
                             && *x1 >= self.carpet.get_n2() - self.carpet.get_n()
                             && *sudoku_i < self.carpet.get_n_sudokus() - 1
@@ -1165,16 +1187,91 @@ impl SudokuDisplay {
                         } else {
                             *y1 -= 1;
                         }
-                    } else {
+                    }
+                    CarpetPattern::Samurai => match *sudoku_i {
+                        0 => {
+                            if *y1 <= 0 {
+                                if *x1 < self.carpet.get_n() {
+                                    *sudoku_i = 1;
+                                    *x1 += self.carpet.get_n2() - self.carpet.get_n();
+                                    *y1 = self.carpet.get_n2() - self.carpet.get_n() - 1;
+                                } else if *x1 >= self.carpet.get_n2() - self.carpet.get_n() {
+                                    *sudoku_i = 2;
+                                    *x1 -= self.carpet.get_n2() - self.carpet.get_n();
+                                    *y1 = self.carpet.get_n2() - self.carpet.get_n() - 1;
+                                } else {
+                                    *y1 = self.carpet.get_n2() - 1;
+                                }
+                            } else {
+                                *y1 -= 1;
+                            }
+                        }
+                        1 => {
+                            if *y1 <= 0 {
+                                if *x1 >= self.carpet.get_n2() - self.carpet.get_n() {
+                                    *sudoku_i = 3;
+                                    *y1 = self.carpet.get_n2() - 1;
+                                } else {
+                                    *y1 = self.carpet.get_n2() - 1;
+                                }
+                            } else {
+                                *y1 -= 1;
+                            }
+                        }
+                        2 => {
+                            if *y1 <= 0 {
+                                if *x1 < self.carpet.get_n() {
+                                    *sudoku_i = 4;
+                                    *y1 = self.carpet.get_n2() - 1;
+                                } else {
+                                    *y1 = self.carpet.get_n2() - 1;
+                                }
+                            } else {
+                                *y1 -= 1;
+                            }
+                        }
+                        3 => {
+                            if *y1 <= self.carpet.get_n() {
+                                if *x1 >= self.carpet.get_n2() - self.carpet.get_n() {
+                                    *sudoku_i = 0;
+                                    *x1 -= self.carpet.get_n2() - self.carpet.get_n();
+                                    *y1 = self.carpet.get_n2() - 1;
+                                } else if *y1 == 0 {
+                                    *y1 = self.carpet.get_n2() - 1;
+                                } else {
+                                    *y1 -= 1;
+                                }
+                            } else {
+                                *y1 -= 1;
+                            }
+                        }
+                        4 => {
+                            if *y1 <= self.carpet.get_n() {
+                                if *x1 < self.carpet.get_n() {
+                                    *sudoku_i = 0;
+                                    *x1 += self.carpet.get_n2() - self.carpet.get_n();
+                                    *y1 = self.carpet.get_n2() - 1;
+                                } else if *y1 == 0 {
+                                    *y1 = self.carpet.get_n2() - 1;
+                                } else {
+                                    *y1 -= 1;
+                                }
+                            } else {
+                                *y1 -= 1;
+                            }
+                        }
+                        _ => {}
+                    },
+                    _ => {
                         if *y1 > 0 {
                             *y1 -= 1;
                         } else {
                             *y1 = self.carpet.get_n2() - 1;
                         }
                     }
-                }
-                Some(KeyCode::Down) => {
-                    if matches!(self.carpet.get_pattern(), CarpetPattern::Diagonal(_)) {
+                },
+                Some(KeyCode::Down) => match self.carpet.get_pattern() {
+                    CarpetPattern::Diagonal(_) => {
                         if *y1 == self.carpet.get_n2() - 1 {
                             if *sudoku_i < self.carpet.get_n_sudokus() - 1
                                 && *x1 >= self.carpet.get_n2() - self.carpet.get_n()
@@ -1192,16 +1289,95 @@ impl SudokuDisplay {
                         } else {
                             *y1 += 1;
                         }
-                    } else {
+                    }
+                    CarpetPattern::Samurai => match *sudoku_i {
+                        0 => {
+                            if *y1 >= self.carpet.get_n2() - 1 {
+                                if *x1 < self.carpet.get_n() {
+                                    *sudoku_i = 3;
+                                    *x1 += self.carpet.get_n2() - self.carpet.get_n();
+                                    *y1 = self.carpet.get_n();
+                                } else if *x1 >= self.carpet.get_n2() - self.carpet.get_n() {
+                                    *sudoku_i = 4;
+                                    *x1 -= self.carpet.get_n2() - self.carpet.get_n();
+                                    *y1 = self.carpet.get_n();
+                                } else {
+                                    *y1 = 0;
+                                }
+                            } else {
+                                *y1 += 1;
+                            }
+                        }
+                        1 => {
+                            if *y1 >= self.carpet.get_n2() - self.carpet.get_n() - 1 {
+                                if *x1 >= self.carpet.get_n2() - self.carpet.get_n() {
+                                    *sudoku_i = 0;
+                                    *x1 -= self.carpet.get_n2() - self.carpet.get_n();
+                                    *y1 = 0;
+                                } else if *y1 == self.carpet.get_n2() - 1 {
+                                    *y1 = 0;
+                                } else {
+                                    *y1 += 1;
+                                }
+                            } else {
+                                *y1 += 1;
+                            }
+                        }
+                        2 => {
+                            if *y1 >= self.carpet.get_n2() - self.carpet.get_n() - 1 {
+                                if *x1 < self.carpet.get_n() {
+                                    *sudoku_i = 0;
+                                    *x1 += self.carpet.get_n2() - self.carpet.get_n();
+                                    *y1 = 0;
+                                } else if *y1 == self.carpet.get_n2() - 1 {
+                                    *y1 = 0;
+                                } else {
+                                    *y1 += 1;
+                                }
+                            } else {
+                                *y1 += 1;
+                            }
+                        }
+                        3 => {
+                            if *y1 >= self.carpet.get_n2() - 1 {
+                                if *x1 >= self.carpet.get_n2() - self.carpet.get_n() {
+                                    *sudoku_i = 1;
+                                    *y1 = 0;
+                                } else if *y1 == self.carpet.get_n2() - 1 {
+                                    *y1 = 0;
+                                } else {
+                                    *y1 += 1;
+                                }
+                            } else {
+                                *y1 += 1;
+                            }
+                        }
+                        4 => {
+                            if *y1 >= self.carpet.get_n2() - 1 {
+                                if *x1 < self.carpet.get_n() {
+                                    *sudoku_i = 2;
+                                    *y1 = 0;
+                                } else if *y1 == self.carpet.get_n2() - 1 {
+                                    *y1 = 0;
+                                } else {
+                                    *y1 += 1;
+                                }
+                            } else {
+                                *y1 += 1;
+                            }
+                        }
+                        _ => {}
+                    },
+                    _ => {
                         if *y1 < self.carpet.get_n2() - 1 {
                             *y1 += 1;
                         } else {
                             *y1 = 0;
                         }
                     }
-                }
-                Some(KeyCode::Left) => {
-                    if matches!(self.carpet.get_pattern(), CarpetPattern::Diagonal(_)) {
+                },
+                Some(KeyCode::Left) => match self.carpet.get_pattern() {
+                    CarpetPattern::Diagonal(_) => {
                         if *x1 == 0 {
                             if *sudoku_i > 0 && *y1 >= self.carpet.get_n2() - self.carpet.get_n() {
                                 *sudoku_i -= 1;
@@ -1219,16 +1395,91 @@ impl SudokuDisplay {
                         } else {
                             *x1 -= 1;
                         }
-                    } else {
+                    }
+                    CarpetPattern::Samurai => match *sudoku_i {
+                        0 => {
+                            if *x1 == 0 {
+                                if *y1 < self.carpet.get_n() {
+                                    *sudoku_i = 1;
+                                    *x1 = self.carpet.get_n2() - self.carpet.get_n() - 1;
+                                    *y1 += self.carpet.get_n2() - self.carpet.get_n();
+                                } else if *y1 >= self.carpet.get_n2() - self.carpet.get_n() {
+                                    *sudoku_i = 3;
+                                    *x1 = self.carpet.get_n2() - self.carpet.get_n() - 1;
+                                    *y1 -= self.carpet.get_n2() - self.carpet.get_n();
+                                } else {
+                                    *x1 = self.carpet.get_n2() - 1;
+                                }
+                            } else {
+                                *x1 -= 1;
+                            }
+                        }
+                        1 => {
+                            if *x1 == 0 {
+                                if *y1 > self.carpet.get_n2() - self.carpet.get_n() - 1 {
+                                    *sudoku_i = 2;
+                                    *x1 = self.carpet.get_n2() - 1;
+                                } else {
+                                    *x1 = self.carpet.get_n2() - 1;
+                                }
+                            } else {
+                                *x1 -= 1;
+                            }
+                        }
+                        2 => {
+                            if *x1 <= self.carpet.get_n() {
+                                if *y1 >= self.carpet.get_n2() - self.carpet.get_n() {
+                                    *sudoku_i = 0;
+                                    *x1 = self.carpet.get_n2() - 1;
+                                    *y1 -= self.carpet.get_n2() - self.carpet.get_n();
+                                } else if *x1 == 0 {
+                                    *x1 = self.carpet.get_n2() - 1;
+                                } else {
+                                    *x1 -= 1;
+                                }
+                            } else {
+                                *x1 -= 1;
+                            }
+                        }
+                        3 => {
+                            if *x1 == 0 {
+                                if *y1 < self.carpet.get_n() {
+                                    *sudoku_i = 4;
+                                    *x1 = self.carpet.get_n2() - 1;
+                                } else {
+                                    *x1 = self.carpet.get_n2() - 1;
+                                }
+                            } else {
+                                *x1 -= 1;
+                            }
+                        }
+                        4 => {
+                            if *x1 <= self.carpet.get_n() {
+                                if *y1 < self.carpet.get_n() {
+                                    *sudoku_i = 0;
+                                    *x1 = self.carpet.get_n2() - 1;
+                                    *y1 += self.carpet.get_n2() - self.carpet.get_n();
+                                } else if *x1 == 0 {
+                                    *x1 = self.carpet.get_n2() - 1;
+                                } else {
+                                    *x1 -= 1;
+                                }
+                            } else {
+                                *x1 -= 1;
+                            }
+                        }
+                        _ => {}
+                    },
+                    _ => {
                         if *x1 > 0 {
                             *x1 -= 1;
                         } else {
                             *x1 = self.carpet.get_n2() - 1;
                         }
                     }
-                }
-                Some(KeyCode::Right) => {
-                    if matches!(self.carpet.get_pattern(), CarpetPattern::Diagonal(_)) {
+                },
+                Some(KeyCode::Right) => match self.carpet.get_pattern() {
+                    CarpetPattern::Diagonal(_) => {
                         if *x1 == self.carpet.get_n2() - self.carpet.get_n() - 1
                             && *y1 < self.carpet.get_n()
                             && *sudoku_i < self.carpet.get_n_sudokus() - 1
@@ -1247,14 +1498,93 @@ impl SudokuDisplay {
                         } else {
                             *x1 += 1;
                         }
-                    } else {
+                    }
+                    CarpetPattern::Samurai => match *sudoku_i {
+                        0 => {
+                            if *x1 >= self.carpet.get_n2() - 1 {
+                                if *y1 < self.carpet.get_n() {
+                                    *sudoku_i = 2;
+                                    *x1 = self.carpet.get_n();
+                                    *y1 += self.carpet.get_n2() - self.carpet.get_n();
+                                } else if *y1 >= self.carpet.get_n2() - self.carpet.get_n() {
+                                    *sudoku_i = 4;
+                                    *x1 = self.carpet.get_n();
+                                    *y1 -= self.carpet.get_n2() - self.carpet.get_n();
+                                } else {
+                                    if *x1 >= self.carpet.get_n2() - 1 {
+                                        *x1 = 0;
+                                    } else {
+                                        *x1 += 1;
+                                    }
+                                }
+                            } else {
+                                *x1 += 1;
+                            }
+                        }
+                        1 => {
+                            if *x1 >= self.carpet.get_n2() - self.carpet.get_n() - 1 {
+                                if *y1 >= self.carpet.get_n2() - self.carpet.get_n() {
+                                    *sudoku_i = 0;
+                                    *x1 = 0;
+                                    *y1 -= self.carpet.get_n2() - self.carpet.get_n();
+                                } else if *x1 >= self.carpet.get_n2() - 1 {
+                                    *x1 = 0;
+                                } else {
+                                    *x1 += 1;
+                                }
+                            } else {
+                                *x1 += 1;
+                            }
+                        }
+                        2 => {
+                            if *x1 >= self.carpet.get_n2() - 1 {
+                                if *y1 >= self.carpet.get_n2() - self.carpet.get_n() {
+                                    *sudoku_i = 1;
+                                    *x1 = 0;
+                                } else {
+                                    *x1 = 0;
+                                }
+                            } else {
+                                *x1 += 1;
+                            }
+                        }
+                        3 => {
+                            if *x1 >= self.carpet.get_n2() - self.carpet.get_n() - 1 {
+                                if *y1 < self.carpet.get_n() {
+                                    *sudoku_i = 0;
+                                    *x1 = 0;
+                                    *y1 += self.carpet.get_n2() - self.carpet.get_n();
+                                } else if *x1 >= self.carpet.get_n2() - 1 {
+                                    *x1 = 0;
+                                } else {
+                                    *x1 += 1;
+                                }
+                            } else {
+                                *x1 += 1;
+                            }
+                        }
+                        4 => {
+                            if *x1 >= self.carpet.get_n2() - 1 {
+                                if *y1 < self.carpet.get_n() {
+                                    *sudoku_i = 3;
+                                    *x1 = 0;
+                                } else {
+                                    *x1 = 0;
+                                }
+                            } else {
+                                *x1 += 1;
+                            }
+                        }
+                        _ => {}
+                    },
+                    _ => {
                         if *x1 < self.carpet.get_n2() - 1 {
                             *x1 += 1;
                         } else {
                             *x1 = 0;
                         }
                     }
-                }
+                },
                 Some(KeyCode::Kp1) => {
                     if let Some(action) = self.actions_boutons.get("1").cloned() {
                         action(self);
