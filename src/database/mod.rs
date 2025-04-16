@@ -1,4 +1,4 @@
-use diesel::PgConnection;
+use diesel::{ ExecuteCopyFromDsl, PgConnection };
 
 pub mod db;
 pub mod schema;
@@ -8,6 +8,7 @@ pub struct Database {
 }
 
 #[derive(Insertable, Selectable, Queryable, Clone)]
+#[diesel(treat_none_as_default_value = false)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[diesel(table_name = schema::canonical_sudokus)]
 pub struct DBCanonicalSudoku {
@@ -17,6 +18,7 @@ pub struct DBCanonicalSudoku {
 }
 
 #[derive(Insertable, Selectable, Queryable, Clone)]
+#[diesel(treat_none_as_default_value = false)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[diesel(table_name = schema::canonical_sudoku_squares)]
 pub struct DBCanonicalSudokuSquare {
@@ -37,6 +39,7 @@ pub struct DBCanonicalSudokuGame {
 }
 
 #[derive(Insertable, Clone)]
+#[diesel(treat_none_as_default_value = false)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[diesel(table_name = schema::canonical_sudoku_games)]
 pub struct DBNewCanonicalSudokuGame {
@@ -58,6 +61,7 @@ impl From<DBCanonicalSudokuGame> for DBNewCanonicalSudokuGame {
 }
 
 #[derive(Queryable, Selectable, Insertable, Clone)]
+#[diesel(treat_none_as_default_value = false)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[diesel(table_name = schema::canonical_carpets)]
 pub struct DBCanonicalCarpet {
@@ -68,7 +72,17 @@ pub struct DBCanonicalCarpet {
     pub carpet_pattern_size: Option<i16>,
 }
 
+impl DBCanonicalCarpet {
+    pub fn copy_to(database: &mut Database, data: &Vec<Self>) {
+        let a = diesel
+            ::copy_from(schema::canonical_carpets::table)
+            .from_insertable(data)
+            .execute(&mut database.connection);
+    }
+}
+
 #[derive(Queryable, Selectable, Insertable, Clone)]
+#[diesel(treat_none_as_default_value = false)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[diesel(table_name = schema::canonical_carpet_sudokus)]
 pub struct DBCanonicalCarpetSudoku {
@@ -89,6 +103,7 @@ pub struct DBCanonicalCarpetGame {
 }
 
 #[derive(Insertable, Clone)]
+#[diesel(treat_none_as_default_value = false)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 #[diesel(table_name = schema::canonical_carpet_games)]
 pub struct DBNewCanonicalCarpetGame {
@@ -108,3 +123,16 @@ impl From<DBCanonicalCarpetGame> for DBNewCanonicalCarpetGame {
         }
     }
 }
+
+pub type DBFilledCarpetData = (
+    DBCanonicalCarpet,
+    Vec<DBCanonicalCarpetSudoku>,
+    Vec<DBCanonicalSudoku>,
+);
+
+pub type DBGameCarpetData = (
+    DBNewCanonicalCarpetGame,
+    DBCanonicalCarpet,
+    Vec<DBCanonicalCarpetSudoku>,
+    Vec<DBCanonicalSudoku>,
+);

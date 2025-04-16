@@ -128,6 +128,24 @@ impl Sudoku {
                 res = Err(SudokuError::NoPossibilityCell((x1, y1)));
             }
         }
+
+        if
+            res.is_ok() &&
+            self.is_canonical &&
+            self.canonical_filled_board_hash == 0 &&
+            self.is_filled()
+        {
+            self.canonical_filled_board_hash = {
+                let mut hasher = DefaultHasher::new();
+                for y in 0..self.n2 {
+                    for x in 0..self.n2 {
+                        self.board[y][x].hash(&mut hasher);
+                    }
+                }
+                hasher.finish()
+            };
+        }
+
         res
     }
 
@@ -337,82 +355,75 @@ impl Sudoku {
         }
     }
 
-    pub fn generate_full(n: usize) -> Self {
-        Self::new(n).into_generate_full_from()
+    pub fn generate_canonical(n: usize) -> Self {
+        Self::new(n).into_generate_canonical_from()
     }
 
-    pub fn generate_full_from(&mut self) -> Self {
+    pub fn generate_canonical_from(&self) -> Self {
+        self.clone().into_generate_canonical_from()
+    }
+
+    pub fn into_generate_canonical_from(mut self) -> Self {
+        self._fill_first_line(true, 0);
+        // self._fill_first_line(false, 0); // TODO:
+        self.is_canonical = true;
+        self
+    }
+
+    fn _fill_first_line(&mut self, fill_row: bool, mut i: usize) -> bool {
+        let (mut x, mut y) = if fill_row { (i, 0) } else { (0, i) };
+
+        while i < self.n2 && self.board[y][x] > 0 {
+            i += 1;
+            (x, y) = if fill_row { (i, 0) } else { (0, i) };
+        }
+        if i >= self.n2 {
+            return true;
+        }
+
+        let mut possibilities = self.possibility_board[y][x].iter().cloned().collect::<Vec<_>>();
+        possibilities.sort();
+        for value in possibilities {
+            match self.set_value(x, y, value) {
+                Ok(()) => (),
+                Err(SudokuError::NoPossibilityCell((errx, erry))) => {
+                    if let Err(err) = self.remove_value(x, y) {
+                        warn!(
+                            "ERRROR AFTER set_value({i}, 0, {value}) MADE {errx},{erry} EMPTY: {err}\nFOR CARPET:{self}"
+                        );
+                    }
+                    continue;
+                }
+                Err(err) => warn!("{err}"),
+            }
+
+            if self._fill_first_line(fill_row, i + 1) {
+                return true;
+            }
+
+            if let Err(err) = self.remove_value(x, y) {
+                warn!("ERRROR AFTER self.remove_value({x}, {y}): {err}\nFOR CARPET:{self}");
+            }
+        }
+
+        false
+    }
+
+    pub fn generate_full(n: usize) -> Self {
+        Self::new(n).into_generate_full_from().unwrap()
+    }
+
+    pub fn generate_full_from(&self) -> Result<Self, SudokuError> {
         self.clone().into_generate_full_from()
     }
 
-    pub fn into_generate_full_from(mut self) -> Self {
-        // fill the upper row with an ascending order
-        let first_line_possibilities = (0..self.n2)
-            .map(|x| {
-                let mut vec = self.possibility_board[0][x].iter().cloned().collect::<Vec<_>>();
-                vec.sort();
-                vec.into_iter()
-            })
-            .collect::<Vec<_>>();
+    pub fn into_generate_full_from(self) -> Result<Self, SudokuError> {
+        let mut canonical = self.generate_canonical_from();
 
-        let mut current_possibilities = first_line_possibilities.clone();
-        let mut x = 0;
-        while x < self.n2 {
-            let next_value = current_possibilities[x].next();
-            if next_value.is_none() {
-                x -= 1;
-                current_possibilities[x] = first_line_possibilities[x].clone();
-                continue;
-            }
+        // fill the rest of the sudoku
+        canonical.backtrack_solve(0, 0);
 
-            match self.set_value(x, 0, next_value.unwrap()) {
-                Err(_) => {
-                    let _ = self.remove_value(x, 0);
-                }
-                Ok(()) => {
-                    x += 1;
-                }
-            }
-        }
-
-        // fill the left collumn with an ascending order
-        let first_column_possibilities = (0..self.n2)
-            .map(|y| {
-                let mut vec = self.possibility_board[y][0].iter().cloned().collect::<Vec<_>>();
-                vec.sort();
-                vec.into_iter()
-            })
-            .collect::<Vec<_>>();
-
-        let mut current_possibilities = first_column_possibilities.clone();
-        let mut y = 1;
-        while y < self.n2 {
-            let next_value = current_possibilities[y].next();
-            if next_value.is_none() {
-                y -= 1;
-                current_possibilities[y] = first_column_possibilities[y].clone();
-                continue;
-            }
-
-            match self.set_value(0, y, next_value.unwrap()) {
-                Err(_) => {
-                    let _ = self.remove_value(0, y);
-                }
-                Ok(()) => {
-                    y += 1;
-                }
-            }
-        }
-
-        // get the canonical board hash
-        self.canonical_filled_board_hash = {
-            let mut hasher = DefaultHasher::new();
-            self.board.hash(&mut hasher);
-            hasher.finish()
-        };
-
-        self.is_canonical = true;
-        self
+        Ok(canonical)
     }
 
     pub fn randomize(
@@ -533,7 +544,11 @@ impl Sudoku {
         // check if the board is the same as the hash of the canonical board
         let board_hash = {
             let mut hasher = DefaultHasher::new();
-            self.board.hash(&mut hasher);
+            for y in 0..self.n2 {
+                for x in 0..self.n2 {
+                    self.board[y][x].hash(&mut hasher);
+                }
+            }
             hasher.finish()
         };
 
@@ -1119,18 +1134,20 @@ impl Sudoku {
     }
 
     pub fn game_to_db(&self) -> Result<DBNewCanonicalSudokuGame, SudokuError> {
-        if !self.is_canonical {
-            return Err(
-                SudokuError::InvalidState(
-                    format!("game_to_db() when this sudoku isn't canonical: {self}")
-                )
-            );
-        }
         if self.is_filled() {
             return Err(
                 SudokuError::WrongFunction(
                     format!(
                         "game_to_db() when the sudoku is filled. Try calling filled_to_db() instead.\n{self}"
+                    )
+                )
+            );
+        }
+        if self.canonical_filled_board_hash == 0 {
+            return Err(
+                SudokuError::InvalidState(
+                    format!(
+                        "game_to_db() when the sudoku has no canonical filled board hash: \n{self}"
                     )
                 )
             );
@@ -1152,18 +1169,20 @@ impl Sudoku {
     pub fn filled_to_db(
         &self
     ) -> Result<(DBCanonicalSudoku, Vec<DBCanonicalSudokuSquare>), SudokuError> {
-        if !self.is_canonical {
-            return Err(
-                SudokuError::InvalidState(
-                    format!("filled_to_db() when this sudoku isn't canonical: {self}")
-                )
-            );
-        }
         if !self.is_filled() {
             return Err(
                 SudokuError::WrongFunction(
                     format!(
                         "filled_to_db() when the sudoku isn't filled. Try calling game_to_db() instead.\n{self}"
+                    )
+                )
+            );
+        }
+        if self.canonical_filled_board_hash == 0 {
+            return Err(
+                SudokuError::InvalidState(
+                    format!(
+                        "filled_to_db() when the sudoku has no canonical filled board hash: \n{self}"
                     )
                 )
             );
