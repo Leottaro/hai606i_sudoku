@@ -70,7 +70,7 @@ impl CarpetSudoku {
         self.sudokus[sudoku_id].get_cell_group(x, y, groups)
     }
 
-    pub fn get_golbal_cell_group(
+    pub fn get_global_cell_group(
         &self,
         sudoku_id: usize,
         x: usize,

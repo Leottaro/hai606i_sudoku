@@ -21,6 +21,7 @@ pub struct SudokuDisplay {
     scale_factor: f32,
     grid_size: f32,
     pixel_per_cell: f32,
+    hovered_cell: Option<(usize, usize, usize)>,
     selected_cell: Option<(usize, usize, usize)>,
     x_offset: f32,
     y_offset: f32,
