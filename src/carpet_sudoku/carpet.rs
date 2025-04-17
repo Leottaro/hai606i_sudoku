@@ -22,6 +22,10 @@ impl CarpetSudoku {
         self.n2
     }
 
+    pub fn get_pattern(&self) -> CarpetPattern {
+        self.pattern
+    }
+
     pub fn get_sudokus(&self) -> Vec<Sudoku> {
         self.sudokus.clone()
     }
@@ -65,6 +69,24 @@ impl CarpetSudoku {
         self.sudokus[sudoku_id].get_cell_group(x, y, group)
     }
 
+    pub fn get_global_cell_group(
+        &self,
+        sudoku_id: usize,
+        x: usize,
+        y: usize,
+        group: SudokuGroups,
+    ) -> HashSet<(usize, usize, usize)> {
+        self.get_twin_cells(sudoku_id, x, y)
+            .into_iter()
+            .flat_map(|(i, x, y)| {
+                self.sudokus[i]
+                    .get_cell_group(x, y, group)
+                    .into_iter()
+                    .map(move |(x, y)| (i, x, y))
+            })
+            .collect()
+    }
+
     pub fn get_filled_cells(&self) -> usize {
         self.sudokus
             .iter()
@@ -81,6 +103,31 @@ impl CarpetSudoku {
 
     pub fn get_sudoku_possibility_board(&self, sudoku_i: usize) -> Vec<Vec<HashSet<usize>>> {
         self.sudokus[sudoku_i].get_possibility_board().clone()
+    }
+
+    pub fn get_twin_cells(
+        &self,
+        sudoku_id: usize,
+        x: usize,
+        y: usize,
+    ) -> Vec<(usize, usize, usize)> {
+        let dx = x % self.n;
+        let dy = y % self.n;
+        let x0 = x - dx;
+        let y0: usize = y - dy;
+        let square_id = y0 + x0 / self.n;
+        let mut twins = vec![(sudoku_id, x, y)];
+
+        for &(square1, sudoku2, square2) in self.links.to_owned().get(&sudoku_id).unwrap() {
+            if square_id != square1 {
+                continue;
+            }
+            let y2 = (square2 / self.n) * self.n;
+            let x2 = (square2 % self.n) * self.n;
+            twins.push((sudoku2, x2 + dx, y2 + dy));
+        }
+
+        twins
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -230,7 +277,8 @@ impl CarpetSudoku {
                             }
                         }
 
-                        if value1 != 0 || value2 != 0 {
+                        if value1 != 0 && value2 != 0 {
+                            self.sudokus[sudoku1].clear_possibilities(x1 + dx, y1 + dy);
                             continue;
                         }
 
@@ -267,23 +315,10 @@ impl CarpetSudoku {
         y: usize,
         value: usize,
     ) -> Result<(), SudokuError> {
-        let dx = x % self.n;
-        let dy = y % self.n;
-        let x0 = x - dx;
-        let y0 = y - dy;
-        let square_id = y0 + x0 / self.n;
-        let mut is_in_link = false;
-        self.sudokus[sudoku_id].set_value(x, y, value)?;
-
-        for &(square1, sudoku2, square2) in self.links.to_owned().get(&sudoku_id).unwrap() {
-            if square_id != square1 {
-                continue;
-            }
-            is_in_link = true;
-
-            let y2 = (square2 / self.n) * self.n;
-            let x2 = (square2 % self.n) * self.n;
-            self.sudokus[sudoku2].set_value(x2 + dx, y2 + dy, value)?;
+        let twin_cells = self.get_twin_cells(sudoku_id, x, y);
+        let is_in_link = twin_cells.len() > 1;
+        for (sudoku2, x2, y2) in twin_cells {
+            self.sudokus[sudoku2].set_value(x2, y2, value)?;
         }
 
         if is_in_link {
@@ -291,21 +326,9 @@ impl CarpetSudoku {
         }
 
         for (x, y) in self.sudokus[sudoku_id].get_cell_group(x, y, SudokuGroups::All) {
-            let dx = x % self.n;
-            let dy = y % self.n;
-            let x0 = x - dx;
-            let y0 = y - dy;
-            let square_id = y0 + x0 / self.n;
-
-            for &(square1, sudoku2, square2) in self.links.to_owned().get(&sudoku_id).unwrap() {
-                if square_id != square1 {
-                    continue;
-                }
-
-                let y2 = (square2 / self.n) * self.n;
-                let x2 = (square2 % self.n) * self.n;
+            for (sudoku2, x2, y2) in self.get_twin_cells(sudoku_id, x, y) {
                 self.sudokus[sudoku2]
-                    .get_cell_possibilities_mut(x2 + dx, y2 + dy)
+                    .get_cell_possibilities_mut(x2, y2)
                     .remove(&value);
             }
         }
@@ -335,23 +358,11 @@ impl CarpetSudoku {
         x: usize,
         y: usize,
     ) -> Result<usize, SudokuError> {
-        let dx = x % self.n;
-        let dy = y % self.n;
-        let x0 = x - dx;
-        let y0 = y - dy;
-        let square_id = y0 + x0 / self.n;
-        let value = self.sudokus[sudoku_id].remove_value(x, y)?;
-        let mut is_in_link = false;
-
-        for &(square1, sudoku2, square2) in self.links.to_owned().get(&sudoku_id).unwrap() {
-            if square_id != square1 {
-                continue;
-            }
-            is_in_link = true;
-
-            let y2 = (square2 / self.n) * self.n;
-            let x2 = (square2 % self.n) * self.n;
-            self.sudokus[sudoku2].remove_value(x2 + dx, y2 + dy)?;
+        let value = self.get_cell_value(sudoku_id, x, y);
+        let twin_cells = self.get_twin_cells(sudoku_id, x, y);
+        let is_in_link = twin_cells.len() > 1;
+        for (sudoku2, x2, y2) in twin_cells {
+            self.sudokus[sudoku2].remove_value(x2, y2)?;
         }
 
         if is_in_link {
@@ -359,22 +370,9 @@ impl CarpetSudoku {
         }
 
         for (x, y) in self.sudokus[sudoku_id].get_cell_group(x, y, SudokuGroups::All) {
-            let dx = x % self.n;
-            let dy = y % self.n;
-            let x0 = x - dx;
-            let y0 = y - dy;
-            let square_id = y0 + x0 / self.n;
-
-            for &(square1, sudoku2, square2) in self.links.to_owned().get(&sudoku_id).unwrap() {
-                if square_id != square1 {
-                    continue;
-                }
-
-                let y2 = (square2 / self.n) * self.n;
-                let x2 = (square2 % self.n) * self.n;
-
+            for (sudoku2, x2, y2) in self.get_twin_cells(sudoku_id, x, y) {
                 if self.sudokus[sudoku2]
-                    .get_cell_group(x2 + dx, y2 + dy, SudokuGroups::All)
+                    .get_cell_group(x2, y2, SudokuGroups::All)
                     .into_iter()
                     .any(|(x3, y3)| self.sudokus[sudoku2].get_cell_value(x3, y3) == value)
                 {
@@ -383,7 +381,7 @@ impl CarpetSudoku {
                         .remove(&value);
                 } else {
                     self.sudokus[sudoku2]
-                        .get_cell_possibilities_mut(x2 + dx, y2 + dy)
+                        .get_cell_possibilities_mut(x2, y2)
                         .insert(value);
                 }
             }
@@ -712,25 +710,26 @@ impl CarpetSudoku {
         }
 
         loop {
-            let carpet = rx.recv().unwrap();
+            let mut carpet = rx.recv().unwrap();
 
             // verify that the carpet is unique
-            if !carpet.clone().is_unique() {
+            if !carpet.is_unique() {
                 continue;
             }
 
             // verify that each sudoku isn't solvable alone
-            if carpet.get_sudokus().clone().into_iter().any(|mut sudoku| {
-                while let Ok(Some(_)) = sudoku.rule_solve(None, Some(aimed_difficulty)) {}
-                sudoku.is_filled()
-            }) {
+            if self.pattern != CarpetPattern::Simple
+                && carpet.get_sudokus().clone().into_iter().any(|mut sudoku| {
+                    while let Ok(Some(_)) = sudoku.rule_solve(None, Some(aimed_difficulty)) {}
+                    sudoku.is_filled()
+                })
+            {
                 continue;
             }
 
             // verify the generated carpet
             let mut verify_carpet = carpet.clone();
             while let Ok((true, _)) = verify_carpet.rule_solve(None) {}
-
             if !verify_carpet.is_filled() {
                 continue;
             }
@@ -740,6 +739,9 @@ impl CarpetSudoku {
                 handle.join().unwrap();
             }
 
+            // if carpet.update_link().is_err() {
+            //     log::warn!("Error while updating the link");
+            // }
             return carpet;
         }
     }
@@ -1031,7 +1033,7 @@ impl CarpetSudoku {
             .unwrap()
     }
 
-	// TODO:
+    // TODO:
     // pub fn generate_filled_from_db(
     //     database: &mut Database,
     //     n: usize,

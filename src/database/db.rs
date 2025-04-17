@@ -3,10 +3,7 @@ use diesel::{
     JoinOnDsl, PgConnection, QueryDsl, RunQueryDsl,
 };
 
-use crate::{
-    carpet_sudoku::CarpetSudoku,
-    simple_sudoku::Sudoku as SimpleSudoku,
-};
+use crate::{carpet_sudoku::CarpetSudoku, simple_sudoku::Sudoku as SimpleSudoku};
 
 use super::{
     schema::{
@@ -441,7 +438,7 @@ impl Database {
     //////////////////////////////////////////////////////////   OTHER   ///////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	// TODO:
+    // TODO:
     // pub fn construct_canonical_carpet(
     //     &mut self,
     //     n: i16,

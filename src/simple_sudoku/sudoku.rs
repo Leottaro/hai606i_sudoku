@@ -57,6 +57,9 @@ impl Sudoku {
     pub fn get_cell_possibilities_mut(&mut self, x: usize, y: usize) -> &mut HashSet<usize> {
         &mut self.possibility_board[y][x]
     }
+    pub fn clear_possibilities(&mut self, x: usize, y: usize) {
+        self.possibility_board[y][x].clear();
+    }
 
     pub fn get_group(&self, groups: SudokuGroups) -> Vec<HashSet<Coords>> {
         GROUPS.read().unwrap()[&self.n][&groups].clone()
