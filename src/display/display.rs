@@ -1033,7 +1033,7 @@ impl SudokuDisplay {
         }
     }
 
-    pub fn process_keyboard(&mut self, last_key_pressed: KeyCode, font: Font) {
+    pub fn process_keyboard(&mut self, last_key_pressed: KeyCode) {
         match last_key_pressed {
             KeyCode::Kp1 => {
                 if let Some(action) = self.actions_boutons.get("1").cloned() {
@@ -1115,18 +1115,6 @@ impl SudokuDisplay {
             }
             KeyCode::Up | KeyCode::Down | KeyCode::Left | KeyCode::Right => {
                 if let Some((sudoku_i, x1, y1)) = &mut self.selected_cell {
-                    draw_text_ex(
-                        &format!("Debug: sudoku_i: {}, x1: {}, y1: {}", sudoku_i, x1, y1),
-                        10.0,
-                        20.0,
-                        TextParams {
-                            font: Some(&font),
-                            font_size: 20,
-                            color: Color::from_hex(0x000000),
-                            ..Default::default()
-                        },
-                    );
-
                     let n2 = self.carpet.get_n2();
                     let twin_cells = self.carpet.get_twin_cells(*sudoku_i, *x1, *y1);
                     if twin_cells.len() == 1 {
@@ -1361,7 +1349,21 @@ impl SudokuDisplay {
         }
 
         if let Some(last_key_pressed) = get_last_key_pressed() {
-            self.process_keyboard(last_key_pressed, font);
+            self.process_keyboard(last_key_pressed);
+        }
+
+        if let Some((sudoku_i, x, y)) = self.selected_cell {
+            draw_text_ex(
+                &format!("Debug: sudoku_i: {}, x1: {}, y1: {}", sudoku_i, x, y),
+                10.0,
+                20.0,
+                TextParams {
+                    font: Some(&font),
+                    font_size: 20,
+                    color: Color::from_hex(0x000000),
+                    ..Default::default()
+                },
+            );
         }
     }
 }
