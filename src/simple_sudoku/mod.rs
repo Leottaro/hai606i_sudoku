@@ -64,7 +64,7 @@ impl SudokuDifficulty {
         ].into_iter()
     }
 
-    pub fn from(n: u8) -> Self {
+    pub fn from(n: i16) -> Self {
         match n {
             1 => SudokuDifficulty::Easy,
             2 => SudokuDifficulty::Medium,

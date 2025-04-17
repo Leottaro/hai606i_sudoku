@@ -4,7 +4,6 @@ diesel::table! {
     canonical_carpet_games (carpet_game_id) {
         carpet_game_id -> Int4,
         carpet_game_carpet_filled_board_hash -> Int8,
-        carpet_game_n -> Int2,
         carpet_game_difficulty -> Int2,
         carpet_game_filled_cells -> Bytea,
         carpet_game_filled_cells_count -> Int2,
@@ -33,7 +32,6 @@ diesel::table! {
     canonical_sudoku_games (sudoku_game_id) {
         sudoku_game_id -> Int4,
         sudoku_game_filled_board_hash -> Int8,
-        sudoku_game_n -> Int2,
         sudoku_game_difficulty -> Int2,
         sudoku_game_filled_cells -> Bytea,
         sudoku_game_filled_cells_count -> Int2,
@@ -68,5 +66,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     canonical_carpets,
     canonical_sudoku_games,
     canonical_sudoku_squares,
-    canonical_sudokus
+    canonical_sudokus,
 );
