@@ -1,4 +1,4 @@
-use hai606i_sudoku::simple_sudoku::{ Sudoku, SudokuDifficulty };
+use hai606i_sudoku::simple_sudoku::{Sudoku, SudokuDifficulty};
 
 fn main() {
     let mut time_samples = SudokuDifficulty::iter()
@@ -18,11 +18,7 @@ fn main() {
 
             println!(
                 "Difficulty {}:\n\tmin: {}ms\n\tmax: {}ms\n\taverage {:.2} ms\n\tmedian: {}ms",
-                difficulty,
-                min,
-                max,
-                average,
-                median
+                difficulty, min, max, average, median
             );
         }
     };

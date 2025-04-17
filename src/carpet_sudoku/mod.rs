@@ -1,5 +1,5 @@
-use std::collections::{ HashMap, HashSet };
-use crate::simple_sudoku::{ Sudoku, SudokuDifficulty };
+use crate::simple_sudoku::{Sudoku, SudokuDifficulty};
+use std::collections::{HashMap, HashSet};
 
 pub mod carpet;
 
@@ -58,8 +58,9 @@ impl CarpetPattern {
             CarpetPattern::Diagonal(5),
             CarpetPattern::Samurai,
             CarpetPattern::Carpet(2),
-            CarpetPattern::Carpet(3)
-        ].into_iter()
+            CarpetPattern::Carpet(3),
+        ]
+        .into_iter()
     }
 
     pub fn get_n_sudokus(&self) -> usize {
@@ -83,15 +84,16 @@ impl CarpetPattern {
             CarpetPattern::Double => vec![((0, up_right), (1, bottom_left))],
             CarpetPattern::Diagonal(size) => {
                 let size = *size;
-                (1..size).map(|i| ((i - 1, up_right), (i, bottom_left))).collect()
+                (1..size)
+                    .map(|i| ((i - 1, up_right), (i, bottom_left)))
+                    .collect()
             }
-            CarpetPattern::Samurai =>
-                vec![
-                    ((0, up_left), (1, bottom_right)),
-                    ((0, up_right), (2, bottom_left)),
-                    ((0, bottom_left), (3, up_right)),
-                    ((0, bottom_right), (4, up_left))
-                ],
+            CarpetPattern::Samurai => vec![
+                ((0, up_left), (1, bottom_right)),
+                ((0, up_right), (2, bottom_left)),
+                ((0, bottom_left), (3, up_right)),
+                ((0, bottom_right), (4, up_left)),
+            ],
             CarpetPattern::Carpet(size) => {
                 let size = *size;
                 let mut links = Vec::new();
@@ -102,21 +104,17 @@ impl CarpetPattern {
                         if y < size - 1 {
                             let bottom_i = (y + 1) * size + x;
                             links.extend(
-                                (0..n).map(|k| (
-                                    (sudoku_i, bottom_left + k),
-                                    (bottom_i, up_left + k),
-                                ))
+                                (0..n).map(|k| {
+                                    ((sudoku_i, bottom_left + k), (bottom_i, up_left + k))
+                                }),
                             );
                         }
 
                         if x < size - 1 {
                             let right_i = y * size + x + 1;
-                            links.extend(
-                                (0..n).map(|k| (
-                                    (sudoku_i, n * k + up_right),
-                                    (right_i, n * k + up_left),
-                                ))
-                            );
+                            links.extend((0..n).map(|k| {
+                                ((sudoku_i, n * k + up_right), (right_i, n * k + up_left))
+                            }));
                         }
 
                         if y < size - 1 && x < size - 1 {

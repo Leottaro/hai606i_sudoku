@@ -10,7 +10,7 @@ impl Button {
         height: f32,
         text: String,
         clicked: bool,
-        scale_factor: f32
+        scale_factor: f32,
     ) -> Self {
         Button {
             x,
@@ -84,7 +84,11 @@ impl Button {
 
         let actual_color = if self.clickable {
             if self.clicked {
-                if self.hover { clicked_hovered_color } else { clicked_color }
+                if self.hover {
+                    clicked_hovered_color
+                } else {
+                    clicked_color
+                }
             } else if self.hover {
                 hover_color
             } else {
@@ -99,22 +103,25 @@ impl Button {
             self.y * self.scale_factor,
             self.width * self.scale_factor,
             self.height * self.scale_factor,
-            actual_color
+            actual_color,
         );
         let font_size = (((self.height * self.scale_factor) as u16) * 2) / 8;
         let text = self.text.clone();
         let text_dimensions = measure_text(&text, Some(&font), font_size, 1.0);
-        let text_x =
-            self.x * self.scale_factor +
-            (self.width * self.scale_factor - text_dimensions.width) / 2.0;
-        let text_y =
-            self.y * self.scale_factor +
-            (self.height * self.scale_factor + text_dimensions.height) / 2.0;
-        draw_text_ex(&text, text_x, text_y, TextParams {
-            font: Some(&font),
-            font_size,
-            color: text_color,
-            ..Default::default()
-        });
+        let text_x = self.x * self.scale_factor
+            + (self.width * self.scale_factor - text_dimensions.width) / 2.0;
+        let text_y = self.y * self.scale_factor
+            + (self.height * self.scale_factor + text_dimensions.height) / 2.0;
+        draw_text_ex(
+            &text,
+            text_x,
+            text_y,
+            TextParams {
+                font: Some(&font),
+                font_size,
+                color: text_color,
+                ..Default::default()
+            },
+        );
     }
 }

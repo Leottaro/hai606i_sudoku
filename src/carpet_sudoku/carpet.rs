@@ -1,12 +1,12 @@
-use super::{ CarpetPattern, CarpetSudoku };
-use crate::simple_sudoku::{ Coords, Sudoku, SudokuDifficulty, SudokuError, SudokuGroups };
-use rand::{ seq::SliceRandom, rng, Rng };
+use super::{CarpetPattern, CarpetSudoku};
+use crate::simple_sudoku::{Coords, Sudoku, SudokuDifficulty, SudokuError, SudokuGroups};
+use rand::{rng, seq::SliceRandom, Rng};
 use std::{
-    collections::{ HashMap, HashSet },
-    hash::{ DefaultHasher, Hash, Hasher },
+    collections::{HashMap, HashSet},
+    hash::{DefaultHasher, Hash, Hasher},
     ops::AddAssign,
-    sync::{ mpsc, Arc, Mutex },
-    thread::{ available_parallelism, JoinHandle },
+    sync::{mpsc, Arc, Mutex},
+    thread::{available_parallelism, JoinHandle},
 };
 
 impl CarpetSudoku {
@@ -50,7 +50,7 @@ impl CarpetSudoku {
         &mut self,
         sudoku_id: usize,
         x: usize,
-        y: usize
+        y: usize,
     ) -> &mut HashSet<usize> {
         self.sudokus[sudoku_id].get_cell_possibilities_mut(x, y)
     }
@@ -60,7 +60,7 @@ impl CarpetSudoku {
         sudoku_id: usize,
         x: usize,
         y: usize,
-        group: SudokuGroups
+        group: SudokuGroups,
     ) -> HashSet<Coords> {
         self.sudokus[sudoku_id].get_cell_group(x, y, group)
     }
@@ -146,7 +146,7 @@ impl CarpetSudoku {
         &mut self,
         mut sudoku_id: usize,
         mut x: usize,
-        mut y: usize
+        mut y: usize,
     ) -> bool {
         loop {
             if x == self.n2 {
@@ -181,9 +181,8 @@ impl CarpetSudoku {
                 }
             }
 
-            if
-                self.count_solutions(Some(1)) > 0 &&
-                self._generate_canonical_from(sudoku_id, x + 1, y)
+            if self.count_solutions(Some(1)) > 0
+                && self._generate_canonical_from(sudoku_id, x + 1, y)
             {
                 return true;
             }
@@ -266,7 +265,7 @@ impl CarpetSudoku {
         sudoku_id: usize,
         x: usize,
         y: usize,
-        value: usize
+        value: usize,
     ) -> Result<(), SudokuError> {
         let dx = x % self.n;
         let dy = y % self.n;
@@ -305,7 +304,9 @@ impl CarpetSudoku {
 
                 let y2 = (square2 / self.n) * self.n;
                 let x2 = (square2 % self.n) * self.n;
-                self.sudokus[sudoku2].get_cell_possibilities_mut(x2 + dx, y2 + dy).remove(&value);
+                self.sudokus[sudoku2]
+                    .get_cell_possibilities_mut(x2 + dx, y2 + dy)
+                    .remove(&value);
             }
         }
 
@@ -315,7 +316,9 @@ impl CarpetSudoku {
                 for sudoku_i in 0..self.sudokus.len() {
                     for y in 0..self.n2 {
                         for x in 0..self.n2 {
-                            self.sudokus[sudoku_i].get_cell_value(x, y).hash(&mut hasher);
+                            self.sudokus[sudoku_i]
+                                .get_cell_value(x, y)
+                                .hash(&mut hasher);
                         }
                     }
                 }
@@ -330,7 +333,7 @@ impl CarpetSudoku {
         &mut self,
         sudoku_id: usize,
         x: usize,
-        y: usize
+        y: usize,
     ) -> Result<usize, SudokuError> {
         let dx = x % self.n;
         let dy = y % self.n;
@@ -370,13 +373,14 @@ impl CarpetSudoku {
                 let y2 = (square2 / self.n) * self.n;
                 let x2 = (square2 % self.n) * self.n;
 
-                if
-                    self.sudokus[sudoku2]
-                        .get_cell_group(x2 + dx, y2 + dy, SudokuGroups::All)
-                        .into_iter()
-                        .any(|(x3, y3)| self.sudokus[sudoku2].get_cell_value(x3, y3) == value)
+                if self.sudokus[sudoku2]
+                    .get_cell_group(x2 + dx, y2 + dy, SudokuGroups::All)
+                    .into_iter()
+                    .any(|(x3, y3)| self.sudokus[sudoku2].get_cell_value(x3, y3) == value)
                 {
-                    self.sudokus[sudoku_id].get_cell_possibilities_mut(x, y).remove(&value);
+                    self.sudokus[sudoku_id]
+                        .get_cell_possibilities_mut(x, y)
+                        .remove(&value);
                 } else {
                     self.sudokus[sudoku2]
                         .get_cell_possibilities_mut(x2 + dx, y2 + dy)
@@ -394,7 +398,7 @@ impl CarpetSudoku {
 
     pub fn rule_solve(
         &mut self,
-        max_difficulty: Option<SudokuDifficulty>
+        max_difficulty: Option<SudokuDifficulty>,
     ) -> Result<(bool, bool), SudokuError> {
         let mut modified_possibility = false;
         let mut modified_value = false;
@@ -415,7 +419,8 @@ impl CarpetSudoku {
             }
             self.difficulty = self.difficulty.max(sudoku.get_difficulty());
         }
-        self.update_link().map(|_| (modified_possibility, modified_value))
+        self.update_link()
+            .map(|_| (modified_possibility, modified_value))
     }
 
     pub fn backtrack_solve(&mut self) -> bool {
@@ -428,17 +433,17 @@ impl CarpetSudoku {
                     let x: usize = cell_i % self.n2;
                     (sudoku_id, x, y)
                 })
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>(),
         )
     }
 
     fn _backtrack_solve(&mut self, mut empty_cells: Vec<(usize, usize, usize)>) -> bool {
-        empty_cells.sort_by(|&a, &b|
+        empty_cells.sort_by(|&a, &b| {
             self.sudokus[a.0]
                 .get_cell_possibilities(a.1, a.2)
                 .len()
                 .cmp(&self.sudokus[b.0].get_cell_possibilities(b.1, b.2).len())
-        );
+        });
 
         let mut i = 0;
         while i < empty_cells.len() {
@@ -529,8 +534,7 @@ impl CarpetSudoku {
             let thread_tx = tx.clone();
             let (main_tx, thread_rx) = mpsc::channel::<()>();
 
-            let join_handle = std::thread::Builder
-                ::new()
+            let join_handle = std::thread::Builder::new()
                 .name(format!("thread {thread_id}"))
                 .spawn(move || {
                     let mut rng = rand::rng();
@@ -546,10 +550,7 @@ impl CarpetSudoku {
                             " Skipped {}/{} instances with {} filled cells{}\r",
                             thread_skipped.lock().unwrap(),
                             thread_total.lock().unwrap(),
-                            filled_cells
-                                .iter()
-                                .filter(|b| **b)
-                                .count(),
+                            filled_cells.iter().filter(|b| **b).count(),
                             " ".repeat(20)
                         );
                         std::io::Write::flush(&mut std::io::stdout()).unwrap();
@@ -581,21 +582,21 @@ impl CarpetSudoku {
                             let mut testing_carpet = carpet.clone();
                             testing_carpet.difficulty = SudokuDifficulty::Unknown;
 
-                            let removed_value = testing_carpet
-                                .remove_value(sudoku_id, x, y)
-                                .unwrap();
+                            let removed_value =
+                                testing_carpet.remove_value(sudoku_id, x, y).unwrap();
 
-                            if thread_explored_filled_cells.lock().unwrap().contains(&filled_cells) {
+                            if thread_explored_filled_cells
+                                .lock()
+                                .unwrap()
+                                .contains(&filled_cells)
+                            {
                                 (*thread_skipped.lock().unwrap()).add_assign(1);
                                 (*thread_total.lock().unwrap()).add_assign(1);
                                 print!(
                                     " Skipped {}/{} instances with {} filled cells{}\r",
                                     thread_skipped.lock().unwrap(),
                                     thread_total.lock().unwrap(),
-                                    filled_cells
-                                        .iter()
-                                        .filter(|b| **b)
-                                        .count(),
+                                    filled_cells.iter().filter(|b| **b).count(),
                                     " ".repeat(20)
                                 );
                                 std::io::Write::flush(&mut std::io::stdout()).unwrap();
@@ -606,35 +607,29 @@ impl CarpetSudoku {
                             loop {
                                 match testing_carpet.rule_solve(Some(aimed_difficulty)) {
                                     Ok((true, true)) => {
-                                        if
-                                            testing_carpet.sudokus[sudoku_id].get_cell_value(
-                                                x,
-                                                y
-                                            ) == removed_value
+                                        if testing_carpet.sudokus[sudoku_id].get_cell_value(x, y)
+                                            == removed_value
                                         {
                                             can_solve = true;
                                             break;
                                         }
 
-                                        let testing_filled_cells: Vec<bool> = (0..n_sudokus *
-                                            n2 *
-                                            n2)
-                                            .map(|i| {
-                                                let sudoku_id = i / (n2 * n2);
-                                                let cell_i = i - sudoku_id * n2 * n2;
-                                                let y = cell_i / n2;
-                                                let x = cell_i % n2;
-                                                testing_carpet.sudokus[sudoku_id].get_cell_value(
-                                                    x,
-                                                    y
-                                                ) != 0
-                                            })
-                                            .collect();
-                                        if
-                                            thread_explored_filled_cells
-                                                .lock()
-                                                .unwrap()
-                                                .contains(&testing_filled_cells)
+                                        let testing_filled_cells: Vec<bool> =
+                                            (0..n_sudokus * n2 * n2)
+                                                .map(|i| {
+                                                    let sudoku_id = i / (n2 * n2);
+                                                    let cell_i = i - sudoku_id * n2 * n2;
+                                                    let y = cell_i / n2;
+                                                    let x = cell_i % n2;
+                                                    testing_carpet.sudokus[sudoku_id]
+                                                        .get_cell_value(x, y)
+                                                        != 0
+                                                })
+                                                .collect();
+                                        if thread_explored_filled_cells
+                                            .lock()
+                                            .unwrap()
+                                            .contains(&testing_filled_cells)
                                         {
                                             (*thread_skipped.lock().unwrap()).add_assign(1);
                                             (*thread_total.lock().unwrap()).add_assign(1);
@@ -642,10 +637,7 @@ impl CarpetSudoku {
                                                 " Skipped {}/{} instances with {} filled cells{}\r",
                                                 thread_skipped.lock().unwrap(),
                                                 thread_total.lock().unwrap(),
-                                                filled_cells
-                                                    .iter()
-                                                    .filter(|b| **b)
-                                                    .count(),
+                                                filled_cells.iter().filter(|b| **b).count(),
                                                 " ".repeat(20)
                                             );
                                             std::io::Write::flush(&mut std::io::stdout()).unwrap();
@@ -654,20 +646,18 @@ impl CarpetSudoku {
                                     }
                                     Ok((true, false)) => (),
                                     _ => {
-                                        let testing_filled_cells: Vec<bool> = (0..n_sudokus *
-                                            n2 *
-                                            n2)
-                                            .map(|i| {
-                                                let sudoku_id = i / (n2 * n2);
-                                                let cell_i = i - sudoku_id * n2 * n2;
-                                                let y = cell_i / n2;
-                                                let x = cell_i % n2;
-                                                testing_carpet.sudokus[sudoku_id].get_cell_value(
-                                                    x,
-                                                    y
-                                                ) != 0
-                                            })
-                                            .collect();
+                                        let testing_filled_cells: Vec<bool> =
+                                            (0..n_sudokus * n2 * n2)
+                                                .map(|i| {
+                                                    let sudoku_id = i / (n2 * n2);
+                                                    let cell_i = i - sudoku_id * n2 * n2;
+                                                    let y = cell_i / n2;
+                                                    let x = cell_i % n2;
+                                                    testing_carpet.sudokus[sudoku_id]
+                                                        .get_cell_value(x, y)
+                                                        != 0
+                                                })
+                                                .collect();
                                         thread_explored_filled_cells
                                             .lock()
                                             .unwrap()
@@ -730,16 +720,10 @@ impl CarpetSudoku {
             }
 
             // verify that each sudoku isn't solvable alone
-            if
-                carpet
-                    .get_sudokus()
-                    .clone()
-                    .into_iter()
-                    .any(|mut sudoku| {
-                        while let Ok(Some(_)) = sudoku.rule_solve(None, Some(aimed_difficulty)) {}
-                        sudoku.is_filled()
-                    })
-            {
+            if carpet.get_sudokus().clone().into_iter().any(|mut sudoku| {
+                while let Ok(Some(_)) = sudoku.rule_solve(None, Some(aimed_difficulty)) {}
+                sudoku.is_filled()
+            }) {
                 continue;
             }
 
@@ -766,18 +750,14 @@ impl CarpetSudoku {
 
     pub fn randomize(&mut self) -> Result<(), SudokuError> {
         if !self.is_filled() {
-            return Err(
-                SudokuError::InvalidState(
-                    format!("randomize() when this carpet isn't filled: {self}")
-                )
-            );
+            return Err(SudokuError::InvalidState(format!(
+                "randomize() when this carpet isn't filled: {self}"
+            )));
         }
         if !self.is_canonical {
-            return Err(
-                SudokuError::InvalidState(
-                    format!("randomize() when this carpet is already randomized: {self}")
-                )
-            );
+            return Err(SudokuError::InvalidState(format!(
+                "randomize() when this carpet is already randomized: {self}"
+            )));
         }
 
         self.sudokus[0].randomize(None, None)?;
@@ -793,18 +773,14 @@ impl CarpetSudoku {
 
     pub fn canonize(&mut self) -> Result<(), SudokuError> {
         if !self.is_filled() {
-            return Err(
-                SudokuError::InvalidState(
-                    format!("canonize() when this carpet isn't filled: {self}")
-                )
-            );
+            return Err(SudokuError::InvalidState(format!(
+                "canonize() when this carpet isn't filled: {self}"
+            )));
         }
         if !self.is_canonical {
-            return Err(
-                SudokuError::InvalidState(
-                    format!("canonize() when this carpet is already canonical: {self}")
-                )
-            );
+            return Err(SudokuError::InvalidState(format!(
+                "canonize() when this carpet is already canonical: {self}"
+            )));
         }
 
         for sudoku in self.sudokus.iter_mut() {
@@ -838,21 +814,21 @@ impl CarpetSudoku {
                     let x: usize = cell_i % self.n2;
                     (sudoku_id, x, y)
                 })
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>(),
         )
     }
 
     fn _count_solutions(
         &mut self,
         max_solutions: Option<usize>,
-        mut empty_cells: Vec<(usize, usize, usize)>
+        mut empty_cells: Vec<(usize, usize, usize)>,
     ) -> usize {
-        empty_cells.sort_by(|&a, &b|
+        empty_cells.sort_by(|&a, &b| {
             self.sudokus[a.0]
                 .get_cell_possibilities(a.1, a.2)
                 .len()
                 .cmp(&self.sudokus[b.0].get_cell_possibilities(b.1, b.2).len())
-        );
+        });
 
         let mut i = 0;
         while i < empty_cells.len() {
@@ -908,25 +884,19 @@ impl CarpetSudoku {
 
 #[cfg(feature = "database")]
 use crate::database::{
-    Database,
-    DBCanonicalCarpet,
-    DBCanonicalCarpetSudoku,
-    DBNewCanonicalCarpetGame,
-    DBCanonicalSudoku,
-    DBCanonicalSudokuSquare,
+    DBCanonicalCarpet, DBCanonicalCarpetSudoku, DBCanonicalSudoku, DBCanonicalSudokuSquare,
+    DBNewCanonicalCarpetGame, Database,
 };
 
 #[cfg(feature = "database")]
 impl CarpetSudoku {
     pub fn db_to_filled(
-        &self
+        &self,
     ) -> Result<(DBCanonicalCarpet, Vec<DBCanonicalCarpetSudoku>), SudokuError> {
         if !self.is_canonical {
-            return Err(
-                SudokuError::InvalidState(
-                    format!("db_to_filled() when this carpet isn't canonical: {self}")
-                )
-            );
+            return Err(SudokuError::InvalidState(format!(
+                "db_to_filled() when this carpet isn't canonical: {self}"
+            )));
         }
         if !self.is_filled() {
             return Err(
@@ -947,17 +917,20 @@ impl CarpetSudoku {
             carpet_pattern_size: pattern_size,
         };
 
-        let db_carpet_sudokus = self.sudokus
+        let db_carpet_sudokus = self
+            .sudokus
             .iter()
             .enumerate()
             .map(|(i, sudoku)| DBCanonicalCarpetSudoku {
-                carpet_sudoku_carpet_filled_board_hash: self.filled_board_hash.wrapping_sub(
-                    u64::MAX / 2 + 1
-                ) as i64,
+                carpet_sudoku_carpet_filled_board_hash: self
+                    .filled_board_hash
+                    .wrapping_sub(u64::MAX / 2 + 1)
+                    as i64,
                 carpet_sudoku_i: i as i16,
                 carpet_sudoku_filled_board_hash: sudoku
                     .get_canonical_filled_board_hash()
-                    .wrapping_sub(u64::MAX / 2 + 1) as i64,
+                    .wrapping_sub(u64::MAX / 2 + 1)
+                    as i64,
             })
             .collect::<Vec<_>>();
 
@@ -982,9 +955,10 @@ impl CarpetSudoku {
             })
             .collect();
         DBNewCanonicalCarpetGame {
-            carpet_game_carpet_filled_board_hash: self.filled_board_hash.wrapping_sub(
-                u64::MAX / 2 + 1
-            ) as i64,
+            carpet_game_carpet_filled_board_hash: self
+                .filled_board_hash
+                .wrapping_sub(u64::MAX / 2 + 1)
+                as i64,
             carpet_game_difficulty: self.difficulty as i16,
             carpet_game_filled_cells: filled_cells.clone(),
             carpet_game_filled_cells_count: filled_cells.len() as i16,
@@ -994,27 +968,24 @@ impl CarpetSudoku {
     pub fn db_from_filled(
         db_carpet: DBCanonicalCarpet,
         db_carpet_sudokus: Vec<DBCanonicalCarpetSudoku>,
-        db_sudokus: Vec<DBCanonicalSudoku>
+        db_sudokus: Vec<DBCanonicalSudoku>,
     ) -> Self {
         let mut carpet = Self::new(
             db_carpet.carpet_n as usize,
-            CarpetPattern::from_db(db_carpet.carpet_pattern, db_carpet.carpet_pattern_size)
+            CarpetPattern::from_db(db_carpet.carpet_pattern, db_carpet.carpet_pattern_size),
         );
-        carpet.filled_board_hash = (db_carpet.carpet_filled_board_hash as u64).wrapping_add(
-            u64::MAX / 2 + 1
-        );
+        carpet.filled_board_hash =
+            (db_carpet.carpet_filled_board_hash as u64).wrapping_add(u64::MAX / 2 + 1);
 
         for carpet_sudoku in db_carpet_sudokus {
             let sudoku = db_sudokus
                 .iter()
-                .find(
-                    |sudoku|
-                        sudoku.filled_board_hash == carpet_sudoku.carpet_sudoku_filled_board_hash
-                )
+                .find(|sudoku| {
+                    sudoku.filled_board_hash == carpet_sudoku.carpet_sudoku_filled_board_hash
+                })
                 .expect("Sudoku not found in db_sudokus");
-            carpet.sudokus[carpet_sudoku.carpet_sudoku_i as usize] = Sudoku::db_from_filled(
-                sudoku.clone()
-            );
+            carpet.sudokus[carpet_sudoku.carpet_sudoku_i as usize] =
+                Sudoku::db_from_filled(sudoku.clone());
         }
 
         carpet
@@ -1024,7 +995,7 @@ impl CarpetSudoku {
         game_info: impl Into<DBNewCanonicalCarpetGame>,
         db_carpet: DBCanonicalCarpet,
         db_carpet_sudokus: Vec<DBCanonicalCarpetSudoku>,
-        db_sudokus: Vec<DBCanonicalSudoku>
+        db_sudokus: Vec<DBCanonicalSudoku>,
     ) -> Self {
         let game_info = game_info.into();
         let mut carpet = Self::db_from_filled(db_carpet, db_carpet_sudokus, db_sudokus);
@@ -1044,30 +1015,33 @@ impl CarpetSudoku {
     }
 
     pub fn load_filled_from_db(database: &mut Database, n: usize, pattern: CarpetPattern) -> Self {
-        database.get_random_canonical_carpet(n as i16, pattern.to_db()).unwrap()
+        database
+            .get_random_canonical_carpet(n as i16, pattern.to_db())
+            .unwrap()
     }
 
     pub fn load_game_from_db(
         database: &mut Database,
         n: usize,
         pattern: CarpetPattern,
-        difficulty: SudokuDifficulty
+        difficulty: SudokuDifficulty,
     ) -> Self {
         database
             .get_random_canonical_carpet_game(n as i16, pattern.to_db(), difficulty as i16)
             .unwrap()
     }
 
-    pub fn generate_filled_from_db(
-        database: &mut Database,
-        n: usize,
-        pattern: CarpetPattern
-    ) -> Self {
-        let (db_carpet, db_carpet_sudokus, db_sudokus) = database
-            .construct_canonical_carpet(n as i16, pattern)
-            .unwrap();
-        Self::db_from_filled(db_carpet, db_carpet_sudokus, db_sudokus)
-    }
+	// TODO:
+    // pub fn generate_filled_from_db(
+    //     database: &mut Database,
+    //     n: usize,
+    //     pattern: CarpetPattern,
+    // ) -> Self {
+    //     let (db_carpet, db_carpet_sudokus, db_sudokus) = database
+    //         .construct_canonical_carpet(n as i16, pattern)
+    //         .unwrap();
+    //     Self::db_from_filled(db_carpet, db_carpet_sudokus, db_sudokus)
+    // }
 }
 
 impl std::fmt::Display for CarpetSudoku {
@@ -1108,9 +1082,8 @@ impl PartialEq for CarpetSudoku {
 
             for x in 0..self.n2 {
                 for y in 0..self.n2 {
-                    if
-                        sudoku1.get_cell_value(x, y) != sudoku2.get_cell_value(x, y) ||
-                        sudoku1
+                    if sudoku1.get_cell_value(x, y) != sudoku2.get_cell_value(x, y)
+                        || sudoku1
                             .get_cell_possibilities(x, y)
                             .ne(sudoku2.get_cell_possibilities(x, y))
                     {

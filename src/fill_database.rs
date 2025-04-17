@@ -1,21 +1,24 @@
 use std::{
-    io::{ stdout, Write },
+    io::{stdout, Write},
     ops::SubAssign,
-    sync::{ mpsc, Arc, Mutex },
-    thread::{ self, available_parallelism },
+    sync::{mpsc, Arc, Mutex},
+    thread::{self, available_parallelism},
 };
 
 use hai606i_sudoku::{
-    carpet_sudoku::{ CarpetPattern, CarpetSudoku },
+    carpet_sudoku::{CarpetPattern, CarpetSudoku},
     database::Database,
-    simple_sudoku::{ Sudoku, SudokuDifficulty },
+    simple_sudoku::{Sudoku, SudokuDifficulty},
 };
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() != 4 {
         eprintln!("Wrong usage: needed 4 args, got {}", args.len());
-        eprintln!("Usage: {} <sudoku|carpet> <filled|games> <max_number>", args[0]);
+        eprintln!(
+            "Usage: {} <sudoku|carpet> <filled|games> <max_number>",
+            args[0]
+        );
         return;
     }
     let max_number = args[3].parse::<usize>().unwrap();
@@ -37,7 +40,10 @@ fn main() {
             return;
         }
     }
-    eprintln!("Usage: {} <sudoku|carpet> <filled|games> <max_number>", args[0]);
+    eprintln!(
+        "Usage: {} <sudoku|carpet> <filled|games> <max_number>",
+        args[0]
+    );
 }
 
 fn sudoku_filled(max_number: usize) {
@@ -53,8 +59,7 @@ fn sudoku_filled(max_number: usize) {
     for thread_id in 0..threads_number.into() {
         let remaining_number = Arc::clone(&remaining_number);
         let thread_data = Arc::clone(&data);
-        let handle = thread::Builder
-            ::new()
+        let handle = thread::Builder::new()
             .name(thread_id.to_string())
             .spawn(move || {
                 while *remaining_number.lock().unwrap() > 0 {
@@ -87,7 +92,10 @@ fn sudoku_filled(max_number: usize) {
             .insert_multiple_canonical_sudokus(passed_sudokus, passed_squares)
             .unwrap_or_else(|err| panic!("ERROR COULDN'T INSERT SUDOKU FILLED IN DATABSE: {err}"));
 
-        remaining_number.lock().unwrap().sub_assign(just_inserted_sudokus);
+        remaining_number
+            .lock()
+            .unwrap()
+            .sub_assign(just_inserted_sudokus);
         total_count += total_rows as u128;
         overlap_count += (total_rows - just_inserted_sudokus - just_inserted_squares) as u128;
     }
@@ -113,7 +121,11 @@ fn sudoku_games(max_number: usize) {
         remaining_canonicals.sub_assign(1);
         let sudoku = Sudoku::db_from_filled(canonical);
         let mut passed_games = Vec::new();
-        println!("{} canonicals left:{}", remaining_canonicals, " ".repeat(50));
+        println!(
+            "{} canonicals left:{}",
+            remaining_canonicals,
+            " ".repeat(50)
+        );
 
         for difficulty in SudokuDifficulty::iter() {
             println!("{difficulty}{}", " ".repeat(50));
@@ -144,9 +156,12 @@ fn carpet_filled(max_number: usize) {
 
     let remaining_number = Arc::new(Mutex::new(max_number * CarpetPattern::iter().count()));
     let (sender, receiver) = mpsc::channel();
-    let patterns_loop = Arc::new(
-        Mutex::new(CarpetPattern::iter().collect::<Vec<_>>().into_iter().cycle())
-    );
+    let patterns_loop = Arc::new(Mutex::new(
+        CarpetPattern::iter()
+            .collect::<Vec<_>>()
+            .into_iter()
+            .cycle(),
+    ));
 
     let threads_number = available_parallelism().unwrap();
     let mut thread_handles = Vec::new();
@@ -154,8 +169,7 @@ fn carpet_filled(max_number: usize) {
         let thread_remaining_number = Arc::clone(&remaining_number);
         let thread_sender = sender.clone();
         let thread_patterns_loop = Arc::clone(&patterns_loop);
-        let handle = thread::Builder
-            ::new()
+        let handle = thread::Builder::new()
             .name(thread_id.to_string())
             .spawn(move || {
                 while *thread_remaining_number.lock().unwrap() > 0 {
@@ -166,16 +180,17 @@ fn carpet_filled(max_number: usize) {
 
                     let carpet_base = CarpetSudoku::generate_full(3, next_pattern.unwrap());
                     let (db_carpet, db_carpet_sudokus) = carpet_base.db_to_filled().unwrap();
-                    let (sudokus_data, sudokus_data_square): (Vec<_>, Vec<_>) = carpet_base
-                        .db_sudokus_to_filled()
-                        .into_iter()
-                        .unzip();
+                    let (sudokus_data, sudokus_data_square): (Vec<_>, Vec<_>) =
+                        carpet_base.db_sudokus_to_filled().into_iter().unzip();
                     thread_sender
                         .send((
                             (db_carpet, db_carpet_sudokus),
                             (
                                 sudokus_data,
-                                sudokus_data_square.into_iter().flatten().collect::<Vec<_>>(),
+                                sudokus_data_square
+                                    .into_iter()
+                                    .flatten()
+                                    .collect::<Vec<_>>(),
                             ),
                         ))
                         .unwrap();
@@ -217,10 +232,19 @@ fn carpet_filled(max_number: usize) {
                 (carpets_sudokus_data, carpets_sudokus_data_squares),
             ): ((Vec<_>, Vec<_>), (Vec<_>, Vec<_>)) = data.into_iter().unzip();
             (
-                (carpets, carpets_sudokus.into_iter().flatten().collect::<Vec<_>>()),
                 (
-                    carpets_sudokus_data.into_iter().flatten().collect::<Vec<_>>(),
-                    carpets_sudokus_data_squares.into_iter().flatten().collect::<Vec<_>>(),
+                    carpets,
+                    carpets_sudokus.into_iter().flatten().collect::<Vec<_>>(),
+                ),
+                (
+                    carpets_sudokus_data
+                        .into_iter()
+                        .flatten()
+                        .collect::<Vec<_>>(),
+                    carpets_sudokus_data_squares
+                        .into_iter()
+                        .flatten()
+                        .collect::<Vec<_>>(),
                 ),
             )
         };
@@ -232,16 +256,15 @@ fn carpet_filled(max_number: usize) {
             passed_carpets_sudokus_data_squares.len()
         );
 
-        let total_rows =
-            passed_carpets.len() +
-            passed_carpets_sudokus.len() +
-            passed_carpets_sudokus_data.len() +
-            passed_carpets_sudokus_data_squares.len();
+        let total_rows = passed_carpets.len()
+            + passed_carpets_sudokus.len()
+            + passed_carpets_sudokus_data.len()
+            + passed_carpets_sudokus_data_squares.len();
 
         let (just_inserted_sudokus, just_inserted_squares) = database
             .insert_multiple_canonical_sudokus(
                 passed_carpets_sudokus_data,
-                passed_carpets_sudokus_data_squares
+                passed_carpets_sudokus_data_squares,
             )
             .unwrap_or_else(|err| panic!("ERROR COULDN'T INSERT FILLED CARPET IN DATABSE: {err}"));
         let (just_inserted_carpets, just_inserted_carpets_sudokus) = database
@@ -249,11 +272,11 @@ fn carpet_filled(max_number: usize) {
             .unwrap_or_else(|err| panic!("ERROR COULDN'T INSERT FILLED CARPET IN DATABSE: {err}"));
 
         total_count += total_rows as u128;
-        overlap_count += (total_rows -
-            just_inserted_sudokus -
-            just_inserted_squares -
-            just_inserted_carpets -
-            just_inserted_carpets_sudokus) as u128;
+        overlap_count += (total_rows
+            - just_inserted_sudokus
+            - just_inserted_squares
+            - just_inserted_carpets
+            - just_inserted_carpets_sudokus) as u128;
     }
 
     for handle in thread_handles {
@@ -272,7 +295,7 @@ fn carpet_games(max_number: usize) {
                     .lock()
                     .unwrap()
                     .get_n_canonical_carpets(max_number as i64, 3, pattern.to_db())
-                    .unwrap()
+                    .unwrap(),
             );
         }
         (canonicals.len(), canonicals.into_iter())
@@ -282,7 +305,11 @@ fn carpet_games(max_number: usize) {
         remaining_canonicals.sub_assign(1);
         let carpet = CarpetSudoku::db_from_filled(db_carpet, db_carpet_sudokus, db_sudokus);
         let mut passed_games = Vec::new();
-        println!("{} canonicals left:{}", remaining_canonicals, " ".repeat(50));
+        println!(
+            "{} canonicals left:{}",
+            remaining_canonicals,
+            " ".repeat(50)
+        );
 
         for difficulty in SudokuDifficulty::iter() {
             println!("{difficulty}{}", " ".repeat(50));

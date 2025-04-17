@@ -1,4 +1,4 @@
-use diesel::{ ExecuteCopyFromDsl, PgConnection };
+use diesel::{ExecuteCopyFromDsl, PgConnection};
 
 pub mod db;
 pub mod schema;
