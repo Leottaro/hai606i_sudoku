@@ -71,16 +71,6 @@ pub struct DBCanonicalCarpet {
     pub carpet_pattern: i16,
     pub carpet_pattern_size: Option<i16>,
 }
-
-impl DBCanonicalCarpet {
-    pub fn copy_to(database: &mut Database, data: &Vec<Self>) {
-        let a = diesel
-            ::copy_from(schema::canonical_carpets::table)
-            .from_insertable(data)
-            .execute(&mut database.connection);
-    }
-}
-
 #[derive(Queryable, Selectable, Insertable, Clone)]
 #[diesel(treat_none_as_default_value = false)]
 #[diesel(check_for_backend(diesel::pg::Pg))]

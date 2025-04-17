@@ -1,13 +1,11 @@
 #![allow(dead_code)] // no warning due to unused code
 
-#[cfg(feature = "database")]
-use hai606i_sudoku::database::Database;
-
+// use hai606i_sudoku::database::Database;
 use hai606i_sudoku::carpet_sudoku::{ CarpetPattern, CarpetSudoku };
 
 fn main() {
-    let mut database = Database::connect().unwrap();
-    println!("connecté");
+    // let mut database = Database::connect().unwrap();
+    // println!("connecté");
 
     for pattern in CarpetPattern::iter() {
         println!("\n\n\n\n\nPATTERN: {pattern}");

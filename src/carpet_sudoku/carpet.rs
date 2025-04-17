@@ -1,6 +1,5 @@
 use super::{ CarpetPattern, CarpetSudoku };
 use crate::simple_sudoku::{ Coords, Sudoku, SudokuDifficulty, SudokuError, SudokuGroups };
-use log::warn;
 use rand::{ seq::SliceRandom, rng, Rng };
 use std::{
     collections::{ HashMap, HashSet },
@@ -122,25 +121,81 @@ impl CarpetSudoku {
     }
 
     pub fn generate_full(n: usize, pattern: CarpetPattern) -> Self {
-        let mut carpet = Self::new(n, pattern);
-        let mut i = 0;
-        while i < carpet.sudokus.len() {
-            let sudoku = carpet.sudokus[i].generate_canonical_from();
-            let mut test_carpet = carpet.clone();
-            test_carpet.sudokus[i] = sudoku;
-            test_carpet.update_link().unwrap();
-            if test_carpet.count_solutions(Some(1)) > 0 {
-                carpet = test_carpet;
-                i += 1;
-            } else {
-                i -= 1;
+        loop {
+            let mut carpet = Self::new(n, pattern);
+            if !carpet._generate_canonical_from(0, 0, 0) {
+                panic!("pattern: {pattern} juste pas possible en fait");
+            }
+            if carpet.count_solutions(Some(1)) == 0 {
+                println!("bloqué ici: {carpet}");
+                continue;
+            }
+
+            for sudoku in carpet.sudokus.iter_mut() {
+                sudoku.set_is_canonical(true);
+            }
+            carpet.is_canonical = true;
+
+            if carpet.backtrack_solve() {
+                return carpet;
+            }
+        }
+    }
+
+    fn _generate_canonical_from(
+        &mut self,
+        mut sudoku_id: usize,
+        mut x: usize,
+        mut y: usize
+    ) -> bool {
+        loop {
+            if x == self.n2 {
+                y += 1;
+                x = 0;
+            }
+            if y == self.n2 {
+                y = 0;
+                sudoku_id += 1;
+            }
+            if sudoku_id == self.sudokus.len() {
+                return true;
+            }
+            if (y == 0 || x == 0) && self.sudokus[sudoku_id].get_cell_value(x, y) == 0 {
+                break;
+            }
+            x += 1;
+        }
+
+        let mut possibilities = self.sudokus[sudoku_id]
+            .get_cell_possibilities(x, y)
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>();
+        possibilities.sort();
+        for value in possibilities {
+            match self.set_value(sudoku_id, x, y, value) {
+                Ok(()) => (),
+                Err(_) => {
+                    let _ = self.remove_value(sudoku_id, x, y);
+                    continue;
+                }
+            }
+
+            if
+                self.count_solutions(Some(1)) > 0 &&
+                self._generate_canonical_from(sudoku_id, x + 1, y)
+            {
+                return true;
+            }
+
+            if let Err(err) = self.remove_value(sudoku_id, x, y) {
+                eprintln!(
+                    "ERRROR AFTER self.remove_value({sudoku_id}, {x}, {y}): {err}\nFOR CARPET:{self}"
+                );
             }
         }
 
-        carpet.is_canonical = true;
-        carpet.backtrack_solve();
-
-        carpet
+        false
     }
 
     pub fn generate_new(n: usize, pattern: CarpetPattern, difficulty: SudokuDifficulty) -> Self {
@@ -412,15 +467,10 @@ impl CarpetSudoku {
         for value in possibilities {
             match self.set_value(sudoku_id, x, y, value) {
                 Ok(()) => (),
-                Err(SudokuError::NoPossibilityCell((errx, erry))) => {
-                    if let Err(err) = self.remove_value(sudoku_id, x, y) {
-                        warn!(
-                            "ERRROR AFTER set_value({sudoku_id}, {x}, {y}, {value}) MADE {errx},{erry} EMPTY: {err}\nFOR CARPET:{self}"
-                        );
-                    }
+                Err(_) => {
+                    let _ = self.remove_value(sudoku_id, x, y);
                     continue;
                 }
-                Err(err) => warn!("{err}"),
             }
 
             if self._backtrack_solve(empty_cells.clone()) {
@@ -428,7 +478,7 @@ impl CarpetSudoku {
             }
 
             if let Err(err) = self.remove_value(sudoku_id, x, y) {
-                warn!(
+                eprintln!(
                     "ERRROR AFTER self.remove_value({sudoku_id}, {x}, {y}): {err}\nFOR CARPET:{self}"
                 );
             }
@@ -832,15 +882,10 @@ impl CarpetSudoku {
         for value in possibilities {
             match self.set_value(sudoku_id, x, y, value) {
                 Ok(()) => (),
-                Err(SudokuError::NoPossibilityCell((errx, erry))) => {
-                    if let Err(err) = self.remove_value(sudoku_id, x, y) {
-                        warn!(
-                            "ERRROR AFTER set_value({sudoku_id}, {x}, {y}, {value}) MADE {errx},{erry} EMPTY: {err}\nFOR CARPET:{self}"
-                        );
-                    }
+                Err(_) => {
+                    let _ = self.remove_value(sudoku_id, x, y);
                     continue;
                 }
-                Err(err) => warn!("{err}"),
             }
 
             sub_solutions += self._count_solutions(max_solutions, empty_cells.clone());
@@ -851,7 +896,7 @@ impl CarpetSudoku {
             }
 
             if let Err(err) = self.remove_value(sudoku_id, x, y) {
-                warn!(
+                eprintln!(
                     "ERRROR AFTER self.remove_value({sudoku_id}, {x}, {y}): {err}\nFOR CARPET:{self}"
                 );
             }

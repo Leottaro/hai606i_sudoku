@@ -8,7 +8,6 @@ use super::{
     SudokuGroups::{ self, * },
 };
 use crate::debug_only;
-use log::{ info, warn };
 use rand::{ seq::SliceRandom, rng, Rng };
 use std::{
     cmp::max,
@@ -98,6 +97,10 @@ impl Sudoku {
 
     pub fn get_rows_swap(&self) -> HashMap<usize, (usize, usize)> {
         self.rows_swap.clone()
+    }
+
+    pub fn set_is_canonical(&mut self, is_canonical: bool) {
+        self.is_canonical = is_canonical;
     }
 
     pub fn set_value(&mut self, x: usize, y: usize, value: usize) -> Result<(), SudokuError> {
@@ -365,7 +368,7 @@ impl Sudoku {
 
     pub fn into_generate_canonical_from(mut self) -> Self {
         self._fill_first_line(true, 0);
-        // self._fill_first_line(false, 0); // TODO:
+        self._fill_first_line(false, 0);
         self.is_canonical = true;
         self
     }
@@ -386,15 +389,10 @@ impl Sudoku {
         for value in possibilities {
             match self.set_value(x, y, value) {
                 Ok(()) => (),
-                Err(SudokuError::NoPossibilityCell((errx, erry))) => {
-                    if let Err(err) = self.remove_value(x, y) {
-                        warn!(
-                            "ERRROR AFTER set_value({i}, 0, {value}) MADE {errx},{erry} EMPTY: {err}\nFOR CARPET:{self}"
-                        );
-                    }
+                Err(_) => {
+                    let _ = self.remove_value(x, y);
                     continue;
                 }
-                Err(err) => warn!("{err}"),
             }
 
             if self._fill_first_line(fill_row, i + 1) {
@@ -402,7 +400,7 @@ impl Sudoku {
             }
 
             if let Err(err) = self.remove_value(x, y) {
-                warn!("ERRROR AFTER self.remove_value({x}, {y}): {err}\nFOR CARPET:{self}");
+                log::warn!("ERRROR AFTER self.remove_value({x}, {y}): {err}\nFOR CARPET:{self}");
             }
         }
 
@@ -890,11 +888,6 @@ impl Sudoku {
                     break;
                 }
             }
-        }
-        if sudoku.is_filled() {
-            info!("Sudoku solved !");
-        } else {
-            warn!("Sudoku not solved !");
         }
         sudoku.board
     }
