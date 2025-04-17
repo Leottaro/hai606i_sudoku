@@ -32,7 +32,7 @@ async fn main() {
         .await
         .unwrap();
 
-    let carpet = CarpetSudoku::new(3, CarpetPattern::Simple);
+    let carpet = CarpetSudoku::new(3, CarpetPattern::Double);
     let mut sudoku_display = SudokuDisplay::new(carpet, font.clone()).await;
 
     #[cfg(feature = "database")]
