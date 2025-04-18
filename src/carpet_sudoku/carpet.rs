@@ -1,13 +1,10 @@
 use crate::simple_sudoku::{Coords, Sudoku, SudokuDifficulty, SudokuError, SudokuGroups};
 
 use super::{CarpetPattern, CarpetSudoku};
-use rand::{rng, seq::SliceRandom, Rng};
+use rand::{rng, seq::SliceRandom};
 use std::{
     collections::{HashMap, HashSet},
     hash::{DefaultHasher, Hash, Hasher},
-    ops::{AddAssign, SubAssign},
-    sync::{mpsc, Arc, Mutex},
-    thread::{available_parallelism, JoinHandle},
 };
 
 impl CarpetSudoku {
@@ -246,7 +243,10 @@ impl CarpetSudoku {
     }
 
     pub fn generate_new(n: usize, pattern: CarpetPattern, difficulty: SudokuDifficulty) -> Self {
-        Self::generate_full(n, pattern).into_generate_from(difficulty)
+        let time = std::time::Instant::now();
+        let generated_carpet = Self::generate_full(n, pattern).generate_from(difficulty);
+        println!("called generate_new({n}, {pattern}, {difficulty}) gave this in {}ms => {generated_carpet}", time.elapsed().as_millis());
+        generated_carpet
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -422,6 +422,21 @@ impl CarpetSudoku {
             .map(|_| (modified_possibility, modified_value))
     }
 
+    pub fn rule_solve_until(
+        &mut self,
+        rule_solve_result: (bool, bool),
+        max_difficulty: Option<SudokuDifficulty>,
+    ) -> bool {
+        let mut did_anything = false;
+        while let Ok(result) = self.rule_solve(max_difficulty) {
+            if result == rule_solve_result || result == (false, false) {
+                break;
+            }
+            did_anything = true;
+        }
+        did_anything
+    }
+
     pub fn backtrack_solve(&mut self) -> bool {
         self._backtrack_solve(
             (0..self.sudokus.len() * self.n2 * self.n2)
@@ -496,274 +511,124 @@ impl CarpetSudoku {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     pub fn generate_from(&self, aimed_difficulty: SudokuDifficulty) -> Self {
-        self.clone().into_generate_from(aimed_difficulty)
+        let mut carpet = self.clone();
+        println!("generate_from({aimed_difficulty}): ");
+        let start_time = std::time::Instant::now();
+        let mut explored_possibilities = 0;
+        let mut skipped_possibilities = 0;
+        let mut already_explored_filled_cells = HashSet::new();
+        carpet._generate_from(
+            aimed_difficulty,
+            &start_time,
+            &mut explored_possibilities,
+            &mut skipped_possibilities,
+            &mut already_explored_filled_cells,
+        );
+        println!(
+            "Skipped {skipped_possibilities}/{explored_possibilities} possibilities in {}ms          ",
+            start_time.elapsed().as_millis()
+        );
+        carpet
     }
 
-    pub fn into_generate_from(self, aimed_difficulty: SudokuDifficulty) -> Self {
-        let n2 = self.n2;
-        let n_sudokus = self.sudokus.len();
-        let (tx, rx) = mpsc::channel::<Self>();
-        type SudokuFilledCells = (CarpetSudoku, Vec<bool>);
+    fn _generate_from(
+        &mut self,
+        aimed_difficulty: SudokuDifficulty,
+        start_time: &std::time::Instant,
+        explored_possibilities: &mut usize,
+        skipped_possibilities: &mut usize,
+        already_explored_filled_cells: &mut HashSet<Vec<bool>>,
+    ) -> bool {
+        self.difficulty = SudokuDifficulty::Unknown;
 
-        let default: Arc<Mutex<SudokuFilledCells>> = {
-            let filled_cells: Vec<bool> = (0..n_sudokus * n2 * n2)
+        let mut rng = rand::rng();
+        let (mut exploring_cells, mut exploring_filled_cells) = {
+            let temp = (0..self.sudokus.len() * self.n2 * self.n2)
                 .map(|i| {
-                    let sudoku_id = i / (n2 * n2);
-                    let cell_i = i - sudoku_id * n2 * n2;
-                    let y = cell_i / n2;
-                    let x = cell_i % n2;
-                    self.sudokus[sudoku_id].get_cell_value(x, y) != 0
+                    let sudoku_id = i / (self.n2 * self.n2);
+                    let cell_i = i - sudoku_id * self.n2 * self.n2;
+                    let y = cell_i / self.n2;
+                    let x = cell_i % self.n2;
+                    let value = self.sudokus[sudoku_id].get_cell_value(x, y);
+                    (sudoku_id, x, y, value)
                 })
-                .collect();
-            Arc::new(Mutex::new((self.clone(), filled_cells)))
+                .collect::<Vec<_>>();
+
+            let exploring_filled_cells = temp
+                .iter()
+                .map(|(_, _, _, value)| *value > 0)
+                .collect::<Vec<_>>();
+
+            let exploring_cells = temp
+                .into_iter()
+                .filter(|(_, _, _, value)| *value > 0)
+                .collect::<Vec<_>>();
+
+            (exploring_cells, exploring_filled_cells)
         };
-        let to_explore: Arc<Mutex<Vec<SudokuFilledCells>>> = Arc::new(Default::default());
-        let explored_filled_cells: Arc<Mutex<HashSet<Vec<bool>>>> = Arc::new(Default::default());
-        let total: Arc<Mutex<usize>> = Arc::new(Default::default());
-        let skipped: Arc<Mutex<usize>> = Arc::new(Default::default());
-        let waiting_threads: Arc<Mutex<usize>> = Arc::new(Default::default());
-        let thread_count = Arc::new(Mutex::new(available_parallelism().unwrap().get()));
+        exploring_cells.shuffle(&mut rng);
 
-        let mut threads_infos: Vec<(JoinHandle<()>, mpsc::Sender<()>)> = Vec::new();
-        for thread_id in 0..*thread_count.lock().unwrap() {
-            let thread_default: Arc<Mutex<SudokuFilledCells>> = Arc::clone(&default);
-            let thread_to_explore: Arc<Mutex<Vec<SudokuFilledCells>>> = Arc::clone(&to_explore);
-            let thread_explored_filled_cells = Arc::clone(&explored_filled_cells);
-            let thread_total = Arc::clone(&total);
-            let thread_skipped = Arc::clone(&skipped);
+        if already_explored_filled_cells.contains(&exploring_filled_cells) {
+            return false;
+        }
+        already_explored_filled_cells.insert(exploring_filled_cells.clone());
 
-            let thread_waiting_threads = Arc::clone(&waiting_threads);
-            let thread_thread_count = Arc::clone(&thread_count);
+        let mut did_anything = false;
+        for (sudoku_id, x, y, removed_value) in exploring_cells {
+            let twin_cells = self.get_twin_cells(sudoku_id, x, y);
+            self.remove_value(sudoku_id, x, y).unwrap();
+            for (i, x, y) in &twin_cells {
+                exploring_filled_cells[(*i * self.n2 + *y) * self.n2 + *x] = false;
+            }
 
-            let thread_tx = tx.clone();
-            let (main_tx, thread_rx) = mpsc::channel::<()>();
-
-            let join_handle = std::thread::Builder::new()
-                .name(format!("thread {thread_id}"))
-                .spawn(move || {
-                    let mut rng = rand::rng();
-                    loop {
-                        let carpet;
-                        let filled_cells;
-                        if *thread_waiting_threads.lock().unwrap()
-                            < *thread_thread_count.lock().unwrap() - 1
-                        {
-                            thread_waiting_threads.lock().unwrap().add_assign(1);
-                            loop {
-                                if thread_rx.try_recv().is_ok() {
-                                    thread_waiting_threads.lock().unwrap().sub_assign(1);
-                                    thread_thread_count.lock().unwrap().sub_assign(1);
-                                    return;
-                                }
-                                if let Some(to_explore) = thread_to_explore.lock().unwrap().pop() {
-                                    (carpet, filled_cells) = to_explore;
-                                    thread_waiting_threads.lock().unwrap().sub_assign(1);
-                                    break;
-                                }
-                            }
-                        } else if let Some(to_explore) = thread_to_explore.lock().unwrap().pop() {
-                            (carpet, filled_cells) = to_explore;
-                        } else {
-                            (carpet, filled_cells) = thread_default.lock().unwrap().clone();
-                        }
-
-                        thread_total.lock().unwrap().add_assign(1);
-                        print!(
-                            " Skipped {}/{} instances with {} filled cells{}\r",
-                            thread_skipped.lock().unwrap(),
-                            thread_total.lock().unwrap(),
-                            filled_cells.iter().filter(|b| **b).count(),
-                            " ".repeat(20)
-                        );
-                        std::io::Write::flush(&mut std::io::stdout()).unwrap();
-
-                        let mut i1 = rng.random_range(0..filled_cells.len());
-                        let mut i2 = rng.random_range(0..filled_cells.len());
-                        loop {
-                            if !filled_cells[i1] {
-                                i1 = rng.random_range(0..filled_cells.len());
-                                continue;
-                            }
-                            if !filled_cells[i2] {
-                                i2 = rng.random_range(0..filled_cells.len());
-                                continue;
-                            }
-                            if i1 == i2 {
-                                i2 = rng.random_range(0..filled_cells.len());
-                                continue;
-                            }
-                            break;
-                        }
-
-                        let mut working_sub_sudokus = 0;
-                        for i in [i1, i2] {
-                            let sudoku_id = i / (n2 * n2);
-                            let cell_i = i - sudoku_id * n2 * n2;
-                            let y = cell_i / n2;
-                            let x = cell_i % n2;
-                            let mut testing_carpet = carpet.clone();
-                            let mut passed_filled_cells = filled_cells.clone();
-                            testing_carpet.difficulty = SudokuDifficulty::Unknown;
-
-                            let removed_value =
-                                testing_carpet.remove_value(sudoku_id, x, y).unwrap();
-
-                            for (sudoku2, x2, y2) in testing_carpet.get_twin_cells(sudoku_id, x, y)
-                            {
-                                passed_filled_cells[((sudoku2 * n2) + y2) * n2 + x2] = false;
-                            }
-
-                            if thread_explored_filled_cells
-                                .lock()
-                                .unwrap()
-                                .contains(&passed_filled_cells)
-                            {
-                                (*thread_skipped.lock().unwrap()).add_assign(1);
-                                (*thread_total.lock().unwrap()).add_assign(1);
-                                print!(
-                                    " Skipped {}/{} instances with {} filled cells{}\r",
-                                    thread_skipped.lock().unwrap(),
-                                    thread_total.lock().unwrap(),
-                                    passed_filled_cells.iter().filter(|b| **b).count(),
-                                    " ".repeat(20)
-                                );
-                                std::io::Write::flush(&mut std::io::stdout()).unwrap();
-                                continue;
-                            }
-
-                            let mut can_solve: bool = false;
-                            loop {
-                                match testing_carpet.rule_solve(Some(aimed_difficulty)) {
-                                    Ok((true, true)) => {
-                                        if testing_carpet.sudokus[sudoku_id].get_cell_value(x, y)
-                                            == removed_value
-                                        {
-                                            can_solve = true;
-                                            break;
-                                        }
-
-                                        let testing_filled_cells: Vec<bool> =
-                                            (0..n_sudokus * n2 * n2)
-                                                .map(|i| {
-                                                    let sudoku_id = i / (n2 * n2);
-                                                    let cell_i = i - sudoku_id * n2 * n2;
-                                                    let y = cell_i / n2;
-                                                    let x = cell_i % n2;
-                                                    testing_carpet.sudokus[sudoku_id]
-                                                        .get_cell_value(x, y)
-                                                        != 0
-                                                })
-                                                .collect();
-                                        if thread_explored_filled_cells
-                                            .lock()
-                                            .unwrap()
-                                            .contains(&testing_filled_cells)
-                                        {
-                                            (*thread_skipped.lock().unwrap()).add_assign(1);
-                                            (*thread_total.lock().unwrap()).add_assign(1);
-                                            print!(
-                                                " Skipped {}/{} instances with {} filled cells{}\r",
-                                                thread_skipped.lock().unwrap(),
-                                                thread_total.lock().unwrap(),
-                                                testing_filled_cells.iter().filter(|b| **b).count(),
-                                                " ".repeat(20)
-                                            );
-                                            std::io::Write::flush(&mut std::io::stdout()).unwrap();
-                                            break;
-                                        }
-                                    }
-                                    Ok((true, false)) => (),
-                                    _ => {
-                                        let testing_filled_cells: Vec<bool> =
-                                            (0..n_sudokus * n2 * n2)
-                                                .map(|i| {
-                                                    let sudoku_id = i / (n2 * n2);
-                                                    let cell_i = i - sudoku_id * n2 * n2;
-                                                    let y = cell_i / n2;
-                                                    let x = cell_i % n2;
-                                                    testing_carpet.sudokus[sudoku_id]
-                                                        .get_cell_value(x, y)
-                                                        != 0
-                                                })
-                                                .collect();
-                                        thread_explored_filled_cells
-                                            .lock()
-                                            .unwrap()
-                                            .insert(testing_filled_cells);
-                                        break;
-                                    }
-                                }
-                            }
-                            if !can_solve {
-                                continue;
-                            }
-
-                            if testing_carpet.get_filled_cells() < n_sudokus * (n2 * 2 - 1) {
-                                thread_explored_filled_cells
-                                    .lock()
-                                    .unwrap()
-                                    .insert(filled_cells.clone());
-                            } else {
-                                // EXPLORATION EN PROFONDEUR
-                                let mut passed_carpet = carpet.clone();
-                                passed_carpet.remove_value(sudoku_id, x, y).unwrap();
-                                passed_carpet.difficulty = testing_carpet.difficulty;
-
-                                thread_to_explore
-                                    .lock()
-                                    .unwrap()
-                                    .push((passed_carpet, passed_filled_cells));
-
-                                working_sub_sudokus += 1;
-                            }
-                        }
-
-                        if working_sub_sudokus == 0 && carpet.difficulty == aimed_difficulty {
-                            let mut returned = carpet.clone();
-                            returned.difficulty = SudokuDifficulty::Unknown;
-                            thread_tx.send(returned).unwrap();
-                        }
+            if already_explored_filled_cells.contains(&exploring_filled_cells) {
+                *skipped_possibilities += 1;
+                print!("Skipped {skipped_possibilities}/{explored_possibilities} possibilities in {}ms          \r", start_time.elapsed().as_millis());
+            } else {
+                *explored_possibilities += 1;
+                print!("Skipped {skipped_possibilities}/{explored_possibilities} possibilities in {}ms          \r", start_time.elapsed().as_millis());
+                let mut carpet = self.clone();
+                carpet.rule_solve_until((false, false), Some(aimed_difficulty));
+                if carpet.is_filled() {
+                    did_anything = true;
+                    // if carpet.difficulty == aimed_difficulty {
+                    //     println!(
+                    //         "Found a solution with {aimed_difficulty} difficulty and {} filled cells at {}ms",
+                    // 		exploring_filled_cells.iter().filter(|&&x| x).count(),
+                    //         start_time.elapsed().as_millis()
+                    //     );
+                    // }
+                    if self._generate_from(
+                        aimed_difficulty,
+                        start_time,
+                        explored_possibilities,
+                        skipped_possibilities,
+                        already_explored_filled_cells,
+                    ) {
+                        return true;
                     }
-                })
-                .unwrap();
-            threads_infos.push((join_handle, main_tx));
+                }
+            }
+
+            self.set_value(sudoku_id, x, y, removed_value).unwrap();
+            for (i, x, y) in &twin_cells {
+                exploring_filled_cells[(*i * self.n2 + *y) * self.n2 + *x] = true;
+            }
         }
 
-        loop {
-            let mut carpet = rx.recv().unwrap();
-
-            // verify that the carpet is unique
-            if !carpet.is_unique() {
-                continue;
+        if !did_anything {
+            let mut verify_carpet = self.clone();
+            verify_carpet.rule_solve_until((false, false), Some(aimed_difficulty));
+            if verify_carpet.is_filled()
+                && verify_carpet.difficulty == aimed_difficulty
+                && self.count_solutions(Some(2)) == 1
+            {
+                self.difficulty = aimed_difficulty;
+                return true;
             }
-
-            // verify that each sudoku isn't solvable alone
-            // if self.pattern != CarpetPattern::Simple
-            //     && carpet.get_sudokus().clone().into_iter().any(|mut sudoku| {
-            //         while let Ok(Some(_)) = sudoku.rule_solve(None, Some(aimed_difficulty)) {}
-            //         sudoku.is_filled()
-            //     })
-            // {
-            //     continue;
-            // }
-
-            // verify the generated carpet
-            let mut verify_carpet = carpet.clone();
-            while let Ok((true, _)) = verify_carpet.rule_solve(None) {}
-            if !verify_carpet.is_filled() {
-                continue;
-            }
-
-            for (handle, tx) in threads_infos {
-                tx.send(()).unwrap();
-                handle.join().unwrap();
-            }
-
-            // if carpet.update_link().is_err() {
-            //     log::warn!("Error while updating the link");
-            // }
-            return carpet;
         }
+
+        false
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1127,12 +992,4 @@ impl PartialEq for CarpetSudoku {
 
         true
     }
-}
-
-fn main() {
-    let mut carpet = CarpetSudoku::new(3, CarpetPattern::Simple);
-    carpet.sudokus[0] = Sudoku::generate_new(3, SudokuDifficulty::Easy);
-    carpet.sudokus[0].rule_solve(None, None).unwrap();
-    carpet = carpet.into_generate_from(SudokuDifficulty::Easy);
-    println!("{}", carpet);
 }

@@ -135,7 +135,7 @@ impl SudokuDisplay {
         actions_boutons.insert(
             "Create".to_string(),
             Rc::new(Box::new(move |sudoku_display| {
-                sudoku_display.new_game(sudoku_display.carpet.get_pattern(), difficulty, false);
+                sudoku_display.new_game(false);
             })),
         );
 
@@ -154,7 +154,7 @@ impl SudokuDisplay {
         actions_boutons.insert(
             "Browse".to_string(),
             Rc::new(Box::new(move |sudoku_display| {
-                sudoku_display.new_game(sudoku_display.carpet.get_pattern(), difficulty, true);
+                sudoku_display.new_game(true);
             })),
         );
 
@@ -388,20 +388,19 @@ impl SudokuDisplay {
         }
     }
 
-    fn new_game(&mut self, pattern: CarpetPattern, difficulty: SudokuDifficulty, browse: bool) {
+    fn new_game(&mut self, browse: bool) {
+        let n = self.carpet.get_n();
+        let pattern = self.carpet.get_pattern();
+        let difficulty = self.difficulty;
         self.init();
+
         #[cfg(feature = "database")]
         match (browse, &mut self.database) {
             (true, Some(database)) => {
-                self.carpet = CarpetSudoku::load_game_from_db(
-                    database,
-                    self.carpet.get_n(),
-                    pattern,
-                    difficulty,
-                );
+                self.carpet = CarpetSudoku::load_game_from_db(database, n, pattern, difficulty);
             }
             _ => {
-                self.carpet = CarpetSudoku::generate_new(self.carpet.get_n(), pattern, difficulty);
+                self.carpet = CarpetSudoku::generate_new(n, pattern, difficulty);
             }
         }
 
@@ -410,9 +409,9 @@ impl SudokuDisplay {
             eprintln!(
                 "SudokuDisplay Error: Cannot fetch a game from database because the database feature isn't enabled"
             );
-            self.carpet = CarpetSudoku::generate_new(self.carpet.get_n(), pattern, difficulty);
+            self.carpet = CarpetSudoku::generate_new(n, pattern, difficulty);
         } else {
-            self.carpet = CarpetSudoku::generate_new(self.carpet.get_n(), pattern, difficulty);
+            self.carpet = CarpetSudoku::generate_new(n, pattern, difficulty);
         }
 
         for button in self.button_list.iter_mut() {
