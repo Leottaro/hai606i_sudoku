@@ -851,21 +851,20 @@ impl Sudoku {
         Ok(rule_used)
     }
 
-    pub fn solve(&mut self) -> Vec<Vec<usize>> {
-        let mut sudoku = self.clone();
-        loop {
-            match sudoku.rule_solve(None, None) {
-                Ok(None) => {
-                    break;
-                }
-                Ok(_) => (),
-                Err(err) => {
-                    eprintln!("{err}");
-                    break;
-                }
+    pub fn rule_solve_until(
+        &mut self,
+        rule_solve_result: Option<usize>,
+        specific_rules: Option<Range<usize>>,
+        max_difficulty: Option<SudokuDifficulty>,
+    ) -> bool {
+        let mut did_anything = false;
+        while let Ok(result) = self.rule_solve(specific_rules.clone(), max_difficulty) {
+            if result.is_none() || result == rule_solve_result {
+                break;
             }
+            did_anything = true;
         }
-        sudoku.board
+        did_anything
     }
 
     // BACKTRACK SOLVING

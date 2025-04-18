@@ -180,8 +180,11 @@ fn carpet_filled(max_number: usize) {
 
                     let carpet_base = CarpetSudoku::generate_full(3, next_pattern.unwrap());
                     let (db_carpet, db_carpet_sudokus) = carpet_base.db_to_filled().unwrap();
-                    let (sudokus_data, sudokus_data_square): (Vec<_>, Vec<_>) =
-                        carpet_base.db_sudokus_to_filled().into_iter().unzip();
+                    let (sudokus_data, sudokus_data_square): (Vec<_>, Vec<_>) = carpet_base
+                        .db_sudokus_to_filled()
+                        .unwrap()
+                        .into_iter()
+                        .unzip();
                     thread_sender
                         .send((
                             (db_carpet, db_carpet_sudokus),

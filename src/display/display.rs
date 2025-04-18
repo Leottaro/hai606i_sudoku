@@ -943,8 +943,9 @@ impl SudokuDisplay {
                 }
             }
             CarpetPattern::Carpet(_) => {
-                todo!()
+                todo!("Carpet pattern not yet implemented")
             }
+            CarpetPattern::Custom(_) => panic!("Custom pattern not implemented"),
         }
     }
 
@@ -976,6 +977,7 @@ impl SudokuDisplay {
                 self.grid_size / (((n2 - n) as f32) * n_sudokus as f32 + (n as f32))
             }
             CarpetPattern::Carpet(_) => self.grid_size / (n2 * n_sudokus) as f32,
+            CarpetPattern::Custom(_) => panic!("Custom pattern not implemented"),
         };
 
         self.x_offset = 250.0 * self.scale_factor;
@@ -1269,20 +1271,6 @@ impl SudokuDisplay {
             );
         }
 
-        // CARPET DRAWING
-        match self.carpet.get_pattern() {
-            CarpetPattern::Simple => {
-                self.draw_simple_sudoku(font.clone(), 0, 0, 0).await;
-            }
-            CarpetPattern::Samurai => {
-                self.draw_samurai_sudoku(font.clone()).await;
-            }
-            CarpetPattern::Double | CarpetPattern::Diagonal(_) => {
-                self.draw_diag_sudoku(font.clone()).await;
-            }
-            CarpetPattern::Carpet(_) => todo!(),
-        }
-
         // MOUSE LOGIC
         let (mouse_x, mouse_y) = (mouse_position().0, mouse_position().1);
         let is_mouse_pressed = is_mouse_button_pressed(MouseButton::Left);
@@ -1346,18 +1334,19 @@ impl SudokuDisplay {
             self.process_keyboard(last_key_pressed);
         }
 
-        if let Some((sudoku_i, x, y)) = self.selected_cell {
-            draw_text_ex(
-                &format!("Debug: sudoku_i: {}, x1: {}, y1: {}", sudoku_i, x, y),
-                10.0,
-                20.0,
-                TextParams {
-                    font: Some(&font),
-                    font_size: 20,
-                    color: Color::from_hex(0x000000),
-                    ..Default::default()
-                },
-            );
+        // CARPET DRAWING
+        match self.carpet.get_pattern() {
+            CarpetPattern::Simple => {
+                self.draw_simple_sudoku(font.clone(), 0, 0, 0).await;
+            }
+            CarpetPattern::Samurai => {
+                self.draw_samurai_sudoku(font.clone()).await;
+            }
+            CarpetPattern::Double | CarpetPattern::Diagonal(_) => {
+                self.draw_diag_sudoku(font.clone()).await;
+            }
+            CarpetPattern::Carpet(_) => todo!(),
+            CarpetPattern::Custom(_) => panic!("Custom pattern not implemented"),
         }
     }
 }

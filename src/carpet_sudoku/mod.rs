@@ -1,31 +1,37 @@
 use crate::simple_sudoku::{Sudoku, SudokuDifficulty};
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::{LazyLock, RwLock},
+};
 
 pub mod carpet;
 
-pub type CarpetLink = ((usize, usize), (usize, usize)); // (usize, usize) == (sudoku_i, square_i)
+pub type CarpetLinks = HashMap<usize, HashSet<(usize, usize, usize)>>;
 #[derive(Clone)]
 pub struct CarpetSudoku {
     n: usize,
     n2: usize,
     pattern: CarpetPattern,
     sudokus: Vec<Sudoku>,
-    links: HashMap<usize, HashSet<(usize, usize, usize)>>,
+    links: CarpetLinks,
     difficulty: SudokuDifficulty,
 
     filled_board_hash: u64,
     is_canonical: bool,
 }
 
-#[derive(PartialEq, Eq, Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone, Hash)]
 pub enum CarpetPattern {
     Simple,
     Double,
     Samurai,
     Diagonal(usize),
     Carpet(usize),
+    Custom(usize),
 }
 
+static PATTERN_SUB_LINKS: LazyLock<RwLock<HashMap<(usize, CarpetPattern), Vec<CarpetLinks>>>> =
+    LazyLock::new(Default::default);
 pub type RawLink = ((usize, usize), (usize, usize));
 impl CarpetPattern {
     pub fn to_db(&self) -> (i16, Option<i16>) {
@@ -35,6 +41,7 @@ impl CarpetPattern {
             CarpetPattern::Samurai => (2, None),
             CarpetPattern::Diagonal(n) => (3, Some(*n as i16)),
             CarpetPattern::Carpet(n) => (4, Some(*n as i16)),
+            CarpetPattern::Custom(_) => panic!("Custom pattern not supported in DB"),
         }
     }
 
@@ -70,6 +77,7 @@ impl CarpetPattern {
             CarpetPattern::Diagonal(size) => *size,
             CarpetPattern::Samurai => 5,
             CarpetPattern::Carpet(size) => *size * *size,
+            CarpetPattern::Custom(size) => *size,
         }
     }
 
@@ -130,7 +138,135 @@ impl CarpetPattern {
                 }
                 links
             }
+            CarpetPattern::Custom(_) => panic!("Custom pattern not supported in DB"),
         }
+    }
+
+    pub fn get_carpet_links(&self, n: usize) -> CarpetLinks {
+        let mut links: CarpetLinks = HashMap::new();
+
+        for ((sudoku1, square1), (sudoku2, square2)) in self.get_raw_links(n) {
+            links
+                .entry(sudoku1)
+                .and_modify(|sudoku1_links| {
+                    sudoku1_links.insert((square1, sudoku2, square2));
+                })
+                .or_insert_with(|| vec![(square1, sudoku2, square2)].into_iter().collect());
+
+            links
+                .entry(sudoku2)
+                .and_modify(|sudoku2_links| {
+                    sudoku2_links.insert((square2, sudoku1, square1));
+                })
+                .or_insert_with(|| vec![(square2, sudoku1, square1)].into_iter().collect());
+        }
+
+        links
+    }
+
+    pub fn get_sub_links(&self, n: usize) -> Vec<CarpetLinks> {
+        match self {
+            CarpetPattern::Custom(_) => (),
+            pattern => {
+                if let Some(links) = PATTERN_SUB_LINKS.read().unwrap().get(&(n, *pattern)) {
+                    return links.clone();
+                }
+            }
+        }
+
+        let links = self.get_carpet_links(n);
+        let mut already_explored_combinaisons = HashSet::new();
+
+        let sub_links = Self::_get_sub_links(
+            self.get_n_sudokus(),
+            &links,
+            &mut already_explored_combinaisons,
+        );
+
+        match self {
+            CarpetPattern::Custom(_) => (),
+            pattern => {
+                PATTERN_SUB_LINKS
+                    .write()
+                    .unwrap()
+                    .insert((n, *pattern), sub_links.clone());
+            }
+        }
+        sub_links
+    }
+
+    fn _get_sub_links(
+        n_sudokus: usize,
+        current_links: &CarpetLinks,
+        already_explored_combinaisons: &mut HashSet<Vec<bool>>,
+    ) -> Vec<CarpetLinks> {
+        let mut sub_links = vec![];
+
+        for &sudoku1 in current_links.clone().keys() {
+            let mut testing_links = current_links.clone();
+
+            let mut removed_sudokus = vec![sudoku1];
+            while let Some(removed_sudoku) = removed_sudokus.pop() {
+                // Remove sudoku1 -> .. links
+                if testing_links.remove(&sudoku1).is_none() {
+                    continue;
+                }
+
+                // Remove all .. -> sudoku1 links
+                for value in testing_links.values_mut() {
+                    for (square1, sudoku2, square2) in value.clone() {
+                        if removed_sudoku == sudoku2 {
+                            value.remove(&(square1, sudoku2, square2));
+                        }
+                    }
+                }
+
+                // clean up empty links
+                for key in testing_links.keys().cloned().collect::<Vec<_>>() {
+                    if testing_links[&key].is_empty() {
+                        removed_sudokus.push(key);
+                    }
+                }
+            }
+
+            let current_combinaisons = (0..n_sudokus)
+                .map(|i| testing_links.contains_key(&i))
+                .collect::<Vec<_>>();
+
+            if testing_links.is_empty()
+                || !already_explored_combinaisons.insert(current_combinaisons.clone())
+            {
+                continue;
+            }
+
+            // Check if i can get every keys from one link
+            let mut sudokus_got = HashSet::new();
+            sudokus_got.insert(*testing_links.iter().next().unwrap().0);
+            let mut changed_sudokus_got = true;
+            while changed_sudokus_got {
+                changed_sudokus_got = false;
+                for sudoku_got in sudokus_got.clone() {
+                    for (_, new_sudoku, _) in testing_links.get(&sudoku_got).unwrap() {
+                        if sudokus_got.insert(*new_sudoku) {
+                            changed_sudokus_got = true;
+                        }
+                    }
+                }
+            }
+
+            if sudokus_got.len() != testing_links.len() {
+                continue;
+            }
+
+            sub_links.extend(Self::_get_sub_links(
+                n_sudokus,
+                &testing_links,
+                already_explored_combinaisons,
+            ));
+            sub_links.push(testing_links);
+        }
+
+        sub_links
     }
 }
 
@@ -142,6 +278,7 @@ impl std::fmt::Display for CarpetPattern {
             CarpetPattern::Diagonal(n) => write!(f, "Diagonal({n})"),
             CarpetPattern::Samurai => write!(f, "Samurai"),
             CarpetPattern::Carpet(n) => write!(f, "Carpet({n})"),
+            CarpetPattern::Custom(n) => write!(f, "Custom({n})"),
         }
     }
 }
