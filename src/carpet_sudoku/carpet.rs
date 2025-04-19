@@ -250,7 +250,10 @@ impl CarpetSudoku {
     pub fn generate_new(n: usize, pattern: CarpetPattern, difficulty: SudokuDifficulty) -> Self {
         let time = std::time::Instant::now();
         let generated_carpet = Self::generate_full(n, pattern).generate_from(difficulty);
-        println!("called generate_new({n}, {pattern}, {difficulty}) gave this in {}ms => {generated_carpet}", time.elapsed().as_millis());
+        println!(
+            "generate_new({n}, {pattern}, {difficulty}) gave this in {}ms => \n{generated_carpet}",
+            time.elapsed().as_millis()
+        );
         generated_carpet
     }
 
@@ -516,14 +519,39 @@ impl CarpetSudoku {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     pub fn generate_from(&self, aimed_difficulty: SudokuDifficulty) -> Self {
-        let mut carpet = self.clone();
         let start_time = std::time::Instant::now();
         let mut explored_possibilities = 0;
         let mut skipped_possibilities = 0;
         let mut already_explored_filled_cells = HashSet::new();
+        let mut carpet = self.clone();
+
+        let temp = (0..self.sudokus.len() * self.n2 * self.n2)
+            .map(|i| {
+                let sudoku_id = i / (self.n2 * self.n2);
+                let cell_i = i - sudoku_id * self.n2 * self.n2;
+                let y = cell_i / self.n2;
+                let x = cell_i % self.n2;
+                let value = self.sudokus[sudoku_id].get_cell_value(x, y);
+                (sudoku_id, x, y, value)
+            })
+            .collect::<Vec<_>>();
+
+        let mut exploring_filled_cells = temp
+            .iter()
+            .map(|(_, _, _, value)| *value > 0)
+            .collect::<Vec<_>>();
+
+        let mut cells_to_remove = temp
+            .into_iter()
+            .filter(|(_, _, _, value)| *value > 0)
+            .collect::<HashSet<_>>();
+
         carpet._generate_from(
             aimed_difficulty,
+            &mut cells_to_remove,
+            &mut exploring_filled_cells,
             &start_time,
+            &mut rand::rng(),
             &mut explored_possibilities,
             &mut skipped_possibilities,
             &mut already_explored_filled_cells,
@@ -538,117 +566,101 @@ impl CarpetSudoku {
     fn _generate_from(
         &mut self,
         aimed_difficulty: SudokuDifficulty,
+        cells_to_remove: &mut HashSet<(usize, usize, usize, usize)>,
+        exploring_filled_cells: &mut Vec<bool>,
+
         start_time: &std::time::Instant,
+        rng: &mut rand::rngs::ThreadRng,
+
         explored_possibilities: &mut usize,
         skipped_possibilities: &mut usize,
         already_explored_filled_cells: &mut HashSet<Vec<bool>>,
     ) -> bool {
         self.difficulty = SudokuDifficulty::Unknown;
 
-        let mut rng = rand::rng();
-        let (mut exploring_cells, mut exploring_filled_cells) = {
-            let temp = (0..self.sudokus.len() * self.n2 * self.n2)
-                .map(|i| {
-                    let sudoku_id = i / (self.n2 * self.n2);
-                    let cell_i = i - sudoku_id * self.n2 * self.n2;
-                    let y = cell_i / self.n2;
-                    let x = cell_i % self.n2;
-                    let value = self.sudokus[sudoku_id].get_cell_value(x, y);
-                    (sudoku_id, x, y, value)
-                })
-                .collect::<Vec<_>>();
-
-            let exploring_filled_cells = temp
-                .iter()
-                .map(|(_, _, _, value)| *value > 0)
-                .collect::<Vec<_>>();
-
-            let exploring_cells = temp
-                .into_iter()
-                .filter(|(_, _, _, value)| *value > 0)
-                .collect::<Vec<_>>();
-
-            (exploring_cells, exploring_filled_cells)
-        };
-        exploring_cells.shuffle(&mut rng);
-
         // skip if this possibility has already been explored
         if !already_explored_filled_cells.insert(exploring_filled_cells.clone()) {
+            *skipped_possibilities += 1;
+            print!("Skipped {skipped_possibilities}/{explored_possibilities} possibilities in {}ms          \r", start_time.elapsed().as_millis());
             return false;
         }
 
-        // assuring unicity
+        // skip if this possibility has not a unique solution
         if !self.is_unique(Some(already_explored_filled_cells)) {
             return false;
         }
 
+        // printing progress
+        *explored_possibilities += 1;
+        print!("Skipped {skipped_possibilities}/{explored_possibilities} possibilities in {}ms          \r", start_time.elapsed().as_millis());
+
+        // for each cell we can remove (in random order for variety)
+        let mut randomized_cells_to_remove =
+            cells_to_remove.clone().into_iter().collect::<Vec<_>>();
+        randomized_cells_to_remove.shuffle(rng);
         let mut can_remove_a_cell = false;
-        for (sudoku_id, x, y, removed_value) in exploring_cells {
+        for (sudoku_id, x, y, removed_value) in randomized_cells_to_remove {
             let twin_cells = self.get_twin_cells(sudoku_id, x, y);
+
+            // remove the cell and its twins
             self.remove_value(sudoku_id, x, y).unwrap();
-            for (i, x, y) in &twin_cells {
-                exploring_filled_cells[(*i * self.n2 + *y) * self.n2 + *x] = false;
+            for &(i, x, y) in &twin_cells {
+                exploring_filled_cells[(i * self.n2 + y) * self.n2 + x] = false;
+                cells_to_remove.remove(&(i, x, y, removed_value));
             }
 
-            if already_explored_filled_cells.contains(&exploring_filled_cells) {
-                *skipped_possibilities += 1;
-                print!("Skipped {skipped_possibilities}/{explored_possibilities} possibilities in {}ms          \r", start_time.elapsed().as_millis());
-
-                self.set_value(sudoku_id, x, y, removed_value).unwrap();
-                for (i, x, y) in &twin_cells {
-                    exploring_filled_cells[(*i * self.n2 + *y) * self.n2 + *x] = true;
-                }
-                continue;
-            }
-            *explored_possibilities += 1;
-            print!("Skipped {skipped_possibilities}/{explored_possibilities} possibilities in {}ms          \r", start_time.elapsed().as_millis());
-
+            // if we can still solve the carpet
             let mut carpet = self.clone();
             carpet.rule_solve_until((false, false), Some(aimed_difficulty));
             if carpet.is_filled() {
                 can_remove_a_cell = true;
+                // recurcively try to remove more cells
                 if self._generate_from(
                     aimed_difficulty,
+                    cells_to_remove,
+                    exploring_filled_cells,
                     start_time,
+                    rng,
                     explored_possibilities,
                     skipped_possibilities,
                     already_explored_filled_cells,
                 ) {
+                    // if a solution was found, stop everything
                     return true;
                 }
             }
 
+            // add back the cell and its twins
             self.set_value(sudoku_id, x, y, removed_value).unwrap();
-            for (i, x, y) in &twin_cells {
-                exploring_filled_cells[(*i * self.n2 + *y) * self.n2 + *x] = true;
+            for (i, x, y) in twin_cells {
+                exploring_filled_cells[(i * self.n2 + y) * self.n2 + x] = true;
+                cells_to_remove.insert((i, x, y, removed_value));
             }
         }
 
-        // assuring minimal sudoku
+        // if no cell can be removed...
         if can_remove_a_cell {
             return false;
         }
 
-        // assuring solvability and right difficulty
+        // if we can solve the carpet and its the right difficulty...
         let mut verify_carpet = self.clone();
         verify_carpet.rule_solve_until((false, false), Some(aimed_difficulty));
         if !verify_carpet.is_filled() || verify_carpet.difficulty != aimed_difficulty {
             return false;
         }
 
-        // assuring the unsolvability for all sub_sudokus
-        // for sub_links in self.pattern.get_sub_links(self.n) {
-        //     let sub_sudokus = sub_links
-        //         .keys()
-        //         .map(|sudoku_id| self.sudokus[*sudoku_id].clone())
-        //         .collect::<Vec<_>>();
-        //     let mut sub_carpet = CarpetSudoku::new_custom(self.n, sub_sudokus, sub_links);
-        //     sub_carpet.rule_solve_until((false, false), Some(aimed_difficulty));
-        //     if sub_carpet.is_filled() {
-        //         return false;
-        //     }
-        // }
+        // and if we can't solve any of the sub carpets...
+        for sub_links in self.pattern.get_sub_links(self.n) {
+            let sub_sudokus = self.sudokus.clone();
+            let mut sub_carpet = CarpetSudoku::new_custom(self.n, sub_sudokus, sub_links);
+            sub_carpet.rule_solve_until((false, false), Some(aimed_difficulty));
+            if sub_carpet.is_filled() {
+                return false;
+            }
+        }
 
+        // we just found a solution !
         self.difficulty = aimed_difficulty;
         true
     }
