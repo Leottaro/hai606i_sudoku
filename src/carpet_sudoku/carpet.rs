@@ -5,6 +5,8 @@ use rand::{rng, seq::SliceRandom};
 use std::{
     collections::{HashMap, HashSet},
     hash::{DefaultHasher, Hash, Hasher},
+    sync::{mpsc, Arc, Mutex},
+    thread::{self, available_parallelism},
 };
 
 fn duration_to_string(duration: std::time::Duration) -> String {
@@ -34,7 +36,11 @@ fn duration_to_string(duration: std::time::Duration) -> String {
     }
 }
 
-struct CarpetGenerationInput {}
+struct CarpetGenerationThreadInput {
+    pub rng: rand::rngs::ThreadRng,
+    pub exploring_filled_cells: Vec<bool>,
+    pub cells_to_remove: HashSet<(usize, usize, usize, usize)>,
+}
 
 struct CarpetGenerationLogInfos {
     pub start_time: std::time::Instant,
@@ -303,13 +309,7 @@ impl CarpetSudoku {
     }
 
     pub fn generate_new(n: usize, pattern: CarpetPattern, difficulty: SudokuDifficulty) -> Self {
-        let time = std::time::Instant::now();
-        let generated_carpet = Self::generate_full(n, pattern).generate_from(difficulty);
-        println!(
-            "generate_new({n}, {pattern}, {difficulty}) gave this in {}ms => \n{generated_carpet}",
-            time.elapsed().as_millis()
-        );
-        generated_carpet
+        Self::generate_full(n, pattern).generate_from(difficulty)
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -574,18 +574,6 @@ impl CarpetSudoku {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     pub fn generate_from(&self, aimed_difficulty: SudokuDifficulty) -> Self {
-        let mut log_infos = CarpetGenerationLogInfos {
-            start_time: std::time::Instant::now(),
-            explored_counter: 0,
-            skipped_counter: 0,
-            non_unique_counter: 0,
-            can_remove_a_cell_counter: 0,
-            wrong_difficulty_counter: 0,
-            solvable_sub_carpet_counter: 0,
-        };
-        let mut already_explored_filled_cells = HashSet::new();
-        let mut carpet = self.clone();
-
         let temp = (0..self.sudokus.len() * self.n2 * self.n2)
             .map(|i| {
                 let sudoku_id = i / (self.n2 * self.n2);
@@ -596,73 +584,184 @@ impl CarpetSudoku {
                 (sudoku_id, x, y, value)
             })
             .collect::<Vec<_>>();
-
-        let mut exploring_filled_cells = temp
+        let original_exploring_filled_cells = temp
             .iter()
             .map(|(_, _, _, value)| *value > 0)
             .collect::<Vec<_>>();
-
-        let mut cells_to_remove = temp
+        let original_cells_to_remove = temp
             .into_iter()
             .filter(|(_, _, _, value)| *value > 0)
             .collect::<HashSet<_>>();
 
-        carpet._generate_from(
-            aimed_difficulty,
-            &mut cells_to_remove,
-            &mut exploring_filled_cells,
-            &mut already_explored_filled_cells,
-            &mut rand::rng(),
-            &mut log_infos,
-        );
+        let already_explored_filled_cells = Arc::new(Mutex::new(HashSet::new()));
+        let log_infos = Arc::new(Mutex::new(CarpetGenerationLogInfos {
+            start_time: std::time::Instant::now(),
+            explored_counter: 0,
+            skipped_counter: 0,
+            non_unique_counter: 0,
+            can_remove_a_cell_counter: 0,
+            wrong_difficulty_counter: 0,
+            solvable_sub_carpet_counter: 0,
+        }));
+        let starting_points = Arc::new(Mutex::new(
+            (0..self.sudokus.len() * self.n2 * self.n2)
+                .map(|i| {
+                    let sudoku_id = i / (self.n2 * self.n2);
+                    let cell_i = i - sudoku_id * self.n2 * self.n2;
+                    let y = cell_i / self.n2;
+                    let x = cell_i % self.n2;
+                    let value = self.sudokus[sudoku_id].get_cell_value(x, y);
 
-        println!("{log_infos}          ");
+                    let mut starting_carpet = self.clone();
+                    let mut starting_exploring_filled_cells =
+                        original_exploring_filled_cells.clone();
+                    let mut starting_cells_to_remove = original_cells_to_remove.clone();
+
+                    starting_carpet.remove_value(sudoku_id, x, y).unwrap();
+                    for (sudoku_id, x, y) in self.get_twin_cells(sudoku_id, x, y) {
+                        starting_exploring_filled_cells[(sudoku_id * self.n2 + y) * self.n2 + x] =
+                            false;
+                        starting_cells_to_remove.remove(&(sudoku_id, x, y, value));
+                    }
+
+                    (
+                        starting_carpet,
+                        starting_exploring_filled_cells,
+                        starting_cells_to_remove,
+                    )
+                })
+                .collect::<Vec<_>>()
+                .into_iter(),
+        ));
+
+        let (carpet_tx, carpet_rx) = mpsc::channel();
+        let thread_count = available_parallelism().unwrap().get();
+        let mut thread_infos = Vec::new();
+
+        for thread_id in 0..thread_count {
+            let starting_points = Arc::clone(&starting_points);
+            let already_explored_filled_cells = Arc::clone(&already_explored_filled_cells);
+            let log_infos = Arc::clone(&log_infos);
+            let carpet_tx = carpet_tx.clone();
+            let should_stop = Arc::new(Mutex::new(false));
+
+            let thread_should_stop = Arc::clone(&should_stop);
+            let join_handle = thread::Builder::new()
+                .name(format!("thread-{thread_id}"))
+                .spawn(move || {
+                    let rng = rand::rng();
+
+                    while let Some((
+                        mut starting_carpet,
+                        starting_exploring_filled_cells,
+                        starting_cells_to_remove,
+                    )) = starting_points
+                        .lock()
+                        .ok()
+                        .and_then(|mut owned_starting_points| owned_starting_points.next())
+                    {
+                        let mut carpet_generation_input = CarpetGenerationThreadInput {
+                            rng: rng.clone(),
+                            exploring_filled_cells: starting_exploring_filled_cells,
+                            cells_to_remove: starting_cells_to_remove,
+                        };
+
+                        if *thread_should_stop.lock().unwrap() {
+                            break;
+                        }
+
+                        starting_carpet.difficulty = SudokuDifficulty::Unknown;
+                        if starting_carpet._generate_from(
+                            aimed_difficulty,
+                            &mut carpet_generation_input,
+                            &thread_should_stop,
+                            &already_explored_filled_cells,
+                            &log_infos,
+                        ) {
+                            let _ = carpet_tx.send(starting_carpet);
+                        }
+                    }
+                })
+                .unwrap();
+            thread_infos.push((should_stop, join_handle));
+        }
+
+        let carpet = carpet_rx.recv().unwrap();
+
+        for (should_stop, _) in thread_infos.iter() {
+            *should_stop.lock().unwrap() = true;
+        }
+        for (_, join_handle) in thread_infos {
+            let _ = join_handle.join();
+        }
+
+        println!("{}", log_infos.lock().unwrap());
         carpet
     }
 
     fn _generate_from(
         &mut self,
         aimed_difficulty: SudokuDifficulty,
-        cells_to_remove: &mut HashSet<(usize, usize, usize, usize)>,
-        exploring_filled_cells: &mut Vec<bool>,
-        already_explored_filled_cells: &mut HashSet<Vec<bool>>,
-        rng: &mut rand::rngs::ThreadRng,
-
-        log_infos: &mut CarpetGenerationLogInfos,
+        carpet_generation_input: &mut CarpetGenerationThreadInput,
+        thread_should_stop: &Arc<Mutex<bool>>,
+        already_explored_filled_cells: &Arc<Mutex<HashSet<Vec<bool>>>>,
+        log_infos: &Arc<Mutex<CarpetGenerationLogInfos>>,
     ) -> bool {
-        self.difficulty = SudokuDifficulty::Unknown;
+        // stop if a solution was found by another thread
+        if *thread_should_stop.lock().unwrap() {
+            return false;
+        }
 
         // skip if this possibility has already been explored
-        if !already_explored_filled_cells.insert(exploring_filled_cells.clone()) {
+        if !already_explored_filled_cells
+            .lock()
+            .unwrap()
+            .insert(carpet_generation_input.exploring_filled_cells.clone())
+        {
+            let mut log_infos = log_infos.lock().unwrap();
             log_infos.skipped_counter += 1;
             print!("{log_infos}          \r");
             return false;
         }
 
         // skip if this possibility has not a unique solution
-        if !self.is_unique(Some(already_explored_filled_cells)) {
+        if !self.is_unique(Some(&already_explored_filled_cells.lock().unwrap().clone())) {
+            let mut log_infos = log_infos.lock().unwrap();
             log_infos.non_unique_counter += 1;
             print!("{log_infos}          \r");
             return false;
         }
 
         // printing progress
-        log_infos.explored_counter += 1;
-        print!("{log_infos}          \r");
+        {
+            let mut log_infos = log_infos.lock().unwrap();
+            log_infos.explored_counter += 1;
+            print!("{log_infos}          \r");
+        }
 
         // for each cell we can remove (in random order for variety)
-        let mut randomized_cells_to_remove =
-            cells_to_remove.clone().into_iter().collect::<Vec<_>>();
-        randomized_cells_to_remove.shuffle(rng);
+        let mut randomized_cells_to_remove = carpet_generation_input
+            .cells_to_remove
+            .clone()
+            .into_iter()
+            .collect::<Vec<_>>();
+        randomized_cells_to_remove.shuffle(&mut carpet_generation_input.rng);
         let mut can_remove_a_cell = false;
         for (sudoku_id, x, y, removed_value) in randomized_cells_to_remove {
-            let twin_cells = self.get_twin_cells(sudoku_id, x, y);
+            // stop if a solution was found by another thread
+            if *thread_should_stop.lock().unwrap() {
+                return false;
+            }
 
+            let twin_cells = self.get_twin_cells(sudoku_id, x, y);
             // remove the cell and its twins
             self.remove_value(sudoku_id, x, y).unwrap();
             for &(i, x, y) in &twin_cells {
-                exploring_filled_cells[(i * self.n2 + y) * self.n2 + x] = false;
-                cells_to_remove.remove(&(i, x, y, removed_value));
+                carpet_generation_input.exploring_filled_cells[(i * self.n2 + y) * self.n2 + x] =
+                    false;
+                carpet_generation_input
+                    .cells_to_remove
+                    .remove(&(i, x, y, removed_value));
             }
 
             // if we can still solve the carpet
@@ -673,10 +772,9 @@ impl CarpetSudoku {
                 // recurcively try to remove more cells
                 if self._generate_from(
                     aimed_difficulty,
-                    cells_to_remove,
-                    exploring_filled_cells,
+                    carpet_generation_input,
+                    thread_should_stop,
                     already_explored_filled_cells,
-                    rng,
                     log_infos,
                 ) {
                     // if a solution was found, stop everything
@@ -687,13 +785,22 @@ impl CarpetSudoku {
             // add back the cell and its twins
             self.set_value(sudoku_id, x, y, removed_value).unwrap();
             for (i, x, y) in twin_cells {
-                exploring_filled_cells[(i * self.n2 + y) * self.n2 + x] = true;
-                cells_to_remove.insert((i, x, y, removed_value));
+                carpet_generation_input.exploring_filled_cells[(i * self.n2 + y) * self.n2 + x] =
+                    true;
+                carpet_generation_input
+                    .cells_to_remove
+                    .insert((i, x, y, removed_value));
             }
+        }
+
+        // stop if a solution was found by another thread
+        if *thread_should_stop.lock().unwrap() {
+            return false;
         }
 
         // if no cell can be removed...
         if can_remove_a_cell {
+            let mut log_infos = log_infos.lock().unwrap();
             log_infos.can_remove_a_cell_counter += 1;
             print!("{log_infos}          \r");
             return false;
@@ -703,6 +810,7 @@ impl CarpetSudoku {
         let mut verify_carpet = self.clone();
         verify_carpet.rule_solve_until((false, false), Some(aimed_difficulty));
         if !verify_carpet.is_filled() || verify_carpet.difficulty != aimed_difficulty {
+            let mut log_infos = log_infos.lock().unwrap();
             log_infos.wrong_difficulty_counter += 1;
             print!("{log_infos}          \r");
             return false;
@@ -710,10 +818,16 @@ impl CarpetSudoku {
 
         // and if we can't solve any of the sub carpets...
         for sub_links in self.pattern.get_sub_links(self.n) {
+            // stop if a solution was found by another thread
+            if *thread_should_stop.lock().unwrap() {
+                return false;
+            }
+
             let sub_sudokus = self.sudokus.clone();
             let mut sub_carpet = CarpetSudoku::new_custom(self.n, sub_sudokus, sub_links);
             sub_carpet.rule_solve_until((false, false), Some(aimed_difficulty));
             if sub_carpet.is_filled() {
+                let mut log_infos = log_infos.lock().unwrap();
                 log_infos.solvable_sub_carpet_counter += 1;
                 print!("{log_infos}          \r");
                 return false;
