@@ -7,6 +7,61 @@ use std::{
     hash::{DefaultHasher, Hash, Hasher},
 };
 
+fn duration_to_string(duration: std::time::Duration) -> String {
+    let milliseconds = duration.as_millis();
+    let seconds = milliseconds / 1000;
+    let minutes = milliseconds / 60_000;
+    let hours = milliseconds / 3_600_000;
+    if hours > 0 {
+        format!(
+            "{}h {}m {}.{}s",
+            hours,
+            minutes % 60,
+            seconds % 60,
+            milliseconds % 1000
+        )
+    } else if minutes > 0 {
+        format!(
+            "{}m {}.{}s",
+            minutes % 60,
+            seconds % 60,
+            milliseconds % 1000
+        )
+    } else if seconds > 0 {
+        format!("{}.{}s", seconds % 60, milliseconds % 1000)
+    } else {
+        format!("{}ms", milliseconds % 1000)
+    }
+}
+
+struct CarpetGenerationInput {}
+
+struct CarpetGenerationLogInfos {
+    pub start_time: std::time::Instant,
+    pub explored_counter: usize,
+    pub skipped_counter: usize,
+    pub non_unique_counter: usize,
+    pub can_remove_a_cell_counter: usize,
+    pub wrong_difficulty_counter: usize,
+    pub solvable_sub_carpet_counter: usize,
+}
+
+impl std::fmt::Display for CarpetGenerationLogInfos {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+			f,
+			"{}: explored:{} skipped:{} non_unique:{} can_remove_a_cell:{} not_right_difficulty:{} solvable_sub_carpet:{}",
+			duration_to_string(self.start_time.elapsed()),
+			self.explored_counter,
+			self.skipped_counter,
+			self.non_unique_counter,
+			self.can_remove_a_cell_counter,
+			self.wrong_difficulty_counter,
+			self.solvable_sub_carpet_counter
+		)
+    }
+}
+
 impl CarpetSudoku {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////   GETTERS / SETTERS   /////////////////////////////////////////////////////
@@ -519,9 +574,15 @@ impl CarpetSudoku {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     pub fn generate_from(&self, aimed_difficulty: SudokuDifficulty) -> Self {
-        let start_time = std::time::Instant::now();
-        let mut explored_possibilities = 0;
-        let mut skipped_possibilities = 0;
+        let mut log_infos = CarpetGenerationLogInfos {
+            start_time: std::time::Instant::now(),
+            explored_counter: 0,
+            skipped_counter: 0,
+            non_unique_counter: 0,
+            can_remove_a_cell_counter: 0,
+            wrong_difficulty_counter: 0,
+            solvable_sub_carpet_counter: 0,
+        };
         let mut already_explored_filled_cells = HashSet::new();
         let mut carpet = self.clone();
 
@@ -550,16 +611,12 @@ impl CarpetSudoku {
             aimed_difficulty,
             &mut cells_to_remove,
             &mut exploring_filled_cells,
-            &start_time,
-            &mut rand::rng(),
-            &mut explored_possibilities,
-            &mut skipped_possibilities,
             &mut already_explored_filled_cells,
+            &mut rand::rng(),
+            &mut log_infos,
         );
-        println!(
-            "Skipped {skipped_possibilities}/{explored_possibilities} possibilities in {}ms          ",
-            start_time.elapsed().as_millis()
-        );
+
+        println!("{log_infos}          ");
         carpet
     }
 
@@ -568,31 +625,30 @@ impl CarpetSudoku {
         aimed_difficulty: SudokuDifficulty,
         cells_to_remove: &mut HashSet<(usize, usize, usize, usize)>,
         exploring_filled_cells: &mut Vec<bool>,
-
-        start_time: &std::time::Instant,
+        already_explored_filled_cells: &mut HashSet<Vec<bool>>,
         rng: &mut rand::rngs::ThreadRng,
 
-        explored_possibilities: &mut usize,
-        skipped_possibilities: &mut usize,
-        already_explored_filled_cells: &mut HashSet<Vec<bool>>,
+        log_infos: &mut CarpetGenerationLogInfos,
     ) -> bool {
         self.difficulty = SudokuDifficulty::Unknown;
 
         // skip if this possibility has already been explored
         if !already_explored_filled_cells.insert(exploring_filled_cells.clone()) {
-            *skipped_possibilities += 1;
-            print!("Skipped {skipped_possibilities}/{explored_possibilities} possibilities in {}ms          \r", start_time.elapsed().as_millis());
+            log_infos.skipped_counter += 1;
+            print!("{log_infos}          \r");
             return false;
         }
 
         // skip if this possibility has not a unique solution
         if !self.is_unique(Some(already_explored_filled_cells)) {
+            log_infos.non_unique_counter += 1;
+            print!("{log_infos}          \r");
             return false;
         }
 
         // printing progress
-        *explored_possibilities += 1;
-        print!("Skipped {skipped_possibilities}/{explored_possibilities} possibilities in {}ms          \r", start_time.elapsed().as_millis());
+        log_infos.explored_counter += 1;
+        print!("{log_infos}          \r");
 
         // for each cell we can remove (in random order for variety)
         let mut randomized_cells_to_remove =
@@ -619,11 +675,9 @@ impl CarpetSudoku {
                     aimed_difficulty,
                     cells_to_remove,
                     exploring_filled_cells,
-                    start_time,
-                    rng,
-                    explored_possibilities,
-                    skipped_possibilities,
                     already_explored_filled_cells,
+                    rng,
+                    log_infos,
                 ) {
                     // if a solution was found, stop everything
                     return true;
@@ -640,6 +694,8 @@ impl CarpetSudoku {
 
         // if no cell can be removed...
         if can_remove_a_cell {
+            log_infos.can_remove_a_cell_counter += 1;
+            print!("{log_infos}          \r");
             return false;
         }
 
@@ -647,6 +703,8 @@ impl CarpetSudoku {
         let mut verify_carpet = self.clone();
         verify_carpet.rule_solve_until((false, false), Some(aimed_difficulty));
         if !verify_carpet.is_filled() || verify_carpet.difficulty != aimed_difficulty {
+            log_infos.wrong_difficulty_counter += 1;
+            print!("{log_infos}          \r");
             return false;
         }
 
@@ -656,6 +714,8 @@ impl CarpetSudoku {
             let mut sub_carpet = CarpetSudoku::new_custom(self.n, sub_sudokus, sub_links);
             sub_carpet.rule_solve_until((false, false), Some(aimed_difficulty));
             if sub_carpet.is_filled() {
+                log_infos.solvable_sub_carpet_counter += 1;
+                print!("{log_infos}          \r");
                 return false;
             }
         }
