@@ -75,7 +75,7 @@ fn sudoku_filled(max_number: usize) {
 
     while *remaining_number.lock().unwrap() > 0 {
         print!(
-            " {} sudoku remaining: {overlap_count}/{total_count} rows overlapped\r",
+            " {} filled sudoku remaining: {overlap_count}/{total_count} rows overlapped\r",
             remaining_number.lock().unwrap()
         );
         stdout().flush().unwrap();
@@ -121,14 +121,10 @@ fn sudoku_games(max_number: usize) {
         remaining_canonicals.sub_assign(1);
         let sudoku = Sudoku::db_from_filled(canonical);
         let mut passed_games = Vec::new();
-        println!(
-            "{} canonicals left:{}",
-            remaining_canonicals,
-            " ".repeat(50)
-        );
+        println!("{remaining_canonicals} filled sudokus{}", " ".repeat(50));
 
         for difficulty in SudokuDifficulty::iter() {
-            println!("{difficulty}{}", " ".repeat(50));
+            println!("{difficulty}:{}", " ".repeat(50));
 
             let game = sudoku.generate_from(difficulty);
             let mut game_db = game.game_to_db().unwrap();
@@ -214,17 +210,16 @@ fn carpet_filled(max_number: usize) {
             finished = true;
         }
 
-        println!(
-            "\n{} carpets remaining: {overlap_count}/{total_count} rows overlapped",
-            remaining_number.lock().unwrap()
+        print!(
+            "{} carpets remaining: {overlap_count}/{total_count} rows overlapped{}\r",
+            remaining_number.lock().unwrap(),
+            " ".repeat(50)
         );
 
         let mut data = vec![receiver.recv().unwrap()];
         while let Ok(temp) = receiver.try_recv() {
             data.push(temp);
         }
-
-        println!("processing {} carpets", data.len());
 
         let (
             (passed_carpets, passed_carpets_sudokus),
@@ -252,26 +247,19 @@ fn carpet_filled(max_number: usize) {
             )
         };
 
-        println!(
-            "inserting {} carpets, {} sudokus, {} sudokus_squares",
-            passed_carpets.len(),
-            passed_carpets_sudokus.len(),
-            passed_carpets_sudokus_data_squares.len()
-        );
-
         let total_rows = passed_carpets.len()
             + passed_carpets_sudokus.len()
             + passed_carpets_sudokus_data.len()
             + passed_carpets_sudokus_data_squares.len();
 
         let (just_inserted_sudokus, just_inserted_squares) = database
-            .insert_multiple_canonical_sudokus(
+            .insert_ignore_multiple_canonical_sudokus(
                 passed_carpets_sudokus_data,
                 passed_carpets_sudokus_data_squares,
             )
             .unwrap_or_else(|err| panic!("ERROR COULDN'T INSERT FILLED CARPET IN DATABSE: {err}"));
         let (just_inserted_carpets, just_inserted_carpets_sudokus) = database
-            .insert_multiple_canonical_carpets(passed_carpets, passed_carpets_sudokus)
+            .insert_ignore_multiple_canonical_carpets(passed_carpets, passed_carpets_sudokus)
             .unwrap_or_else(|err| panic!("ERROR COULDN'T INSERT FILLED CARPET IN DATABSE: {err}"));
 
         total_count += total_rows as u128;
@@ -289,49 +277,77 @@ fn carpet_filled(max_number: usize) {
 
 fn carpet_games(max_number: usize) {
     let database = Arc::new(Mutex::new(Database::connect().unwrap()));
+    let mut join_handle: Option<thread::JoinHandle<()>> = None;
 
-    let (mut remaining_canonicals, canonicals) = {
-        let mut canonicals = Vec::new();
+    let mut remaining_number = max_number;
+    while remaining_number > 0 {
+        println!("\n\n\n{remaining_number} filled carpets remaining");
+
         for pattern in CarpetPattern::iter() {
-            canonicals.extend(
-                database
-                    .lock()
-                    .unwrap()
-                    .get_n_canonical_carpets(max_number as i64, 3, pattern.to_db())
-                    .unwrap(),
-            );
+            println!("\n{}:", pattern);
+            let filled = CarpetSudoku::generate_full(3, pattern);
+
+            if let Some(my_join_handle) = join_handle {
+                my_join_handle.join().unwrap();
+            }
+            join_handle = {
+                let filled = filled.clone();
+                let (db_filled, db_filled_sudokus) = filled.db_to_filled().unwrap();
+                let (db_sudokus_data, db_sudokus_data_square): (Vec<_>, Vec<_>) =
+                    filled.db_sudokus_to_filled().unwrap().into_iter().unzip();
+                let database = Arc::clone(&database);
+
+                Some(thread::spawn(move || {
+                    if let Err(err) = database
+                        .lock()
+                        .unwrap()
+                        .insert_ignore_multiple_canonical_sudokus(
+                            db_sudokus_data,
+                            db_sudokus_data_square
+                                .into_iter()
+                                .flatten()
+                                .collect::<Vec<_>>(),
+                        )
+                    {
+                        eprintln!(
+                            "\nERROR :\n{filled}\nCOULDN'T INSERT THIS FILLED CARPET'S SUDOKUS: {err}\n"
+                        )
+                    }
+
+                    if let Err(err) = database.lock().unwrap().insert_canonical_carpet(
+                        true,
+                        db_filled,
+                        db_filled_sudokus,
+                    ) {
+                        eprintln!(
+                            "\nERROR :\n{filled}\nCOULDN'T INSERT THIS FILLED CARPET: {err}\n"
+                        )
+                    }
+                }))
+            };
+
+            for difficulty in SudokuDifficulty::iter() {
+                println!("{}: ", difficulty);
+                let game = filled.generate_from(difficulty);
+
+                let db_game = game.db_to_game();
+                let thread_database = Arc::clone(&database);
+
+                if let Some(my_join_handle) = join_handle {
+                    my_join_handle.join().unwrap();
+                }
+                join_handle = Some(thread::spawn(move || {
+                    println!("THREAD STARTS");
+                    if let Err(err) = thread_database
+                        .lock()
+                        .unwrap()
+                        .insert_canonical_carpet_game(db_game)
+                    {
+                        eprintln!("\nERROR :\n{game}\nCOULDN'T INSERT THIS CARPET GAME: {err}\n")
+                    }
+                }));
+            }
         }
-        (canonicals.len(), canonicals.into_iter())
-    };
-
-    for (db_carpet, db_carpet_sudokus, db_sudokus) in canonicals {
-        remaining_canonicals.sub_assign(1);
-        let carpet = CarpetSudoku::db_from_filled(db_carpet, db_carpet_sudokus, db_sudokus);
-        let mut passed_games = Vec::new();
-        println!(
-            "{} canonicals left:{}",
-            remaining_canonicals,
-            " ".repeat(50)
-        );
-
-        for difficulty in SudokuDifficulty::iter() {
-            println!("{difficulty}{}", " ".repeat(50));
-
-            let game = carpet.generate_from(difficulty);
-            let mut game_db = game.db_to_game();
-            game_db.carpet_game_difficulty = difficulty as i16;
-            passed_games.push(game_db);
-        }
-
-        let thread_database = Arc::clone(&database);
-        thread::spawn(move || {
-            thread_database
-                .lock()
-                .unwrap()
-                .insert_multiple_canonical_carpet_games(passed_games)
-                .unwrap_or_else(|err| {
-                    panic!("ERROR COULDN'T INSERT SUDOKU GAME IN DATABSE: {err}")
-                });
-        });
+        remaining_number -= 1;
     }
 }

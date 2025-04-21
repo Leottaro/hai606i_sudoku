@@ -207,39 +207,59 @@ impl Database {
 
     pub fn insert_canonical_sudoku(
         &mut self,
+        ignore: bool,
         sudoku: DBCanonicalSudoku,
         squares: Vec<DBCanonicalSudokuSquare>,
     ) -> Result<usize, diesel::result::Error> {
-        Ok(diesel::insert_into(canonical_sudokus)
-            .values(&sudoku)
-            .execute(&mut self.connection)?
-            + diesel::insert_into(canonical_sudoku_squares)
-                .values(&squares)
-                .execute(&mut self.connection)?)
+        let query1 = diesel::insert_into(canonical_sudokus).values(&sudoku);
+        let query2 = diesel::insert_into(canonical_sudoku_squares).values(&squares);
+        if ignore {
+            let query1 = query1.on_conflict_do_nothing();
+            let query2 = query2.on_conflict_do_nothing();
+            Ok(query1.execute(&mut self.connection)? + query2.execute(&mut self.connection)?)
+        } else {
+            Ok(query1.execute(&mut self.connection)? + query2.execute(&mut self.connection)?)
+        }
     }
 
     pub fn insert_canonical_sudoku_game(
         &mut self,
+        ignore: bool,
         sudoku: DBNewCanonicalSudokuGame,
     ) -> Result<DBCanonicalSudokuGame, diesel::result::Error> {
-        diesel::insert_into(canonical_sudoku_games)
-            .values(&sudoku)
-            .get_result(&mut self.connection)
+        let query = diesel::insert_into(canonical_sudoku_games).values(&sudoku);
+        if ignore {
+            query
+                .on_conflict_do_nothing()
+                .get_result(&mut self.connection)
+        } else {
+            query.get_result(&mut self.connection)
+        }
     }
 
     pub fn insert_canonical_carpet(
         &mut self,
+        ignore: bool,
         carpet: DBCanonicalCarpet,
         carpet_sudokus: Vec<DBCanonicalCarpetSudoku>,
     ) -> Result<usize, diesel::result::Error> {
-        diesel::insert_into(canonical_carpets)
-            .values(&carpet)
-            .get_result::<DBCanonicalCarpet>(&mut self.connection)?;
+        let query1 = diesel::insert_into(canonical_carpets).values(&carpet);
+        if ignore {
+            query1
+                .on_conflict_do_nothing()
+                .execute(&mut self.connection)?;
+        } else {
+            query1.execute(&mut self.connection)?;
+        }
 
-        let inserted_sudokus_count = diesel::insert_into(canonical_carpet_sudokus)
-            .values(&carpet_sudokus)
-            .execute(&mut self.connection)?;
-
+        let query2 = diesel::insert_into(canonical_carpet_sudokus).values(&carpet_sudokus);
+        let inserted_sudokus_count = if ignore {
+            query2
+                .on_conflict_do_nothing()
+                .execute(&mut self.connection)?
+        } else {
+            query2.execute(&mut self.connection)?
+        };
         Ok(1 + inserted_sudokus_count)
     }
 
@@ -299,6 +319,62 @@ impl Database {
     ) -> Result<Vec<DBCanonicalCarpetGame>, diesel::result::Error> {
         diesel::insert_into(canonical_carpet_games)
             .values(games)
+            .get_results::<DBCanonicalCarpetGame>(&mut self.connection)
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////   INSERT IGNORE MULTIPLE   ///////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    pub fn insert_ignore_multiple_canonical_sudokus(
+        &mut self,
+        sudokus: Vec<DBCanonicalSudoku>,
+        squares: Vec<DBCanonicalSudokuSquare>,
+    ) -> Result<(usize, usize), diesel::result::Error> {
+        let inserted_sudokus = diesel::insert_into(canonical_sudokus)
+            .values(&sudokus)
+            .on_conflict_do_nothing()
+            .execute(&mut self.connection)?;
+        let inserted_squares = diesel::insert_into(canonical_sudoku_squares)
+            .values(&squares)
+            .on_conflict_do_nothing()
+            .execute(&mut self.connection)?;
+        Ok((inserted_sudokus, inserted_squares))
+    }
+
+    pub fn insert_ignore_multiple_canonical_sudoku_game(
+        &mut self,
+        sudokus: Vec<DBNewCanonicalSudokuGame>,
+    ) -> Result<Vec<DBCanonicalSudokuGame>, diesel::result::Error> {
+        diesel::insert_into(canonical_sudoku_games)
+            .values(sudokus)
+            .on_conflict_do_nothing()
+            .get_results::<DBCanonicalSudokuGame>(&mut self.connection)
+    }
+
+    pub fn insert_ignore_multiple_canonical_carpets(
+        &mut self,
+        carpets: Vec<DBCanonicalCarpet>,
+        carpets_sudokus: Vec<DBCanonicalCarpetSudoku>,
+    ) -> Result<(usize, usize), diesel::result::Error> {
+        let inserted_carpets = diesel::insert_into(canonical_carpets)
+            .values(&carpets)
+            .on_conflict_do_nothing()
+            .execute(&mut self.connection)?;
+        let inserted_carpet_sudokus = diesel::insert_into(canonical_carpet_sudokus)
+            .values(&carpets_sudokus)
+            .on_conflict_do_nothing()
+            .execute(&mut self.connection)?;
+        Ok((inserted_carpets, inserted_carpet_sudokus))
+    }
+
+    pub fn insert_ignore_multiple_canonical_carpet_games(
+        &mut self,
+        games: Vec<DBNewCanonicalCarpetGame>,
+    ) -> Result<Vec<DBCanonicalCarpetGame>, diesel::result::Error> {
+        diesel::insert_into(canonical_carpet_games)
+            .values(games)
+            .on_conflict_do_nothing()
             .get_results::<DBCanonicalCarpetGame>(&mut self.connection)
     }
 

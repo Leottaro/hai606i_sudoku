@@ -148,7 +148,7 @@ impl CarpetSudoku {
     }
 
     pub fn generate_new(n: usize, pattern: CarpetPattern, difficulty: SudokuDifficulty) -> Self {
-        Self::generate_full(n, pattern).generate_from(difficulty)
+        Self::generate_full(n, pattern).into_generate_from(difficulty)
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -156,6 +156,12 @@ impl CarpetSudoku {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     pub fn generate_from(&self, aimed_difficulty: SudokuDifficulty) -> Self {
+        self.clone().into_generate_from(aimed_difficulty)
+    }
+
+    pub fn into_generate_from(mut self, aimed_difficulty: SudokuDifficulty) -> Self {
+        self.difficulty = SudokuDifficulty::Unknown;
+
         let temp = (0..self.sudokus.len() * self.n2 * self.n2)
             .map(|i| {
                 let sudoku_id = i / (self.n2 * self.n2);
