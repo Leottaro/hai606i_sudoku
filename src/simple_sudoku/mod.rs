@@ -4,6 +4,7 @@ use std::collections::{HashMap, HashSet};
 
 pub mod rules;
 pub mod sudoku;
+pub mod sudoku_generation;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub enum SudokuGroups {
