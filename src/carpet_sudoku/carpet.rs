@@ -661,23 +661,31 @@ impl CarpetSudoku {
     }
 
     pub fn db_to_game(&self) -> DBNewCanonicalCarpetGame {
-        let filled_cells: Vec<u8> = (0..self.sudokus.len() * self.n2 * self.n2)
-            .map(|i| {
-                let sudoku_id = i / (self.n2 * self.n2);
-                let cell_i = i - sudoku_id * self.n2 * self.n2;
-                let y = cell_i / self.n2;
-                let x = cell_i % self.n2;
-                (self.sudokus[sudoku_id].get_cell_value(x, y) > 0) as u8
-            })
-            .collect();
+        let (filled_cells_count, filled_cells): (i16, Vec<u8>) = {
+            let temp = (0..self.sudokus.len() * self.n2 * self.n2)
+                .map(|i| {
+                    let sudoku_id = i / (self.n2 * self.n2);
+                    let cell_i = i - sudoku_id * self.n2 * self.n2;
+                    let y = cell_i / self.n2;
+                    let x = cell_i % self.n2;
+                    self.sudokus[sudoku_id].get_cell_value(x, y) > 0
+                })
+                .collect::<Vec<_>>();
+            (
+                temp.iter().filter(|is_filled| **is_filled).count() as i16,
+                temp.into_iter()
+                    .map(|is_filled| is_filled as u8)
+                    .collect::<Vec<_>>(),
+            )
+        };
         DBNewCanonicalCarpetGame {
             carpet_game_carpet_filled_board_hash: self
                 .filled_board_hash
                 .wrapping_sub(u64::MAX / 2 + 1)
                 as i64,
             carpet_game_difficulty: self.difficulty as i16,
-            carpet_game_filled_cells: filled_cells.clone(),
-            carpet_game_filled_cells_count: filled_cells.len() as i16,
+            carpet_game_filled_cells: filled_cells,
+            carpet_game_filled_cells_count: filled_cells_count,
         }
     }
 
@@ -718,11 +726,14 @@ impl CarpetSudoku {
         carpet.difficulty = SudokuDifficulty::from(game_info.carpet_game_difficulty);
 
         for (i, is_filled) in game_info.carpet_game_filled_cells.into_iter().enumerate() {
-            if is_filled == 0 {
-                let sudoku_id = i / (carpet.n2 * carpet.n2);
-                let cell_i = i - sudoku_id * carpet.n2 * carpet.n2;
-                let y = cell_i / carpet.n2;
-                let x = cell_i % carpet.n2;
+            if is_filled != 0 {
+                continue;
+            }
+            let sudoku_id = i / (carpet.n2 * carpet.n2);
+            let cell_i = i - sudoku_id * carpet.n2 * carpet.n2;
+            let y = cell_i / carpet.n2;
+            let x = cell_i % carpet.n2;
+            if carpet.sudokus[sudoku_id].get_cell_value(x, y) != 0 {
                 carpet.remove_value(sudoku_id, x, y).unwrap();
             }
         }

@@ -43,6 +43,7 @@ struct CarpetGenerationLogInfos {
     pub start_time: std::time::Instant,
     pub explored_counter: usize,
     pub skipped_counter: usize,
+    pub minimal_filled_cells_counter: usize,
     pub non_unique_counter: usize,
     pub can_remove_a_cell_counter: usize,
     pub wrong_difficulty_counter: usize,
@@ -186,6 +187,7 @@ impl CarpetSudoku {
             start_time: std::time::Instant::now(),
             explored_counter: 0,
             skipped_counter: 0,
+            minimal_filled_cells_counter: 0,
             non_unique_counter: 0,
             can_remove_a_cell_counter: 0,
             wrong_difficulty_counter: 0,
@@ -312,6 +314,15 @@ impl CarpetSudoku {
             stdout().flush().unwrap();
             return false;
         }
+
+        // skip if this possibility is below the minimal filled cells count TODO:
+        // if carpet_generation_input.cells_to_remove.len() < self.sudokus.len() * (2 * self.n2 - 1) {
+        //     let mut log_infos = log_infos.lock().unwrap();
+        //     log_infos.end_of_a_branch += 1;
+        //     print!("{log_infos}          \r");
+        //     stdout().flush().unwrap();
+        //     return false;
+        // }
 
         // skip if this possibility has not a unique solution
         if !self.is_unique(Some(&already_explored_filled_cells.lock().unwrap().clone())) {

@@ -1,6 +1,6 @@
 use diesel::{
     connection::DefaultLoadingMode, BoolExpressionMethods, Connection, ExpressionMethods,
-    JoinOnDsl, PgConnection, QueryDsl, RunQueryDsl,
+    JoinOnDsl, PgConnection, PgExpressionMethods, QueryDsl, RunQueryDsl,
 };
 
 use crate::{carpet_sudoku::CarpetSudoku, simple_sudoku::Sudoku as SimpleSudoku};
@@ -71,7 +71,7 @@ impl Database {
                 carpet_n
                     .eq(n)
                     .and(carpet_pattern.eq(pattern))
-                    .and(carpet_pattern_size.eq(pattern_size)),
+                    .and(carpet_pattern_size.is_not_distinct_from(pattern_size)),
             )
             .order(random())
             .limit(canonical_number)
@@ -137,8 +137,8 @@ impl Database {
                 carpet_n
                     .eq(n)
                     .and(carpet_pattern.eq(pattern))
-                    .and(carpet_pattern_size.eq(pattern_size))
-                    .and(carpet_game_difficulty.eq(difficulty)),
+                    .and(carpet_game_difficulty.eq(difficulty))
+                    .and(carpet_pattern_size.is_not_distinct_from(pattern_size)),
             )
             .order(random())
             .limit(canonical_number)
@@ -420,7 +420,7 @@ impl Database {
                 carpet_n
                     .eq(n)
                     .and(carpet_pattern.eq(pattern))
-                    .and(carpet_pattern_size.eq(pattern_size)),
+                    .and(carpet_pattern_size.is_not_distinct_from(pattern_size)),
             )
             .order(random())
             .limit(1)
@@ -470,11 +470,10 @@ impl Database {
                 carpet_n
                     .eq(n)
                     .and(carpet_pattern.eq(pattern))
-                    .and(carpet_pattern_size.eq(pattern_size))
-                    .and(carpet_game_difficulty.eq(difficulty)),
+                    .and(carpet_game_difficulty.eq(difficulty))
+                    .and(carpet_pattern_size.is_not_distinct_from(pattern_size)),
             )
             .order(random())
-            .limit(1)
             .get_result::<(DBCanonicalCarpetGame, Option<DBCanonicalCarpet>)>(
                 &mut self.connection,
             )?;
