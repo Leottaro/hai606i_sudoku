@@ -446,22 +446,29 @@ impl SudokuDisplay {
         #[cfg(feature = "database")]
         match (browse, &mut self.database) {
             (true, Some(database)) => {
-                self.carpet =
-                    CarpetSudoku::load_game_from_db(database, self.carpet.get_n(), self.pattern, self.difficulty);
+                self.carpet = CarpetSudoku::load_game_from_db(
+                    database,
+                    self.carpet.get_n(),
+                    self.pattern,
+                    self.difficulty,
+                );
             }
             _ => {
-                self.carpet = CarpetSudoku::generate_new(self.carpet.get_n(), self.pattern, self.difficulty);
+                self.carpet =
+                    CarpetSudoku::generate_new(self.carpet.get_n(), self.pattern, self.difficulty);
             }
         }
 
         #[cfg(not(feature = "database"))]
-        if browse {
-            eprintln!(
-                "SudokuDisplay Error: Cannot fetch a game from database because the database feature isn't enabled"
-            );
+        {
+            if browse {
+                eprintln!(
+					"SudokuDisplay Error: Cannot fetch a game from database because the database feature isn't enabled"
+				);
+            }
+            self.carpet =
+                CarpetSudoku::generate_new(self.carpet.get_n(), self.pattern, self.difficulty);
         }
-        self.carpet =
-            CarpetSudoku::generate_new(self.carpet.get_n(), self.pattern, self.difficulty);
 
         for button in self.button_list.iter_mut() {
             if button.text == "Create" || button.text == "Browse" {
@@ -517,17 +524,7 @@ impl SudokuDisplay {
             .into_iter()
             .map(|sudoku| sudoku.get_board().clone())
             .collect::<Vec<_>>();
-        loop {
-            match self.carpet.rule_solve(None) {
-                Ok((_, true)) => {
-                    break;
-                }
-                Ok(_) => (),
-                Err(err) => {
-                    eprintln!("{err}");
-                }
-            }
-        }
+        self.carpet.rule_solve_until((true, true), None);
         let board = self
             .carpet
             .get_sudokus()
@@ -558,7 +555,7 @@ impl SudokuDisplay {
     }
 
     fn solve(&mut self) {
-        while let Ok((true, _)) = self.carpet.rule_solve(None) {}
+        self.carpet.rule_solve_until((false, false), None);
         for sudoku_i in 0..self.carpet.get_n_sudokus() {
             for x in 0..self.carpet.get_n2() {
                 for y in 0..self.carpet.get_n2() {
