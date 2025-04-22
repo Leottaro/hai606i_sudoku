@@ -42,7 +42,7 @@ impl SudokuDisplay {
         let choosey_offset = (y_offset - 100.0) / 2.0;
         let b_padding = 10.0;
         let b_size = (pixel_per_cell * 3.0) / 2.0;
-        let button_3rd = (b_size * carpet.get_n() as f32 + b_padding) / 3.0;
+        let button_3rd = b_size * carpet.get_n() as f32 / 3.0;
 
         let bouton_play = Button::new(
             x_offset,
@@ -99,7 +99,7 @@ impl SudokuDisplay {
         // ==========================================================
         // ================== Sudoku Types Buttons ==================
         // ==========================================================
-        for (i, sudoku_type) in CarpetPattern::iter().enumerate() {
+        for (i, sudoku_type) in CarpetPattern::iter_simple().enumerate() {
             let pattern_string = {
                 let mut characters = sudoku_type
                     .to_string()
@@ -185,7 +185,7 @@ impl SudokuDisplay {
         actions_boutons.insert(
             "Create".to_string(),
             Rc::new(Box::new(move |sudoku_display| {
-                sudoku_display.new_game( false);
+                sudoku_display.new_game(false);
             })),
         );
 
@@ -446,7 +446,8 @@ impl SudokuDisplay {
         #[cfg(feature = "database")]
         match (browse, &mut self.database) {
             (true, Some(database)) => {
-                self.carpet = CarpetSudoku::load_game_from_db(database, n, self.pattern, difficulty);
+                self.carpet =
+                    CarpetSudoku::load_game_from_db(database, n, self.pattern, difficulty);
             }
             _ => {
                 self.carpet = CarpetSudoku::generate_new(n, pattern, difficulty);
@@ -458,10 +459,9 @@ impl SudokuDisplay {
             eprintln!(
                 "SudokuDisplay Error: Cannot fetch a game from database because the database feature isn't enabled"
             );
-            self.carpet = CarpetSudoku::generate_new(self.carpet.get_n(), self.pattern, self.difficulty);
-        } else {
-            self.carpet = CarpetSudoku::generate_new(self.carpet.get_n(), self.pattern, self.difficulty);
         }
+        self.carpet =
+            CarpetSudoku::generate_new(self.carpet.get_n(), self.pattern, self.difficulty);
 
         for button in self.button_list.iter_mut() {
             if button.text == "Create" || button.text == "Browse" {
@@ -479,6 +479,12 @@ impl SudokuDisplay {
             .map(|sudoku| sudoku.get_board().clone())
             .collect();
         self.set_new_game_btn(true);
+        self.player_pboard_history = Vec::new();
+        self.player_pboard =
+            vec![
+                vec![vec![HashSet::new(); self.carpet.get_n2()]; self.carpet.get_n2()];
+                self.carpet.get_n_sudokus()
+            ];
     }
 
     fn set_mode(&mut self, mode: &str) {

@@ -20,7 +20,7 @@ pub struct CarpetSudoku {
     is_canonical: bool,
 }
 
-#[derive(PartialEq, Eq, Copy, Clone, Hash)]
+#[derive(PartialEq, Eq, Copy, Clone, Hash, Debug)]
 pub enum CarpetPattern {
     Simple,
     Double,
