@@ -1,7 +1,8 @@
 pub mod button;
+#[allow(clippy::module_inception)]
 pub mod display;
 
-use crate::{carpet_sudoku::CarpetSudoku, simple_sudoku::SudokuDifficulty};
+use crate::{carpet_sudoku::{CarpetPattern, CarpetSudoku}, simple_sudoku::SudokuDifficulty};
 use macroquad::texture::Texture2D;
 use std::{
     collections::{HashMap, HashSet},
@@ -35,8 +36,8 @@ pub struct SudokuDisplay {
     background_victoire: Texture2D,
     background_defaite: Texture2D,
     lifes: usize,
-    new_game_available: bool,
     difficulty: SudokuDifficulty,
+    pattern: CarpetPattern,
     correction_board: Vec<Vec<Vec<usize>>>,
 }
 
