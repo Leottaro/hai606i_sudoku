@@ -63,6 +63,16 @@ impl CarpetPattern {
         .into_iter()
     }
 
+    pub fn iter_simple() -> impl Iterator<Item = CarpetPattern> {
+        vec![
+            CarpetPattern::Simple,
+            CarpetPattern::Double,
+            CarpetPattern::Diagonal(3),
+            CarpetPattern::Samurai,
+        ]
+        .into_iter()
+    }
+
     pub fn get_n_sudokus(&self) -> usize {
         match self {
             CarpetPattern::Simple => 1,
