@@ -280,7 +280,7 @@ impl CarpetSudoku {
         }
 
         loop {
-            let carpet = carpet_rx.recv().unwrap();
+            let mut carpet = carpet_rx.recv().unwrap();
 
             // if this possibility isn't unique
             if !self.is_unique() {
@@ -293,7 +293,9 @@ impl CarpetSudoku {
             for join_handle in threads_join_handles {
                 let _ = join_handle.join();
             }
+
             println!("{}", log_infos.lock().unwrap());
+            carpet.difficulty = aimed_difficulty;
             return carpet;
         }
     }

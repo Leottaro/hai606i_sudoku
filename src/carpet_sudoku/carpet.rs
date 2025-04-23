@@ -443,6 +443,7 @@ impl CarpetSudoku {
             )));
         }
 
+        // TODO: rows_swap is the same for same-height sudoku and a bit shifted for linked sudoku but not at the same height
         self.sudokus[0].randomize(None, None)?;
         let rows_swap = self.sudokus[0].get_rows_swap();
         let values_swap = self.sudokus[0].get_values_swap();
@@ -460,7 +461,7 @@ impl CarpetSudoku {
                 "canonize() when this carpet isn't filled: {self}"
             )));
         }
-        if !self.is_canonical {
+        if self.is_canonical {
             return Err(SudokuError::InvalidState(format!(
                 "canonize() when this carpet is already canonical: {self}"
             )));
@@ -678,6 +679,7 @@ impl CarpetSudoku {
         );
         carpet.filled_board_hash =
             (db_carpet.carpet_filled_board_hash as u64).wrapping_add(u64::MAX / 2 + 1);
+        carpet.is_canonical = true;
 
         for carpet_sudoku in db_carpet_sudokus {
             let sudoku = db_sudokus
@@ -711,11 +713,10 @@ impl CarpetSudoku {
             let cell_i = i - sudoku_id * carpet.n2 * carpet.n2;
             let y = cell_i / carpet.n2;
             let x = cell_i % carpet.n2;
-            if carpet.sudokus[sudoku_id].get_cell_value(x, y) != 0 {
-                carpet.remove_value(sudoku_id, x, y).unwrap();
-            }
+            carpet.sudokus[sudoku_id].remove_value(x, y).unwrap();
         }
 
+        carpet.update_link().unwrap();
         carpet
     }
 
@@ -778,11 +779,12 @@ impl std::fmt::Display for CarpetSudoku {
 
 impl PartialEq for CarpetSudoku {
     fn eq(&self, other: &Self) -> bool {
-        if self.n != other.n {
-            return false;
-        }
-
-        if self.difficulty != other.difficulty {
+        if self.n.ne(&other.n)
+            || self.pattern.ne(&other.pattern)
+            || self.difficulty.ne(&other.difficulty)
+            || self.is_canonical.ne(&other.is_canonical)
+            || self.filled_board_hash.ne(&other.filled_board_hash)
+        {
             return false;
         }
 
@@ -791,11 +793,15 @@ impl PartialEq for CarpetSudoku {
 
             for x in 0..self.n2 {
                 for y in 0..self.n2 {
-                    if sudoku1.get_cell_value(x, y) != sudoku2.get_cell_value(x, y)
-                        || sudoku1
-                            .get_cell_possibilities(x, y)
-                            .ne(sudoku2.get_cell_possibilities(x, y))
-                    {
+                    let value1 = sudoku1.get_cell_value(x, y);
+                    let value2 = sudoku2.get_cell_value(x, y);
+                    if value1 != value2 {
+                        return false;
+                    }
+
+                    let possibilities1 = sudoku1.get_cell_possibilities(x, y);
+                    let possibilities2 = sudoku2.get_cell_possibilities(x, y);
+                    if possibilities1.len() != possibilities2.len() {
                         return false;
                     }
                 }
