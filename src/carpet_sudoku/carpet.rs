@@ -443,6 +443,7 @@ impl CarpetSudoku {
             )));
         }
 
+        // TODO: rows_swap is the same for same-height sudoku and a bit shifted for linked sudoku but not at the same height
         self.sudokus[0].randomize(None, None)?;
         let rows_swap = self.sudokus[0].get_rows_swap();
         let values_swap = self.sudokus[0].get_values_swap();
@@ -460,7 +461,7 @@ impl CarpetSudoku {
                 "canonize() when this carpet isn't filled: {self}"
             )));
         }
-        if !self.is_canonical {
+        if self.is_canonical {
             return Err(SudokuError::InvalidState(format!(
                 "canonize() when this carpet is already canonical: {self}"
             )));
@@ -482,15 +483,11 @@ impl CarpetSudoku {
         self.sudokus.iter().all(|sudoku| sudoku.is_filled())
     }
 
-    pub fn is_unique(&mut self, safe_possibilities: Option<&HashSet<Vec<bool>>>) -> bool {
-        self.count_solutions(Some(2), safe_possibilities) == 1
+    pub fn is_unique(&mut self) -> bool {
+        self.count_solutions(Some(2)) == 1
     }
 
-    pub fn count_solutions(
-        &self,
-        max_solutions: Option<usize>,
-        safe_possibilities: Option<&HashSet<Vec<bool>>>,
-    ) -> usize {
+    pub fn count_solutions(&self, max_solutions: Option<usize>) -> usize {
         self.clone()._count_solutions(
             (0..self.sudokus.len() * self.n2 * self.n2)
                 .filter_map(|i| {
@@ -506,7 +503,6 @@ impl CarpetSudoku {
                 })
                 .collect::<Vec<_>>(),
             max_solutions,
-            safe_possibilities,
         )
     }
 
@@ -514,23 +510,7 @@ impl CarpetSudoku {
         &mut self,
         mut empty_cells: Vec<(usize, usize, usize)>,
         max_solutions: Option<usize>,
-        safe_possibilities: Option<&HashSet<Vec<bool>>>,
     ) -> usize {
-        if let Some(safe_possibilities) = safe_possibilities {
-            let filled_cells = (0..self.sudokus.len() * self.n2 * self.n2)
-                .map(|i| {
-                    let sudoku_id = i / (self.n2 * self.n2);
-                    let cell_i = i - sudoku_id * self.n2 * self.n2;
-                    let y = cell_i / self.n2;
-                    let x = cell_i % self.n2;
-                    self.sudokus[sudoku_id].get_cell_value(x, y) > 0
-                })
-                .collect::<Vec<_>>();
-            if safe_possibilities.contains(&filled_cells) {
-                return 1;
-            }
-        }
-
         empty_cells.sort_by(|&a, &b| {
             self.sudokus[a.0]
                 .get_cell_possibilities(a.1, a.2)
@@ -572,8 +552,7 @@ impl CarpetSudoku {
                 }
             }
 
-            sub_solutions +=
-                self._count_solutions(empty_cells.clone(), max_solutions, safe_possibilities);
+            sub_solutions += self._count_solutions(empty_cells.clone(), max_solutions);
             if let Some(max_solutions) = max_solutions {
                 if sub_solutions >= max_solutions {
                     return sub_solutions;
@@ -700,6 +679,7 @@ impl CarpetSudoku {
         );
         carpet.filled_board_hash =
             (db_carpet.carpet_filled_board_hash as u64).wrapping_add(u64::MAX / 2 + 1);
+        carpet.is_canonical = true;
 
         for carpet_sudoku in db_carpet_sudokus {
             let sudoku = db_sudokus
@@ -733,11 +713,10 @@ impl CarpetSudoku {
             let cell_i = i - sudoku_id * carpet.n2 * carpet.n2;
             let y = cell_i / carpet.n2;
             let x = cell_i % carpet.n2;
-            if carpet.sudokus[sudoku_id].get_cell_value(x, y) != 0 {
-                carpet.remove_value(sudoku_id, x, y).unwrap();
-            }
+            carpet.sudokus[sudoku_id].remove_value(x, y).unwrap();
         }
 
+        carpet.update_link().unwrap();
         carpet
     }
 
@@ -800,11 +779,12 @@ impl std::fmt::Display for CarpetSudoku {
 
 impl PartialEq for CarpetSudoku {
     fn eq(&self, other: &Self) -> bool {
-        if self.n != other.n {
-            return false;
-        }
-
-        if self.difficulty != other.difficulty {
+        if self.n.ne(&other.n)
+            || self.pattern.ne(&other.pattern)
+            || self.difficulty.ne(&other.difficulty)
+            || self.is_canonical.ne(&other.is_canonical)
+            || self.filled_board_hash.ne(&other.filled_board_hash)
+        {
             return false;
         }
 
@@ -813,11 +793,15 @@ impl PartialEq for CarpetSudoku {
 
             for x in 0..self.n2 {
                 for y in 0..self.n2 {
-                    if sudoku1.get_cell_value(x, y) != sudoku2.get_cell_value(x, y)
-                        || sudoku1
-                            .get_cell_possibilities(x, y)
-                            .ne(sudoku2.get_cell_possibilities(x, y))
-                    {
+                    let value1 = sudoku1.get_cell_value(x, y);
+                    let value2 = sudoku2.get_cell_value(x, y);
+                    if value1 != value2 {
+                        return false;
+                    }
+
+                    let possibilities1 = sudoku1.get_cell_possibilities(x, y);
+                    let possibilities2 = sudoku2.get_cell_possibilities(x, y);
+                    if possibilities1.len() != possibilities2.len() {
                         return false;
                     }
                 }
