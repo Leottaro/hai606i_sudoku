@@ -1,8 +1,11 @@
 #[cfg(test)]
 mod tests {
-    use std::{ io::{ stdout, BufRead, Write }, sync::{ Arc, Mutex } };
+    use std::{
+        io::{stdout, BufRead, Write},
+        sync::{Arc, Mutex},
+    };
 
-    use crate::simple_sudoku::{ Sudoku, SudokuDifficulty };
+    use crate::simple_sudoku::{Sudoku, SudokuDifficulty};
 
     #[test]
     fn test_parse_file() {
@@ -44,7 +47,13 @@ mod tests {
         println!("collecting sudokus");
         let sudokus: Vec<String> = files
             .map(|file| {
-                file.unwrap().path().file_name().unwrap().to_os_string().into_string().unwrap()
+                file.unwrap()
+                    .path()
+                    .file_name()
+                    .unwrap()
+                    .to_os_string()
+                    .into_string()
+                    .unwrap()
             })
             .take(1000)
             .collect();
@@ -95,7 +104,12 @@ mod tests {
                     },
                     n_finished
                 );
-                (file_name, sudoku.is_filled(), sudoku.get_difficulty(), sudoku_rule_usage)
+                (
+                    file_name,
+                    sudoku.is_filled(),
+                    sudoku.get_difficulty(),
+                    sudoku_rule_usage,
+                )
             });
 
             join_handles.push(join_handle);
@@ -176,29 +190,20 @@ mod tests {
     #[test]
     #[cfg(feature = "database")]
     fn to_from_db() {
-        let canonical1 = Sudoku::generate_full(3);
-        let (db_canonical_sudoku, _db_canonical_squares) = canonical1.db_to_canonical().unwrap();
-        let canonical2 = Sudoku::db_from_canonical(db_canonical_sudoku);
+        let filled1 = Sudoku::generate_full(3);
+        let (db_canonical_sudoku, _db_canonical_squares) = filled1.filled_to_db().unwrap();
+        let filled2 = Sudoku::db_from_filled(db_canonical_sudoku.clone());
 
-        if canonical1.ne(&canonical2) {
-            panic!("canonical_to_db PROBLEME");
+        if filled1.ne(&filled2) {
+            panic!("filled_to_db or db_from_filled : {filled1}\n!=\n{filled2}");
         }
 
         for difficulty in SudokuDifficulty::iter() {
-            let mut randomized1 = canonical1.clone();
-            randomized1.randomize(None, None).unwrap();
-
-            let game1 = randomized1.generate_from(difficulty).unwrap();
-            let db_game = game1.db_to_randomized().unwrap();
-            let game2 = Sudoku::db_from_game(db_game);
+            let game1 = filled1.generate_from(difficulty);
+            let db_game = game1.game_to_db().unwrap();
+            let game2 = Sudoku::db_from_game(db_game, db_canonical_sudoku.clone());
             if game1.ne(&game2) {
-                panic!("randomized_to_db game PROBLEME");
-            }
-
-            let db_randomized = randomized1.db_to_randomized().unwrap();
-            let randomized2 = Sudoku::db_from_game(db_randomized);
-            if randomized1.ne(&randomized2) {
-                panic!("randomized_to_db PROBLEME");
+                panic!("game_to_db or db_from_game : {game1}\n!=\n{game2}");
             }
         }
     }
@@ -208,10 +213,9 @@ mod tests {
     fn rule_analyse() {
         let sudoku_data = std::fs::File::open("res/sudoku_cluewise.csv");
         if sudoku_data.is_err() {
-            println!(
+            panic!(
                 "\n\n#################### MESSAGE DE LEO ####################\nres/sudoku_cluewise.csv not found ! Try executing: \ncurl -L -o res/sudoku_cluewise.zip https://www.kaggle.com/api/v1/datasets/download/informoney/4-million-sudoku-puzzles-easytohard && unzip res/sudoku_data.zip -d res\n#################### MESSAGE DE LEO ####################\n\n"
             );
-            panic!();
         }
         let sudoku_data = sudoku_data.unwrap();
 
@@ -231,11 +235,7 @@ mod tests {
             if len == 0 {
                 break;
             }
-            let zeros = line
-                .chars()
-                .take(81)
-                .filter(|char| char.eq(&'0'))
-                .count();
+            let zeros = line.chars().take(81).filter(|char| char.eq(&'0')).count();
             if total_zeroes[zeros] >= max_sudoku_per_zeros {
                 line.clear();
                 continue;
@@ -245,7 +245,8 @@ mod tests {
 
             let sudoku_string = line
                 .split_at(81)
-                .0.chars()
+                .0
+                .chars()
                 .enumerate()
                 .flat_map(|(index, char)| {
                     if index % 9 == 0 {
@@ -261,9 +262,8 @@ mod tests {
             let thread_n_finished = Arc::clone(&n_finished);
 
             let join_handle = std::thread::spawn(move || {
-                let mut sudoku_rule_usage: Vec<
-                    (bool, u128)
-                > = vec![(false, 0); Sudoku::RULES.len()];
+                let mut sudoku_rule_usage: Vec<(bool, u128)> =
+                    vec![(false, 0); Sudoku::RULES.len()];
                 loop {
                     let start = std::time::Instant::now();
                     let rule_solve_result = sudoku.rule_solve(None, None);
@@ -285,11 +285,15 @@ mod tests {
                 let mut n_finished = thread_n_finished.lock().unwrap();
                 *n_finished += 1;
 
-                print!("{} sudoku • {}\r", n_finished, if sudoku.is_filled() {
-                    "solved"
-                } else {
-                    "unsolved"
-                });
+                print!(
+                    "{} sudoku • {}\r",
+                    n_finished,
+                    if sudoku.is_filled() {
+                        "solved"
+                    } else {
+                        "unsolved"
+                    }
+                );
                 (sudoku.is_filled(), sudoku_rule_usage)
             });
 
@@ -321,20 +325,18 @@ mod tests {
         let mut sudoku_rules_info: Vec<_> = sudoku_rules_info.into_iter().enumerate().collect();
         sudoku_rules_info.sort_by(|(_, (usage1, _)), (_, (usage2, _))| usage2.cmp(usage1));
 
-        let trailing_zeroes = sudoku_rules_info[0].1.0.to_string().len() + 1;
+        let trailing_zeroes = sudoku_rules_info[0].1 .0.to_string().len() + 1;
 
         println!(
             "rules info: \n{}",
             sudoku_rules_info
                 .into_iter()
-                .map(|(rule_id, (n, time))|
-                    format!(
-                        "rule {:2}: used {:0>trailing_zeroes$} times ({:.3}ms avg)",
-                        rule_id,
-                        n,
-                        (time as f64) / (n as f64)
-                    )
-                )
+                .map(|(rule_id, (n, time))| format!(
+                    "rule {:2}: used {:0>trailing_zeroes$} times ({:.3}ms avg)",
+                    rule_id,
+                    n,
+                    (time as f64) / (n as f64)
+                ))
                 .collect::<Vec<String>>()
                 .join("\n")
         );
@@ -367,11 +369,7 @@ mod tests {
 
                 println!(
                     "Difficulty {}:\n\tmin: {}ms\n\tmax: {}ms\n\taverage {:.2} ms\n\tmedian: {}ms",
-                    difficulty,
-                    min,
-                    max,
-                    average,
-                    median
+                    difficulty, min, max, average, median
                 );
             }
         };

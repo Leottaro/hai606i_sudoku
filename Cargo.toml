@@ -14,14 +14,14 @@ name = "generation_benchmark"
 path = "src/generation_benchmark.rs"
 
 [dependencies]
-diesel = { version = "2.2.8", features = ["mysql"], optional = true }
+diesel = { version = "2.2.8", features = ["postgres"], optional = true }
 dotenv = { version = "0.15.0", optional = true }
 
-env_logger = "0.11.6"
+env_logger = "0.11.8"
 graph = "0.3.1"
-log = "0.4.25"
-macroquad = "0.4"
-rand = "0.8.5"
+log = "0.4.27"
+macroquad = "0.4.14"
+rand = "0.9.0"
 
 [features]
 database = ["diesel", "dotenv"]

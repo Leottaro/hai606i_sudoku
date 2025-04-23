@@ -114,3 +114,4 @@ $RECYCLE.BIN/
 
 res/sudoku_cluewise*
 .env
+.idea

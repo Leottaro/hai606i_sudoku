@@ -1,9 +1,10 @@
 pub type Coords = (usize, usize);
 
-use std::collections::{ HashMap, HashSet };
+use std::collections::{HashMap, HashSet};
 
 pub mod rules;
 pub mod sudoku;
+pub mod sudoku_generation;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub enum SudokuGroups {
@@ -60,11 +61,12 @@ impl SudokuDifficulty {
             SudokuDifficulty::Medium,
             SudokuDifficulty::Hard,
             SudokuDifficulty::Master,
-            SudokuDifficulty::Extreme
-        ].into_iter()
+            SudokuDifficulty::Extreme,
+        ]
+        .into_iter()
     }
 
-    pub fn from(n: u8) -> Self {
+    pub fn from(n: i16) -> Self {
         match n {
             1 => SudokuDifficulty::Easy,
             2 => SudokuDifficulty::Medium,
@@ -119,7 +121,7 @@ impl std::fmt::Display for SudokuError {
                 write!(
                     f,
                     "SudokuError: Canonization mismatch this sudoku \n{sudoku}\nExpected board hash {}, got {}",
-                    sudoku.canonical_board_hash,
+                    sudoku.canonical_filled_board_hash,
                     board_hash
                 )
             }
@@ -136,7 +138,10 @@ impl std::fmt::Display for SudokuError {
                 write!(f, "SudokuError: couldn't open file {file_path}: {error}")
             }
             SudokuError::SameValueCells(((x1, y1), (x2, y2))) => {
-                write!(f, "SudokuError: Cells at ({x1},{y1}) and ({x2},{y2}) have the same value")
+                write!(
+                    f,
+                    "SudokuError: Cells at ({x1},{y1}) and ({x2},{y2}) have the same value"
+                )
             }
             SudokuError::WrongFunction(string) => {
                 write!(f, "SudokuError: Wrong function for {string}")
@@ -162,7 +167,7 @@ pub struct Sudoku {
     difficulty: SudokuDifficulty,
 
     is_canonical: bool,
-    canonical_board_hash: u64,
+    canonical_filled_board_hash: u64,
     values_swap: HashMap<usize, (usize, usize)>, // 1 -> (2, 3) exprime les règles 1 donne 2 et 3 donne 1
     rows_swap: HashMap<usize, (usize, usize)>,
 }
