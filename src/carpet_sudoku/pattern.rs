@@ -51,7 +51,7 @@ impl CarpetPattern {
             CarpetPattern::Double,
             CarpetPattern::Samurai,
             CarpetPattern::Diagonal(3),
-            CarpetPattern::Carpet(2),
+            CarpetPattern::Carpet(3),
         ]
         .into_iter()
     }
@@ -63,6 +63,17 @@ impl CarpetPattern {
             CarpetPattern::Diagonal(size) => *size,
             CarpetPattern::Samurai => 5,
             CarpetPattern::Carpet(size) => *size * *size,
+            CarpetPattern::Custom(size) => *size,
+        }
+    }
+
+    pub fn get_size(&self) -> usize {
+        match self {
+            CarpetPattern::Simple => 1,
+            CarpetPattern::Double => 2,
+            CarpetPattern::Diagonal(size) => *size,
+            CarpetPattern::Samurai => 5,
+            CarpetPattern::Carpet(size) => *size,
             CarpetPattern::Custom(size) => *size,
         }
     }
