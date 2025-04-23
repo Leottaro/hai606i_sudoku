@@ -96,6 +96,28 @@ impl SudokuDisplay {
         );
         button_list.push(new_game_btn);
 
+        let mut new_game_cancel_btn = Button::new(
+            x_offset + (button_sizex + button_xpadding) * 3.0,
+            y_offset - choosey_offset - button_sizey,
+            button_sizex,
+            button_sizey,
+            "Cancel".to_string(),
+            false,
+            scale_factor,
+        );
+        actions_boutons.insert(
+            new_game_cancel_btn.text.to_string(),
+            Rc::new(Box::new(move |sudoku_display| {
+                sudoku_display.set_new_game_btn(true);
+
+                sudoku_display.set_pattern_btn(false);
+                sudoku_display.set_difficulty_btn(false);
+                sudoku_display.set_mode_btn(false);
+            })),
+        );
+        new_game_cancel_btn.set_enabled(false);
+        button_list.push(new_game_cancel_btn);
+
         // ==========================================================
         // ================== Sudoku Types Buttons ==================
         // ==========================================================
@@ -374,16 +396,16 @@ impl SudokuDisplay {
 
     pub fn init(&mut self) {
         self.set_mode("Play");
-        self.lifes = 300;
         self.selected_cell = None;
-        self.player_pboard_history.clear();
+        self.hovered_cell = None;
+        self.note = false;
+        self.lifes = 300;
         self.player_pboard =
             vec![
                 vec![vec![HashSet::new(); self.carpet.get_n2()]; self.carpet.get_n2()];
                 self.carpet.get_n_sudokus()
             ];
-        self.note = false;
-        self.difficulty = SudokuDifficulty::Easy;
+        self.player_pboard_history.clear();
     }
 
     #[cfg(feature = "database")]
@@ -407,6 +429,9 @@ impl SudokuDisplay {
         for button in self.button_list.iter_mut() {
             if button.text == "New Game" {
                 button.set_enabled(status);
+            }
+            if button.text == "Cancel" {
+                button.set_enabled(!status);
             }
         }
     }

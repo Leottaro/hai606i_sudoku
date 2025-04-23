@@ -49,8 +49,9 @@ impl CarpetPattern {
         vec![
             CarpetPattern::Simple,
             CarpetPattern::Double,
-            CarpetPattern::Diagonal(3),
             CarpetPattern::Samurai,
+            CarpetPattern::Diagonal(3),
+            CarpetPattern::Carpet(2),
         ]
         .into_iter()
     }
