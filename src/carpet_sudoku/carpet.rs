@@ -737,6 +737,17 @@ impl CarpetSudoku {
             .unwrap()
     }
 
+    pub fn load_minimal_game_from_db(
+        database: &mut Database,
+        n: usize,
+        pattern: CarpetPattern,
+        difficulty: SudokuDifficulty,
+    ) -> Self {
+        database
+            .get_random_minimal_canonical_carpet_game(n as i16, pattern.to_db(), difficulty as i16)
+            .unwrap()
+    }
+
     // TODO:
     // pub fn generate_filled_from_db(
     //     database: &mut Database,

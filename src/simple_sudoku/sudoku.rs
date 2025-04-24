@@ -1032,6 +1032,16 @@ impl Sudoku {
             .get_random_canonical_sudoku_game(n as i16, difficulty as i16)
             .unwrap()
     }
+
+    pub fn load_minimal_game_from_db(
+        database: &mut Database,
+        n: usize,
+        difficulty: SudokuDifficulty,
+    ) -> Self {
+        database
+            .get_random_minimal_canonical_sudoku_game(n as i16, difficulty as i16)
+            .unwrap()
+    }
 }
 
 const BASE_64: [char; 65] = [

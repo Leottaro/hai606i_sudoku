@@ -328,9 +328,8 @@ fn carpet_games(max_number: usize) {
 
             for difficulty in SudokuDifficulty::iter() {
                 println!("{}: ", difficulty);
-                let game = filled.generate_from(difficulty);
 
-                let db_game = game.db_to_game();
+                let game = filled.generate_from(difficulty);
                 let thread_database = Arc::clone(&database);
 
                 if let Some(my_join_handle) = join_handle {
@@ -338,10 +337,19 @@ fn carpet_games(max_number: usize) {
                 }
                 join_handle = Some(thread::spawn(move || {
                     println!("THREAD STARTS");
+                    if game.get_pattern() == CarpetPattern::Simple {
+                        if let Ok(sudoku_game_db) = game.get_sudokus()[0].game_to_db() {
+                            let _ = thread_database
+                                .lock()
+                                .unwrap()
+                                .insert_canonical_sudoku_game(true, sudoku_game_db);
+                        }
+                    }
+
                     if let Err(err) = thread_database
                         .lock()
                         .unwrap()
-                        .insert_canonical_carpet_game(db_game)
+                        .insert_canonical_carpet_game(game.db_to_game())
                     {
                         eprintln!("\nERROR :\n{game}\nCOULDN'T INSERT THIS CARPET GAME: {err}\n")
                     }
