@@ -414,12 +414,8 @@ impl Sudoku {
         &mut self,
         rows_swap: Option<HashMap<usize, Coords>>,
         values_swap: Option<HashMap<usize, Coords>>,
+        shuffle_floors: bool,
     ) -> Result<(), SudokuError> {
-        if !self.is_filled() {
-            return Err(SudokuError::InvalidState(format!(
-                "randomize() when this sudoku isn't filled: {self}"
-            )));
-        }
         if !self.is_canonical {
             return Err(SudokuError::InvalidState(format!(
                 "randomize() when this sudoku is already randomized: {self}"
@@ -434,68 +430,87 @@ impl Sudoku {
                 .map(|floor| floor.to_vec())
                 .collect::<Vec<_>>();
 
-            // shuffle each floor (not the first floor)
-            floors.shuffle(&mut rng);
+            // shuffle each floor
+            if shuffle_floors {
+                floors.shuffle(&mut rng);
+            }
 
-            // shuffle each row inside a floor (not the first row)
+            // shuffle each row inside a floor
             for floor in floors.iter_mut() {
                 floor.shuffle(&mut rng);
             }
 
             let shuffled_rows = floors.into_iter().flatten().enumerate().collect::<Vec<_>>();
 
-            let mut rows_swap = (0..self.n2).map(|y| (y, (0, 0))).collect::<HashMap<_, _>>();
+            let mut rows_swap = HashMap::new();
             for (y, to_y) in shuffled_rows {
-                rows_swap.get_mut(&y).unwrap().0 = to_y;
-                rows_swap.get_mut(&to_y).unwrap().1 = y;
+                rows_swap
+                    .entry(y)
+                    .and_modify(|(a, _)| *a = to_y)
+                    .or_insert((to_y, 0));
+                rows_swap
+                    .entry(to_y)
+                    .and_modify(|(_, b)| *b = y)
+                    .or_insert((0, y));
             }
             rows_swap
         });
 
         self.values_swap = values_swap.unwrap_or({
-            let mut values_swap = (1..=self.n2)
-                .map(|y| (y, (0, 0)))
-                .collect::<HashMap<_, _>>();
+            let mut to_values = (1..=self.n2).collect::<Vec<_>>();
+            to_values.shuffle(&mut rng);
 
-            let mut values = (1..=self.n2).collect::<Vec<_>>();
-            values.shuffle(&mut rng);
-
-            for (i, to_value) in values.into_iter().enumerate() {
-                let value = i + 1;
-                values_swap.get_mut(&value).unwrap().0 = to_value;
-                values_swap.get_mut(&to_value).unwrap().1 = value;
+            let mut values_swap = HashMap::new();
+            for (value, to_value) in to_values
+                .iter()
+                .cloned()
+                .enumerate()
+                .map(|(i, to_value)| (i + 1, to_value))
+            {
+                values_swap
+                    .entry(value)
+                    .and_modify(|(a, _)| *a = to_value)
+                    .or_insert((to_value, 0));
+                values_swap
+                    .entry(to_value)
+                    .and_modify(|(_, b)| *b = value)
+                    .or_insert((0, value));
             }
-
             values_swap
         });
 
         // swap rows randomly following self.rows_swap rules
         let mut new_board = vec![Vec::new(); self.n2];
+        let mut new_possibility_board = vec![Vec::new(); self.n2];
         for y in 0..self.n2 {
             let (to_y, _) = self.rows_swap[&y];
             new_board[to_y] = self.board[y].clone();
+            new_possibility_board[to_y] = self.possibility_board[y].clone();
         }
         self.board = new_board;
+        self.possibility_board = new_possibility_board;
+        self.is_canonical = false;
 
-        // swap value randomly
+        // swap value randomly following self.values_swap rules
         for y in 0..self.n2 {
             for x in 0..self.n2 {
                 let value = self.board[y][x];
-                let (to_value, _) = self.values_swap[&value];
-                self.board[y][x] = to_value;
+                if value != 0 {
+                    let (to_value, _) = self.values_swap[&value];
+                    self.board[y][x] = to_value;
+                } else {
+                    let possibilities = self.possibility_board[y][x]
+                        .iter()
+                        .map(|value| self.values_swap[value].0)
+                        .collect::<HashSet<_>>();
+                    self.possibility_board[y][x] = possibilities;
+                }
             }
         }
-
-        self.is_canonical = false;
         Ok(())
     }
 
     pub fn canonize(&mut self) -> Result<(), SudokuError> {
-        if !self.is_filled() {
-            return Err(SudokuError::InvalidState(format!(
-                "canonize() when this sudoku isn't filled: {self}"
-            )));
-        }
         if self.is_canonical {
             return Err(SudokuError::InvalidState(format!(
                 "canonize() when this sudoku is already canonized: {self}"
