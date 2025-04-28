@@ -168,6 +168,6 @@ pub struct Sudoku {
 
     is_canonical: bool,
     canonical_filled_board_hash: u64,
-    values_swap: HashMap<usize, (usize, usize)>, // 1 -> (2, 3) exprime les règles 1 donne 2 et 3 donne 1
-    rows_swap: HashMap<usize, (usize, usize)>,
+    values_swap: HashMap<usize, Coords>, // 1 -> (2, 3) exprime les règles 1 donne 2 et 3 donne 1
+    rows_swap: HashMap<usize, Coords>,
 }

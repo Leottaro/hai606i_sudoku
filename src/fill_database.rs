@@ -337,7 +337,6 @@ fn carpet_games(max_number: usize) {
                     my_join_handle.join().unwrap();
                 }
                 join_handle = Some(thread::spawn(move || {
-                    println!("THREAD STARTS");
                     if let Err(err) = thread_database
                         .lock()
                         .unwrap()

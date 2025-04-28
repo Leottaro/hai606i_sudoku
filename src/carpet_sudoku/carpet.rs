@@ -348,6 +348,7 @@ impl CarpetSudoku {
         rule_solve_result: (bool, bool),
         max_difficulty: Option<SudokuDifficulty>,
     ) -> bool {
+        self.difficulty = SudokuDifficulty::Unknown;
         let mut did_anything = false;
         while let Ok(result) = self.rule_solve(max_difficulty) {
             if result == rule_solve_result || result == (false, false) {
