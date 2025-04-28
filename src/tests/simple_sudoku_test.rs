@@ -165,12 +165,12 @@ mod tests {
             print!(" {i} \r");
             stdout().flush().unwrap();
 
-            let original = Sudoku::generate_full(3);
+            let original = Sudoku::generate_new(3, SudokuDifficulty::Easy);
             print!("generated");
             stdout().flush().unwrap();
 
             let mut randomized = original.clone();
-            randomized.randomize(None, None).unwrap();
+            randomized.randomize(None, None, true).unwrap();
             print!(", randomized");
             stdout().flush().unwrap();
 

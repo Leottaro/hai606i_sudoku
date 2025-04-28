@@ -433,23 +433,75 @@ impl CarpetSudoku {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     pub fn randomize(&mut self) -> Result<(), SudokuError> {
-        if !self.is_filled() {
-            return Err(SudokuError::InvalidState(format!(
-                "randomize() when this carpet isn't filled: {self}"
-            )));
-        }
         if !self.is_canonical {
             return Err(SudokuError::InvalidState(format!(
                 "randomize() when this carpet is already randomized: {self}"
             )));
         }
 
-        // TODO: rows_swap is the same for same-height sudoku and a bit shifted for linked sudoku but not at the same height
-        self.sudokus[0].randomize(None, None)?;
-        let rows_swap = self.sudokus[0].get_rows_swap();
+        if self.links.is_empty() {
+            for sudoku in self.sudokus.iter_mut() {
+                sudoku.randomize(None, None, true)?;
+            }
+            return Ok(());
+        }
+
+        self.sudokus[0].randomize(None, None, false)?;
+        let mut rows_swaps = vec![Default::default(); self.sudokus.len()];
         let values_swap = self.sudokus[0].get_values_swap();
-        for sudoku in self.sudokus.iter_mut().skip(1) {
-            sudoku.randomize(Some(rows_swap.clone()), Some(values_swap.clone()))?;
+        rows_swaps[0] = self.sudokus[0].get_rows_swap();
+
+        // fill the rows_swaps linked
+        for &(square1, sudoku2, square2) in self.links.get(&0).unwrap() {
+            let y1 = square1 - square1 % self.n;
+            let y2 = square2 - square2 % self.n;
+            for dy in 0..self.n {
+                let (to_y1, from_y1) = rows_swaps[0][&(y1 + dy)];
+                rows_swaps[sudoku2].insert(y2 + dy, (y2 + to_y1 % self.n, y2 + from_y1 % self.n));
+            }
+        }
+
+        for (sudoku1, sudoku) in self.sudokus.iter_mut().enumerate().skip(1) {
+            // complete the rows_swap
+            for y0 in (0..self.n2).step_by(self.n) {
+                if rows_swaps[sudoku1].contains_key(&y0) {
+                    continue;
+                }
+                let mut to_ys = {
+                    let mut dxs = (0..self.n).collect::<Vec<_>>();
+                    dxs.shuffle(&mut rng());
+                    dxs.into_iter()
+                };
+                for y in y0..y0 + self.n {
+                    let to_y = y0 + to_ys.next().unwrap();
+                    rows_swaps[sudoku1]
+                        .entry(y)
+                        .and_modify(|(a, _)| *a = to_y)
+                        .or_insert((to_y, 0));
+
+                    rows_swaps[sudoku1]
+                        .entry(to_y)
+                        .and_modify(|(_, b)| *b = y)
+                        .or_insert((0, y));
+                }
+            }
+
+            // fill the rows_swaps linked
+            for &(square1, sudoku2, square2) in self.links.get(&sudoku1).unwrap() {
+                let y1 = square1 - square1 % self.n;
+                let y2 = square2 - square2 % self.n;
+                for dy in 0..self.n {
+                    let (to_y1, from_y1) = rows_swaps[sudoku1][&(y1 + dy)];
+                    rows_swaps[sudoku2]
+                        .insert(y2 + dy, (y2 + to_y1 % self.n, y2 + from_y1 % self.n));
+                }
+            }
+
+            sudoku.randomize(
+                Some(rows_swaps[sudoku1].clone()),
+                Some(values_swap.clone()),
+                false,
+            )?;
         }
 
         self.is_canonical = false;

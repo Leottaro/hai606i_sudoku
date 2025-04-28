@@ -495,6 +495,8 @@ impl SudokuDisplay {
                 CarpetSudoku::generate_new(self.carpet.get_n(), self.pattern, self.difficulty);
         }
 
+        self.carpet.randomize().unwrap();
+
         for button in self.button_list.iter_mut() {
             if button.text == "Create" || button.text == "Browse" {
                 button.set_enabled(false);
