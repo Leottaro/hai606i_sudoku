@@ -1,6 +1,5 @@
-use graph::prelude::{Graph, GraphBuilder, UndirectedCsrGraph, UndirectedNeighbors};
 use log::warn;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use super::{
     Coords, Sudoku,
@@ -55,7 +54,7 @@ impl Sudoku {
         (18, Hard, Sudoku::w_wing),
         (17, Hard, Sudoku::y_wing),
         (15, Master, Sudoku::skyscraper),
-        // (16, Master, Sudoku::simple_coloring),
+        (16, Master, Sudoku::simple_coloring),
         (5, Master, Sudoku::hidden_triples),
         (20, Master, Sudoku::finned_swordfish),
         (11, Extreme, Sudoku::x_wing),
@@ -918,24 +917,32 @@ impl Sudoku {
     }
 
     // règle 16: http://www.taupierbw.be/SudokuCoach/SC_SimpleColoring.shtml
-    fn simple_coloring(&mut self) -> Result<bool, SudokuError> {
+    pub fn simple_coloring(&mut self) -> Result<bool, SudokuError> {
         let mut modified = false;
         for value in 1..=self.n2 {
-            let mut chains: Vec<Vec<usize>> = Vec::new(); // ne contient pas les (x,y) mais y*n+x (plus simple a traiter)
-            let strong_links = self
-                .get_strong_links(value)
-                .into_iter()
-                .map(|((x1, y1), (x2, y2))| (y1 * self.n2 + x1, y2 * self.n2 + x2))
-                .collect::<Vec<_>>();
-            let graph: UndirectedCsrGraph<usize> = GraphBuilder::new()
-                .csr_layout(graph::prelude::CsrLayout::Unsorted)
-                .edges(strong_links)
-                .build();
+            let raw_strong_links = self.get_strong_links(value);
+            let mut strong_links: HashMap<Coords, HashSet<Coords>> = HashMap::new();
+            for (cell1, cell2) in raw_strong_links {
+                strong_links
+                    .entry(cell1)
+                    .and_modify(|cell1_links| {
+                        cell1_links.insert(cell2);
+                    })
+                    .or_insert_with(|| vec![cell2].into_iter().collect());
 
-            for node in 0..graph.node_count() {
-                let mut visited: HashSet<usize> = HashSet::new();
-                let mut stack = vec![(node, vec![])];
+                strong_links
+                    .entry(cell2)
+                    .and_modify(|cell2_links| {
+                        cell2_links.insert(cell1);
+                    })
+                    .or_insert_with(|| vec![cell1].into_iter().collect());
+            }
 
+            let mut chains: Vec<Vec<Coords>> = Vec::new();
+            for cell in strong_links.keys().cloned().collect::<Vec<_>>() {
+                let mut visited: HashSet<Coords> = HashSet::new();
+
+                let mut stack = vec![(cell, vec![])];
                 while let Some((current, mut path)) = stack.pop() {
                     if visited.contains(&current) {
                         continue;
@@ -943,25 +950,29 @@ impl Sudoku {
                     visited.insert(current);
                     path.push(current);
 
-                    for &neighbor in graph.neighbors(current) {
-                        if !visited.contains(&neighbor) {
-                            stack.push((neighbor, path.clone()));
-                        } else if path.contains(&neighbor) {
+                    for neighbor in strong_links.get(&current).unwrap() {
+                        if !visited.contains(neighbor) {
+                            stack.push((*neighbor, path.clone()));
+                        } else if path.contains(neighbor) {
                             chains.push(path.clone());
                         }
                     }
                 }
             }
 
-            let mut chains_hashset: Vec<(Vec<usize>, HashSet<usize>)> = chains
+            let mut chains_hashset: Vec<(Vec<Coords>, HashSet<Coords>)> = chains
                 .into_iter()
-                .map(|chain| (chain.clone(), chain.into_iter().collect::<HashSet<usize>>()))
+                .map(|chain| {
+                    (
+                        chain.clone(),
+                        chain.into_iter().collect::<HashSet<Coords>>(),
+                    )
+                })
                 .collect();
-            chains_hashset.sort_by(|(chain1, _), (chain2, _)| chain2.len().cmp(&chain1.len()));
+            chains_hashset.sort_by_key(|(chain, _hashset)| chain.len());
 
-            let mut keeped_hashsets: Vec<&HashSet<usize>> = Vec::new();
+            let mut keeped_hashsets: Vec<&HashSet<Coords>> = Vec::new();
             let mut keeped_chains: Vec<Vec<Coords>> = Vec::new();
-
             for (chain1, hash1) in chains_hashset.iter() {
                 if chain1.len() < 3 || keeped_hashsets.contains(&hash1) {
                     continue;
@@ -974,37 +985,43 @@ impl Sudoku {
                 }
                 if keep {
                     keeped_hashsets.push(hash1);
-                    keeped_chains.push(
-                        chain1
-                            .iter()
-                            .map(|cell_id| (cell_id % self.n2, cell_id / self.n2))
-                            .collect(),
-                    );
+                    keeped_chains.push(chain1.clone());
                 }
             }
 
             for chain in keeped_chains {
-                let chain_len = chain.len();
                 let &(x1, y1) = chain.first().unwrap();
-                let &(x2, y2) = chain.get(chain_len - 1).unwrap();
-                if chain_len % 2 == 0 {
+                let &(x2, y2) = chain.last().unwrap();
+                if chain.len() % 2 == 0 {
                     let cell_group1: HashSet<Coords> = self.get_cell_group(x1, y1, All);
                     let cell_group2: HashSet<Coords> = self.get_cell_group(x2, y2, All);
                     let common_cells: HashSet<&Coords> =
                         cell_group1.intersection(&cell_group2).collect();
                     for &(x3, y3) in common_cells {
-                        if (x3 == x1 && y3 == y1) || (x3 == x2 && y3 == y2) {
+                        if (x3, y3) == (x1, y1) || (x3, y3) == (x2, y2) {
                             continue;
                         }
                         if self.possibility_board[y3][x3].remove(&value) {
-                            debug_only!("({}, {}): possibilité {} supprimée", x3, y3, value);
+                            debug_only!(
+                                "({}, {}): possibilité {} supprimée (chaine {:?})",
+                                x3,
+                                y3,
+                                value,
+                                chain
+                            );
                             modified = true;
                         }
                     }
                 } else if self.is_same_group(x1, y1, x2, y2) {
                     for &(x, y) in chain.iter().step_by(2) {
                         if self.possibility_board[y][x].remove(&value) {
-                            debug_only!("({}, {}): possibilité {} supprimée", x, y, value);
+                            debug_only!(
+                                "({}, {}): possibilité {} supprimée (chaine {:?})",
+                                x,
+                                y,
+                                value,
+                                chain
+                            );
                             modified = true;
                         }
                     }
@@ -1701,7 +1718,7 @@ impl Sudoku {
                                 let rectangle_refs: HashSet<_> = rectangle.iter().collect();
                                 let mut last_cell = rectangle_refs
                                     .difference(&bi_cell)
-                                    .collect::<Vec<&&(usize, usize)>>();
+                                    .collect::<Vec<&&Coords>>();
                                 let (x2, y2) = last_cell.pop().unwrap();
                                 //remove the bi-value possibilities from the other corner
                                 if val1.len() == 2 {

@@ -89,11 +89,11 @@ impl Sudoku {
         self.canonical_filled_board_hash
     }
 
-    pub fn get_values_swap(&self) -> HashMap<usize, (usize, usize)> {
+    pub fn get_values_swap(&self) -> HashMap<usize, Coords> {
         self.values_swap.clone()
     }
 
-    pub fn get_rows_swap(&self) -> HashMap<usize, (usize, usize)> {
+    pub fn get_rows_swap(&self) -> HashMap<usize, Coords> {
         self.rows_swap.clone()
     }
 
@@ -412,8 +412,8 @@ impl Sudoku {
 
     pub fn randomize(
         &mut self,
-        rows_swap: Option<HashMap<usize, (usize, usize)>>,
-        values_swap: Option<HashMap<usize, (usize, usize)>>,
+        rows_swap: Option<HashMap<usize, Coords>>,
+        values_swap: Option<HashMap<usize, Coords>>,
     ) -> Result<(), SudokuError> {
         if !self.is_filled() {
             return Err(SudokuError::InvalidState(format!(
@@ -729,7 +729,7 @@ impl Sudoku {
 
     fn _count_solutions(
         &mut self,
-        mut empty_cells: Vec<(usize, usize)>,
+        mut empty_cells: Vec<Coords>,
         max_solutions: Option<usize>,
         safe_possibilities: Option<&HashSet<Vec<bool>>>,
     ) -> usize {
