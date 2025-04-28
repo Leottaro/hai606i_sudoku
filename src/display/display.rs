@@ -19,6 +19,7 @@ const UNDO: &str = "Undo";
 
 const NEW_GAME: &str = "New Game";
 const CANCEL: &str = "Cancel";
+const EMPTY: &str = "Empty";
 const INCREASE: &str = "+";
 const DECREASE: &str = "-";
 const CREATE: &str = "Create";
@@ -98,7 +99,7 @@ impl SudokuDisplay {
         button_list.push(button_analyse);
 
         let new_game_btn = Button::new(
-            x_offset + (button_sizex + button_xpadding) * 3.0,
+            x_offset + (button_sizex + button_xpadding) * 2.5,
             y_offset - choosey_offset - button_sizey,
             button_sizex,
             button_sizey,
@@ -116,7 +117,7 @@ impl SudokuDisplay {
         button_list.push(new_game_btn);
 
         let mut new_game_cancel_btn = Button::new(
-            x_offset + (button_sizex + button_xpadding) * 3.0,
+            x_offset + (button_sizex + button_xpadding) * 2.5,
             y_offset - choosey_offset - button_sizey,
             button_sizex,
             button_sizey,
@@ -150,8 +151,8 @@ impl SudokuDisplay {
                 characters[0] = characters[0].to_uppercase().nth(0).unwrap();
                 characters.into_iter().collect::<String>()
             };
-            let offset = 4.0 + (i as f32);
 
+            let offset = 3.5 + (i as f32);
             let mut bouton = Button::new(
                 x_offset + (button_sizex + button_xpadding) * offset,
                 y_offset - choosey_offset - button_sizey,
@@ -173,7 +174,10 @@ impl SudokuDisplay {
             );
         }
 
-        let offset = 4.0 + pattern_list.len() as f32;
+        // ==========================================================
+        // ================== Increase / Decrease ===================
+        // ==========================================================
+        let offset = 3.5 + pattern_list.len() as f32;
         let decrease_string = DECREASE.to_string();
         let mut decrease_button = Button::new(
             x_offset + (button_sizex + button_xpadding) * offset,
@@ -216,16 +220,8 @@ impl SudokuDisplay {
         // ================== Difficulty Buttons ====================
         // ==========================================================
         for (i, difficulty) in SudokuDifficulty::iter().enumerate() {
-            let diff_string = {
-                let mut characters = difficulty
-                    .to_string()
-                    .to_lowercase()
-                    .chars()
-                    .collect::<Vec<_>>();
-                characters[0] = characters[0].to_uppercase().nth(0).unwrap();
-                characters.into_iter().collect::<String>()
-            };
-            let offset = 4.0 + (i as f32);
+            let diff_string = difficulty.to_string();
+            let offset = 3.5 + ((i + 1) as f32);
 
             let mut bouton = Button::new(
                 x_offset + (button_sizex + button_xpadding) * offset,
@@ -249,10 +245,36 @@ impl SudokuDisplay {
         }
 
         // ==========================================================
+        // ===================== Empty Button =======================
+        // ==========================================================
+        let offset = 3.5;
+        let mut bouton = Button::new(
+            x_offset + (button_sizex + button_xpadding) * offset,
+            y_offset - choosey_offset - button_sizey,
+            button_sizex,
+            button_sizey,
+            EMPTY.to_string(),
+            false,
+            scale_factor,
+        );
+        bouton.set_enabled(false);
+        button_list.push(bouton);
+        actions_boutons.insert(
+            EMPTY.to_string(),
+            Rc::new(Box::new(move |sudoku_display| {
+                sudoku_display.difficulty = SudokuDifficulty::Unknown;
+                sudoku_display.set_difficulty_btn(false);
+                sudoku_display.set_mode_btn(false);
+                sudoku_display.set_new_game_btn(true);
+                sudoku_display.new_game(true, false);
+            })),
+        );
+
+        // ==========================================================
         // ================== Create and Browse Buttons =============
         // ==========================================================
         let mut bouton_create = Button::new(
-            x_offset + (button_sizex + button_xpadding) * 4.0,
+            x_offset + (button_sizex + button_xpadding) * 3.5,
             y_offset - choosey_offset - button_sizey,
             button_sizex,
             button_sizey,
@@ -265,7 +287,7 @@ impl SudokuDisplay {
         actions_boutons.insert(
             CREATE.to_string(),
             Rc::new(Box::new(move |sudoku_display| {
-                sudoku_display.new_game(false);
+                sudoku_display.new_game(false, false);
             })),
         );
 
@@ -286,7 +308,7 @@ impl SudokuDisplay {
             Rc::new(Box::new(move |sudoku_display| {
                 sudoku_display.set_mode_btn(false);
                 sudoku_display.set_new_game_btn(true);
-                sudoku_display.new_game(true);
+                sudoku_display.new_game(false, true);
             })),
         );
         // ==========================================================
@@ -557,7 +579,9 @@ impl SudokuDisplay {
 
     fn set_difficulty_btn(&mut self, status: bool) {
         for button in self.button_list.iter_mut() {
-            if SudokuDifficulty::iter().any(|diff| button.text.eq(&diff.to_string())) {
+            if button.text == EMPTY
+                || SudokuDifficulty::iter().any(|diff| button.text.eq(&diff.to_string()))
+            {
                 button.set_enabled(status);
             }
         }
@@ -571,34 +595,41 @@ impl SudokuDisplay {
         }
     }
 
-    fn new_game(&mut self, browse: bool) {
+    fn new_game(&mut self, empty: bool, browse: bool) {
         self.init();
 
-        #[cfg(feature = "database")]
-        match (browse, &mut self.database) {
-            (true, Some(database)) => {
-                self.carpet = CarpetSudoku::load_game_from_db(
-                    database,
-                    self.carpet.get_n(),
-                    self.pattern,
-                    self.difficulty,
-                );
+        if empty {
+            self.carpet = CarpetSudoku::new(self.carpet.get_n(), self.pattern);
+        } else {
+            #[cfg(feature = "database")]
+            match (browse, &mut self.database) {
+                (true, Some(database)) => {
+                    self.carpet = CarpetSudoku::load_game_from_db(
+                        database,
+                        self.carpet.get_n(),
+                        self.pattern,
+                        self.difficulty,
+                    );
+                }
+                _ => {
+                    self.carpet = CarpetSudoku::generate_new(
+                        self.carpet.get_n(),
+                        self.pattern,
+                        self.difficulty,
+                    );
+                }
             }
-            _ => {
+
+            #[cfg(not(feature = "database"))]
+            {
+                if browse {
+                    eprintln!(
+					"SudokuDisplay Error: Cannot fetch a game from database because the database feature isn't enabled"
+				);
+                }
                 self.carpet =
                     CarpetSudoku::generate_new(self.carpet.get_n(), self.pattern, self.difficulty);
             }
-        }
-
-        #[cfg(not(feature = "database"))]
-        {
-            if browse {
-                eprintln!(
-					"SudokuDisplay Error: Cannot fetch a game from database because the database feature isn't enabled"
-				);
-            }
-            self.carpet =
-                CarpetSudoku::generate_new(self.carpet.get_n(), self.pattern, self.difficulty);
         }
 
         for button in self.button_list.iter_mut() {
@@ -641,7 +672,7 @@ impl SudokuDisplay {
             if button.text == NOTE
                 || button.text == UNDO
                 || button.text == FILL_NOTES
-                || button.text.starts_with("Lifes: ")
+                || button.text.contains("Lifes: ")
             {
                 button.set_enabled(mode == PLAY);
             }
@@ -1069,18 +1100,19 @@ impl SudokuDisplay {
         let n = self.carpet.get_n();
         let n2 = self.carpet.get_n2();
         let n_sudokus = self.carpet.get_n_sudokus();
+        let carpet_size = self.carpet.get_pattern().get_size();
 
         if let Some((sudoku_i, _, _)) = self.selected_cell {
-            let selected_x1 = (sudoku_i % n) * (n2 - n);
-            let selected_y1 = (sudoku_i / n) * (n2 - n);
+            let selected_x1 = (sudoku_i % carpet_size) * (n2 - n);
+            let selected_y1 = (sudoku_i / carpet_size) * (n2 - n);
 
             for i in 0..n_sudokus {
                 if i == sudoku_i {
                     continue;
                 }
 
-                let x1 = (i % n) * (n2 - n);
-                let y1 = (i / n) * (n2 - n);
+                let x1 = (i % carpet_size) * (n2 - n);
+                let y1 = (i / carpet_size) * (n2 - n);
                 self.draw_simple_sudoku(font.clone(), i, x1, y1).await;
 
                 self.draw_simple_sudoku(font.clone(), sudoku_i, selected_x1, selected_y1)
@@ -1088,8 +1120,8 @@ impl SudokuDisplay {
             }
         } else {
             for i in 0..n_sudokus {
-                let x1 = (i % n) * (n2 - n);
-                let y1 = (i / n) * (n2 - n);
+                let x1 = (i % carpet_size) * (n2 - n);
+                let y1 = (i / carpet_size) * (n2 - n);
                 self.draw_simple_sudoku(font.clone(), i, x1, y1).await;
             }
         }
