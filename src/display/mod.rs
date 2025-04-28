@@ -37,6 +37,7 @@ pub struct SudokuDisplay {
     lifes: usize,
     player_pboard: Vec<Vec<Vec<HashSet<usize>>>>,
     player_pboard_history: Vec<Vec<Vec<Vec<HashSet<usize>>>>>,
+    pattern_list: Vec<CarpetPattern>,
 
     #[cfg(feature = "database")]
     database: Option<Database>,

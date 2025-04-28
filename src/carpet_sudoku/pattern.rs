@@ -51,7 +51,7 @@ impl CarpetPattern {
             CarpetPattern::Double,
             CarpetPattern::Samurai,
             CarpetPattern::Diagonal(3),
-            CarpetPattern::Carpet(3),
+            CarpetPattern::Carpet(2),
         ]
         .into_iter()
     }

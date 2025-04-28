@@ -70,6 +70,10 @@ impl Button {
         self.scale_factor = scale_factor;
     }
 
+    pub fn set_text(&mut self, text: String) {
+        self.text = text;
+    }
+
     pub async fn draw(&self, font: Font) {
         let color = Color::from_hex(0xe4ebf2);
         let hover_color = Color::from_hex(0xd0dbe7);
