@@ -1384,48 +1384,66 @@ impl SudokuDisplay {
     pub fn process_single_key(&mut self, last_key_pressed: KeyCode) -> bool {
         match last_key_pressed {
             KeyCode::Kp1 | KeyCode::Key1 => {
-                if let Some(action) = self.actions_boutons.get("1").cloned() {
-                    action(self);
+                if self.wrong_cell_handle.lock().unwrap().is_none() {
+                    if let Some(action) = self.actions_boutons.get("1").cloned() {
+                        action(self);
+                    }
                 }
             }
             KeyCode::Kp2 | KeyCode::Key2 => {
-                if let Some(action) = self.actions_boutons.get("2").cloned() {
-                    action(self);
+                if self.wrong_cell_handle.lock().unwrap().is_none() {
+                    if let Some(action) = self.actions_boutons.get("2").cloned() {
+                        action(self);
+                    }
                 }
             }
             KeyCode::Kp3 | KeyCode::Key3 => {
-                if let Some(action) = self.actions_boutons.get("3").cloned() {
-                    action(self);
+                if self.wrong_cell_handle.lock().unwrap().is_none() {
+                    if let Some(action) = self.actions_boutons.get("3").cloned() {
+                        action(self);
+                    }
                 }
             }
             KeyCode::Kp4 | KeyCode::Key4 => {
-                if let Some(action) = self.actions_boutons.get("4").cloned() {
-                    action(self);
+                if self.wrong_cell_handle.lock().unwrap().is_none() {
+                    if let Some(action) = self.actions_boutons.get("4").cloned() {
+                        action(self);
+                    }
                 }
             }
             KeyCode::Kp5 | KeyCode::Key5 => {
-                if let Some(action) = self.actions_boutons.get("5").cloned() {
-                    action(self);
+                if self.wrong_cell_handle.lock().unwrap().is_none() {
+                    if let Some(action) = self.actions_boutons.get("5").cloned() {
+                        action(self);
+                    }
                 }
             }
             KeyCode::Kp6 | KeyCode::Key6 => {
-                if let Some(action) = self.actions_boutons.get("6").cloned() {
-                    action(self);
+                if self.wrong_cell_handle.lock().unwrap().is_none() {
+                    if let Some(action) = self.actions_boutons.get("6").cloned() {
+                        action(self);
+                    }
                 }
             }
             KeyCode::Kp7 | KeyCode::Key7 => {
-                if let Some(action) = self.actions_boutons.get("7").cloned() {
-                    action(self);
+                if self.wrong_cell_handle.lock().unwrap().is_none() {
+                    if let Some(action) = self.actions_boutons.get("7").cloned() {
+                        action(self);
+                    }
                 }
             }
             KeyCode::Kp8 | KeyCode::Key8 => {
-                if let Some(action) = self.actions_boutons.get("8").cloned() {
-                    action(self);
+                if self.wrong_cell_handle.lock().unwrap().is_none() {
+                    if let Some(action) = self.actions_boutons.get("8").cloned() {
+                        action(self);
+                    }
                 }
             }
             KeyCode::Kp9 | KeyCode::Key9 => {
-                if let Some(action) = self.actions_boutons.get("9").cloned() {
-                    action(self);
+                if self.wrong_cell_handle.lock().unwrap().is_none() {
+                    if let Some(action) = self.actions_boutons.get("9").cloned() {
+                        action(self);
+                    }
                 }
             }
             KeyCode::N => {
