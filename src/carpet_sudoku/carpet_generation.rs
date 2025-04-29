@@ -4,6 +4,7 @@ use rand::seq::SliceRandom;
 use std::{
     collections::HashSet,
     io::{stdout, Write},
+    ops::SubAssign,
     sync::{mpsc, Arc, Mutex},
     thread::{self, available_parallelism},
 };
@@ -39,6 +40,7 @@ struct CarpetGenerationThreadInput {
     pub rng: rand::rngs::ThreadRng,
     pub exploring_filled_cells: Vec<bool>,
     pub cells_to_remove: HashSet<(usize, usize, usize, usize)>,
+    pub max_depth: Option<usize>,
 }
 struct CarpetGenerationLogInfos {
     pub start_time: std::time::Instant,
@@ -272,6 +274,7 @@ impl CarpetSudoku {
                             rng: rng.clone(),
                             exploring_filled_cells: starting_exploring_filled_cells,
                             cells_to_remove: starting_cells_to_remove,
+                            max_depth: None,
                         };
 
                         if *thread_should_stop.lock().unwrap() {
@@ -313,7 +316,12 @@ impl CarpetSudoku {
                 let _ = join_handle.join();
             }
 
-            println!("{}", log_infos.lock().unwrap());
+            println!(
+                "{} {}: {}",
+                self.pattern,
+                aimed_difficulty,
+                log_infos.lock().unwrap()
+            );
             carpet.difficulty = aimed_difficulty;
             return Some(carpet);
         }
@@ -333,6 +341,14 @@ impl CarpetSudoku {
             return;
         }
 
+        // stop if the max depth is reached
+        if let Some(max_depth) = &mut carpet_generation_input.max_depth {
+            if *max_depth == 0 {
+                return;
+            }
+            max_depth.sub_assign(1);
+        }
+
         // skip if this possibility has already been explored
         if !already_explored_filled_cells
             .lock()
@@ -346,15 +362,13 @@ impl CarpetSudoku {
             return;
         }
 
-        // skip if this possibility is below the minimal filled cells count TODO:
-        // if carpet_generation_input.cells_to_remove.len() < /*self.sudokus.len() **/ (2 * self.n2 - 1)
-        // {
-        //     let mut log_infos = log_infos.lock().unwrap();
-        //     log_infos.minimal_filled_cells_counter += 1;
-        //     print!("{log_infos}          \r");
-        //     stdout().flush().unwrap();
-        //     return;
-        // }
+        if carpet_generation_input.cells_to_remove.len() < (2 * self.n2 - 1) {
+            let mut log_infos = log_infos.lock().unwrap();
+            log_infos.minimal_filled_cells_counter += 1;
+            print!("{log_infos}          \r");
+            stdout().flush().unwrap();
+            return;
+        }
 
         // printing progress
         {
