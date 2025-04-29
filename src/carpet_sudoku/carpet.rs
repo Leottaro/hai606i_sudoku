@@ -319,17 +319,18 @@ impl CarpetSudoku {
     pub fn rule_solve(
         &mut self,
         max_difficulty: Option<SudokuDifficulty>,
-    ) -> Result<(bool, bool), SudokuError> {
+    ) -> Result<(bool, bool, Vec<usize>), SudokuError> {
         let mut modified_possibility = false;
         let mut modified_value = false;
+        let mut rules_used = Vec::new();
         for sudoku in self.sudokus.iter_mut() {
             match sudoku.rule_solve(None, max_difficulty) {
-                Ok(Some(0 | 1)) => {
-                    modified_value = true;
+                Ok(Some(a)) => {
+                    if a == 0 || a == 1 {
+                        modified_value = true;
+                    }
                     modified_possibility = true;
-                }
-                Ok(Some(_)) => {
-                    modified_possibility = true;
+                    rules_used.push(a);
                 }
                 Ok(None) => (),
                 Err(err) => {
@@ -340,22 +341,27 @@ impl CarpetSudoku {
             self.difficulty = self.difficulty.max(sudoku.get_difficulty());
         }
         self.update_link()
-            .map(|_| (modified_possibility, modified_value))
+            .map(|_| (modified_possibility, modified_value, rules_used))
     }
 
     pub fn rule_solve_until(
         &mut self,
         rule_solve_result: (bool, bool),
         max_difficulty: Option<SudokuDifficulty>,
-    ) -> bool {
+    ) -> (bool, Vec<Vec<usize>>) {
+        let mut used_rules = Vec::new();
+        let (rule_solve_result1, rule_solve_result2) = rule_solve_result;
         let mut did_anything = false;
-        while let Ok(result) = self.rule_solve(max_difficulty) {
-            if result == rule_solve_result || result == (false, false) {
+        while let Ok((result1, result2, rules)) = self.rule_solve(max_difficulty) {
+            used_rules.push(rules);
+            if (result1, result2) == (rule_solve_result1, rule_solve_result2)
+                || (result1, result2) == (false, false)
+            {
                 break;
             }
             did_anything = true;
         }
-        did_anything
+        (did_anything, used_rules)
     }
 
     pub fn backtrack_solve(&mut self) -> bool {

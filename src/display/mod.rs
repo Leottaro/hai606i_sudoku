@@ -31,10 +31,12 @@ pub struct SudokuDisplay {
     background_defaite: Texture2D,
 
     mode: String,
+    analyse_text: Vec<String>,
     hovered_cell: Option<(usize, usize, usize)>,
     selected_cell: Option<(usize, usize, usize)>,
     note: bool,
     lifes: usize,
+    wrong_cell: Option<(usize, usize, usize, usize)>,
     player_pboard: Vec<Vec<Vec<HashSet<usize>>>>,
     player_pboard_history: Vec<Vec<Vec<Vec<HashSet<usize>>>>>,
     pattern_list: Vec<CarpetPattern>,

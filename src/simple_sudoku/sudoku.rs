@@ -599,6 +599,7 @@ impl Sudoku {
         specific_rules: Option<Range<usize>>,
         max_difficulty: Option<SudokuDifficulty>,
     ) -> Result<Option<usize>, SudokuError> {
+        let mut used_rule: Option<usize> = None;
         let rules: Vec<_> = Sudoku::RULES
             .iter()
             .filter(|(rule_id, difficulty, _rule)| {
@@ -619,23 +620,20 @@ impl Sudoku {
             })
             .collect();
 
-        let mut rule_used: Option<usize> = None;
         // try the rules and set the difficulty in consequence
         for &&(rule_id, difficulty, rule) in rules.iter() {
             // if the rule can't be applied, then pass to the next one
             if !rule(self).unwrap_or(false) {
                 continue;
             }
-
+            used_rule = Some(rule_id);
             debug_only!("règle {} appliquée", rule_id);
             debug_only!("Sudoku actuel:\n{}", self);
 
-            rule_used = Some(rule_id);
             self.difficulty = max(self.difficulty, difficulty);
             break;
         }
-
-        Ok(rule_used)
+        Ok(used_rule)
     }
 
     pub fn rule_solve_until(
