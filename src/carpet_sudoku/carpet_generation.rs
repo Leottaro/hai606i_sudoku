@@ -35,7 +35,7 @@ fn duration_to_string(duration: std::time::Duration) -> String {
     }
 }
 struct CarpetGenerationThreadInput {
-    pub tx: mpsc::Sender<CarpetSudoku>,
+    pub tx: mpsc::Sender<Option<CarpetSudoku>>,
     pub rng: rand::rngs::ThreadRng,
     pub exploring_filled_cells: Vec<bool>,
     pub cells_to_remove: HashSet<(usize, usize, usize, usize)>,
@@ -74,13 +74,20 @@ impl CarpetSudoku {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     pub fn generate_full(n: usize, pattern: CarpetPattern) -> Self {
+        Self::new(n, pattern).into_generate_full_from()
+    }
+
+    pub fn generate_full_from(&self) -> Self {
+        self.clone().into_generate_full_from()
+    }
+
+    pub fn into_generate_full_from(self) -> Self {
         loop {
-            let mut carpet = Self::new(n, pattern);
+            let mut carpet = self.clone();
             if !carpet._generate_canonical_from(0, 0, 0) {
-                panic!("pattern: {pattern} juste pas possible en fait");
+                panic!("pattern: {} juste pas possible en fait", carpet.pattern);
             }
             if carpet.count_solutions(Some(1)) == 0 {
-                println!("bloqué ici: {carpet}");
                 continue;
             }
 
@@ -155,14 +162,16 @@ impl CarpetSudoku {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     pub fn generate_new(n: usize, pattern: CarpetPattern, difficulty: SudokuDifficulty) -> Self {
-        Self::generate_full(n, pattern).into_generate_from(difficulty)
+        Self::generate_full(n, pattern)
+            .into_generate_from(difficulty)
+            .unwrap()
     }
 
-    pub fn generate_from(&self, aimed_difficulty: SudokuDifficulty) -> Self {
+    pub fn generate_from(&self, aimed_difficulty: SudokuDifficulty) -> Option<Self> {
         self.clone().into_generate_from(aimed_difficulty)
     }
 
-    pub fn into_generate_from(mut self, aimed_difficulty: SudokuDifficulty) -> Self {
+    pub fn into_generate_from(mut self, aimed_difficulty: SudokuDifficulty) -> Option<Self> {
         self.difficulty = SudokuDifficulty::Unknown;
 
         let temp = (0..self.sudokus.len() * self.n2 * self.n2)
@@ -197,12 +206,16 @@ impl CarpetSudoku {
         }));
         let starting_points = Arc::new(Mutex::new(
             (0..self.sudokus.len() * self.n2 * self.n2)
-                .map(|i| {
+                .filter_map(|i| {
                     let sudoku_id = i / (self.n2 * self.n2);
                     let cell_i = i - sudoku_id * self.n2 * self.n2;
                     let y = cell_i / self.n2;
                     let x = cell_i % self.n2;
                     let value = self.sudokus[sudoku_id].get_cell_value(x, y);
+
+                    if value == 0 {
+                        return None;
+                    }
 
                     let mut starting_carpet = self.clone();
                     let mut starting_exploring_filled_cells =
@@ -217,11 +230,11 @@ impl CarpetSudoku {
                         starting_cells_to_remove.remove(&(sudoku_id, x, y, value));
                     }
 
-                    (
+                    Some((
                         starting_carpet,
                         starting_exploring_filled_cells,
                         starting_cells_to_remove,
-                    )
+                    ))
                 })
                 .collect::<Vec<_>>()
                 .into_iter(),
@@ -271,7 +284,9 @@ impl CarpetSudoku {
                             &thread_should_stop,
                             &already_explored_filled_cells,
                             &log_infos,
-                        )
+                        );
+
+                        let _ = carpet_tx.send(None);
                     }
                 })
                 .unwrap();
@@ -279,8 +294,12 @@ impl CarpetSudoku {
             threads_join_handles.push(join_handle);
         }
 
-        loop {
-            let mut carpet = carpet_rx.recv().unwrap();
+        while starting_points.lock().unwrap().len() > 0 {
+            let carpet = carpet_rx.recv().unwrap();
+            if carpet.is_none() {
+                continue;
+            }
+            let mut carpet = carpet.unwrap();
 
             // if this possibility isn't unique
             if !self.is_unique() {
@@ -296,8 +315,9 @@ impl CarpetSudoku {
 
             println!("{}", log_infos.lock().unwrap());
             carpet.difficulty = aimed_difficulty;
-            return carpet;
+            return Some(carpet);
         }
+        None
     }
 
     fn _generate_from(
@@ -440,6 +460,6 @@ impl CarpetSudoku {
         }
 
         // we just found a solution !
-        carpet_generation_input.tx.send(self.clone()).unwrap();
+        carpet_generation_input.tx.send(Some(self.clone())).unwrap();
     }
 }

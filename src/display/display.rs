@@ -7,6 +7,7 @@ use super::{Button, ButtonFunction, SudokuDisplay};
 use macroquad::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use std::time::{Duration, Instant};
 
 const PLAY: &str = "Play";
 const ANALYSE: &str = "Analyse";
@@ -471,6 +472,7 @@ impl SudokuDisplay {
             pattern_list,
             correction_board,
             background_defaite,
+            last_processed_keys: None,
         }
     }
 
@@ -1295,7 +1297,80 @@ impl SudokuDisplay {
         }
     }
 
-    pub fn process_keyboard(&mut self, last_key_pressed: KeyCode) {
+    pub fn move_infinite_carpet(&mut self, key_pressed: &HashSet<KeyCode>) -> bool {
+        let carpet_size = match self.carpet.get_pattern() {
+            CarpetPattern::Carpet(size) => size,
+            _ => return false,
+        };
+        let n_sudokus = carpet_size * carpet_size;
+
+        if key_pressed.len() != 2 {
+            return false;
+        }
+        let alts = [KeyCode::LeftAlt, KeyCode::RightAlt]
+            .into_iter()
+            .collect::<HashSet<_>>();
+        let alts_pressed = key_pressed.intersection(&alts);
+        if alts_pressed.count() != 1 {
+            return false;
+        }
+        let arrows: HashSet<KeyCode> = [KeyCode::Left, KeyCode::Right, KeyCode::Up, KeyCode::Down]
+            .into_iter()
+            .collect::<HashSet<_>>();
+        let mut arrows_pressed = key_pressed.intersection(&arrows);
+        if arrows_pressed.clone().count() != 1 {
+            return false;
+        }
+
+        let arrow_pressed = *arrows_pressed.next().unwrap();
+        let sudokus_map = (0..n_sudokus)
+            .filter_map(move |sudoku_id| {
+                let y = sudoku_id / carpet_size;
+                let x = sudoku_id % carpet_size;
+                match arrow_pressed {
+                    KeyCode::Left => {
+                        if x == carpet_size - 1 {
+                            None
+                        } else {
+                            Some((sudoku_id, y * carpet_size + x + 1))
+                        }
+                    }
+                    KeyCode::Right => {
+                        if x == 0 {
+                            None
+                        } else {
+                            Some((sudoku_id, y * carpet_size + x - 1))
+                        }
+                    }
+                    KeyCode::Up => {
+                        if y == carpet_size - 1 {
+                            None
+                        } else {
+                            Some((sudoku_id, (y + 1) * carpet_size + x))
+                        }
+                    }
+                    KeyCode::Down => {
+                        if y == 0 {
+                            None
+                        } else {
+                            Some((sudoku_id, (y - 1) * carpet_size + x))
+                        }
+                    }
+                    _ => panic!(),
+                }
+            })
+            .collect::<HashMap<_, _>>();
+
+        if let Some(new_carpet) = self.carpet.carpet_move_from(sudokus_map) {
+            self.carpet = new_carpet;
+            true
+        } else {
+            eprintln!("couldn't move the carpet");
+            false
+        }
+    }
+
+    pub fn process_single_key(&mut self, last_key_pressed: KeyCode) -> bool {
         match last_key_pressed {
             KeyCode::Kp1 => {
                 if let Some(action) = self.actions_boutons.get("1").cloned() {
@@ -1409,7 +1484,7 @@ impl SudokuDisplay {
                             _ => (),
                         };
                         if modified {
-                            return;
+                            return true;
                         }
 
                         let direction = match last_key_pressed {
@@ -1492,8 +1567,9 @@ impl SudokuDisplay {
                     }
                 }
             }
-            _ => (),
+            _ => return false,
         }
+        true
     }
 
     pub async fn run(&mut self, font: Font) {
@@ -1547,9 +1623,7 @@ impl SudokuDisplay {
                     self.hovered_cell = Some(cell);
                 }
             }
-            None => {
-                self.hovered_cell = None;
-            }
+            None => self.hovered_cell = None,
         }
 
         let mut action = None;
@@ -1607,8 +1681,21 @@ impl SudokuDisplay {
         }
 
         // KEYBOARD LOGIC
-        if let Some(last_key_pressed) = get_last_key_pressed() {
-            self.process_keyboard(last_key_pressed);
+        let pressed_keys = get_keys_down();
+        if pressed_keys.is_empty() {
+            self.last_processed_keys = None;
+        }
+
+        if self.last_processed_keys.is_none()
+            || self.last_processed_keys.unwrap().elapsed() > Duration::from_millis(100)
+        {
+            self.last_processed_keys = None;
+            if self.carpet.get_difficulty() > SudokuDifficulty::Easy
+                && self.move_infinite_carpet(&pressed_keys)
+                || pressed_keys.iter().any(|key| self.process_single_key(*key))
+            {
+                self.last_processed_keys = Some(Instant::now());
+            }
         }
 
         // CARPET DRAWING
