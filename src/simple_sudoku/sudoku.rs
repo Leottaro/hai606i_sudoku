@@ -696,6 +696,10 @@ impl Sudoku {
 
     // UTILITY
 
+    pub fn is_empty(&self) -> bool {
+        self.filled_cells == 0
+    }
+
     pub fn is_filled(&self) -> bool {
         self.filled_cells == self.n2 * self.n2
     }
