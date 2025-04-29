@@ -10,6 +10,7 @@ use macroquad::texture::Texture2D;
 use std::{
     collections::{HashMap, HashSet},
     rc::Rc,
+    time::Instant,
 };
 
 #[cfg(feature = "database")]
@@ -29,6 +30,7 @@ pub struct SudokuDisplay {
     actions_boutons: HashMap<String, ButtonFunction>,
     background_victoire: Texture2D,
     background_defaite: Texture2D,
+    last_processed_keys: Option<Instant>,
 
     mode: String,
     analyse_text: Vec<String>,
