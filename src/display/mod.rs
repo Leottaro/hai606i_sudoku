@@ -10,6 +10,8 @@ use macroquad::texture::Texture2D;
 use std::{
     collections::{HashMap, HashSet},
     rc::Rc,
+    sync::{Arc, Mutex},
+    thread::JoinHandle,
     time::Instant,
 };
 
@@ -38,7 +40,8 @@ pub struct SudokuDisplay {
     selected_cell: Option<(usize, usize, usize)>,
     note: bool,
     lifes: usize,
-    wrong_cell: Option<(usize, usize, usize, usize)>,
+    wrong_cell: Arc<Mutex<Option<(usize, usize, usize, usize)>>>,
+    wrong_cell_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
     player_pboard: Vec<Vec<Vec<HashSet<usize>>>>,
     player_pboard_history: Vec<Vec<Vec<Vec<HashSet<usize>>>>>,
     pattern_list: Vec<CarpetPattern>,

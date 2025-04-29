@@ -109,7 +109,7 @@ impl Button {
             self.height * self.scale_factor,
             actual_color,
         );
-        let font_size = (((self.height * self.scale_factor) as u16) * 2) / 8;
+        let font_size = ((self.height * self.scale_factor) as u16) / 4;
         let text = self.text.clone();
         let text_dimensions = measure_text(&text, Some(&font), font_size, 1.0);
         let text_x = self.x * self.scale_factor
