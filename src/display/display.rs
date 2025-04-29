@@ -1,7 +1,7 @@
 use crate::carpet_sudoku::{CarpetPattern, CarpetSudoku};
 #[cfg(feature = "database")]
 use crate::database::Database;
-use crate::simple_sudoku::{Coords, SudokuDifficulty, SudokuGroups::*};
+use crate::simple_sudoku::{Coords, Sudoku, SudokuDifficulty, SudokuGroups::*};
 
 use super::{Button, ButtonFunction, SudokuDisplay};
 use macroquad::prelude::*;
@@ -693,7 +693,7 @@ impl SudokuDisplay {
         for used_rules in rules_used.iter() {
             for (sudoku, rule) in used_rules.iter().enumerate() {
                 self.analyse_text
-                    .push(format!("Sudoku {sudoku} solved with rule {rule}\n"));
+                    .push(format!("Sudoku {sudoku} solved with rule {}\n", Sudoku::get_rule_name_by_id(*rule)));
             }
         }
     }
