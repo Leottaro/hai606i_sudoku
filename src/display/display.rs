@@ -7,6 +7,7 @@ use super::{Button, ButtonFunction, SudokuDisplay};
 use macroquad::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 const PLAY: &str = "Play";
@@ -52,7 +53,8 @@ impl SudokuDisplay {
         let background_victoire = load_texture("./res/bg/bg-petit.png").await.unwrap();
         let background_defaite = load_texture("./res/bg/bg-def.png").await.unwrap();
         let lifes = 3;
-        let wrong_cell = None;
+        let wrong_cell = Arc::new(Mutex::new(None));
+        let wrong_cell_handle = Arc::new(Mutex::new(None));
         let difficulty = SudokuDifficulty::Easy;
         let pattern: CarpetPattern = CarpetPattern::Simple;
         let pattern_list = CarpetPattern::iter_simple().collect::<Vec<_>>();
@@ -349,7 +351,7 @@ impl SudokuDisplay {
         actions_boutons.insert(SOLVE.to_string(), Rc::new(Box::new(SudokuDisplay::solve)));
         button_list.push(button_solve);
 
-        let bx_offset = 150.0 * scale_factor;
+        let bx_offset = 100.0 * scale_factor;
         let button_note = Button::new(
             x_offset + grid_size + bx_offset,
             y_offset + (grid_size - (b_size + b_padding) * (carpet.get_n() as f32)) / 2.0
@@ -467,6 +469,7 @@ impl SudokuDisplay {
             background_victoire,
             lifes,
             wrong_cell,
+            wrong_cell_handle,
             difficulty,
             pattern,
             pattern_list,
@@ -689,13 +692,14 @@ impl SudokuDisplay {
 
     pub fn solve_once(&mut self) {
         let reponse = self.carpet.rule_solve_until((true, true), None);
-        println!("Response: {reponse:?}");
         let (_, rules_used) = reponse;
         self.analyse_text.clear();
         for used_rules in rules_used.iter() {
             for (sudoku, rule) in used_rules.iter().enumerate() {
-                self.analyse_text
-                    .push(format!("Sudoku {sudoku} solved with rule {}\n", Sudoku::get_rule_name_by_id(*rule)));
+                self.analyse_text.push(format!(
+                    "Sudoku {sudoku} used \"{}\"",
+                    Sudoku::get_rule_name_by_id(*rule)
+                ));
             }
         }
     }
@@ -787,11 +791,23 @@ impl SudokuDisplay {
                             self.player_pboard[sudoku_id][y][x].remove(&value);
                         }
                     }
-                    self.wrong_cell = None;
+                    *self.wrong_cell.lock().unwrap() = None;
                 } else if current_value == 0 {
                     self.lifes -= 1;
-                    self.wrong_cell = Some((sudoku_i, x1, y1, value));
-                    println!("Wrong cell: {sudoku_i} {x1} {y1}");
+                    let old_pboard = self.player_pboard.clone();
+                    if self.player_pboard[sudoku_i][y1][x1].remove(&value) {
+                        self.player_pboard_history.push(old_pboard);
+                    }
+                    *self.wrong_cell.lock().unwrap() = Some((sudoku_i, x1, y1, value));
+
+                    let thread_wrong_cell = Arc::clone(&self.wrong_cell);
+                    let thread_wrong_cell_handle = Arc::clone(&self.wrong_cell_handle);
+                    let handle = std::thread::spawn(move || {
+                        std::thread::sleep(Duration::from_secs(1));
+                        *thread_wrong_cell.lock().unwrap() = None;
+                        *thread_wrong_cell_handle.lock().unwrap() = None;
+                    });
+                    *self.wrong_cell_handle.lock().unwrap() = Some(handle);
                 }
             }
         }
@@ -863,7 +879,7 @@ impl SudokuDisplay {
         }
 
         // draw the wrong cell
-        if let Some((wrong_sudoku, wrong_x, wrong_y, _)) = self.wrong_cell {
+        if let Some((wrong_sudoku, wrong_x, wrong_y, _)) = *self.wrong_cell.lock().unwrap() {
             if wrong_sudoku == sudoku_i {
                 draw_rectangle(
                     (wrong_x as f32) * self.pixel_per_cell + sudoku_x_offset,
@@ -874,7 +890,6 @@ impl SudokuDisplay {
                 );
             }
         }
-
 
         // draw grid
         for i in 0..n2 {
@@ -1248,15 +1263,11 @@ impl SudokuDisplay {
                             button.set_clicked(false);
 
                             if let Some((wrong_sudoku, wrong_x, wrong_y, wrong_value)) =
-                                self.wrong_cell
+                                *self.wrong_cell.lock().unwrap()
                             {
-                                println!(
-                                    "Wrong cell: {wrong_sudoku} {wrong_x} {wrong_y} {wrong_value}"
-                                );
                                 if (wrong_sudoku, wrong_x, wrong_y) == (sudoku_i, x, y)
                                     && button.text == wrong_value.to_string()
                                 {
-                                    println!("found the wrong cell");
                                     button.set_clickable(false);
                                 } else {
                                     button.set_clickable(true);
@@ -1372,47 +1383,47 @@ impl SudokuDisplay {
 
     pub fn process_single_key(&mut self, last_key_pressed: KeyCode) -> bool {
         match last_key_pressed {
-            KeyCode::Kp1 => {
+            KeyCode::Kp1 | KeyCode::Key1 => {
                 if let Some(action) = self.actions_boutons.get("1").cloned() {
                     action(self);
                 }
             }
-            KeyCode::Kp2 => {
+            KeyCode::Kp2 | KeyCode::Key2 => {
                 if let Some(action) = self.actions_boutons.get("2").cloned() {
                     action(self);
                 }
             }
-            KeyCode::Kp3 => {
+            KeyCode::Kp3 | KeyCode::Key3 => {
                 if let Some(action) = self.actions_boutons.get("3").cloned() {
                     action(self);
                 }
             }
-            KeyCode::Kp4 => {
+            KeyCode::Kp4 | KeyCode::Key4 => {
                 if let Some(action) = self.actions_boutons.get("4").cloned() {
                     action(self);
                 }
             }
-            KeyCode::Kp5 => {
+            KeyCode::Kp5 | KeyCode::Key5 => {
                 if let Some(action) = self.actions_boutons.get("5").cloned() {
                     action(self);
                 }
             }
-            KeyCode::Kp6 => {
+            KeyCode::Kp6 | KeyCode::Key6 => {
                 if let Some(action) = self.actions_boutons.get("6").cloned() {
                     action(self);
                 }
             }
-            KeyCode::Kp7 => {
+            KeyCode::Kp7 | KeyCode::Key7 => {
                 if let Some(action) = self.actions_boutons.get("7").cloned() {
                     action(self);
                 }
             }
-            KeyCode::Kp8 => {
+            KeyCode::Kp8 | KeyCode::Key8 => {
                 if let Some(action) = self.actions_boutons.get("8").cloned() {
                     action(self);
                 }
             }
-            KeyCode::Kp9 => {
+            KeyCode::Kp9 | KeyCode::Key9 => {
                 if let Some(action) = self.actions_boutons.get("9").cloned() {
                     action(self);
                 }
@@ -1645,28 +1656,34 @@ impl SudokuDisplay {
             if !bouton.enabled() {
                 continue;
             }
+
             if self.actions_boutons.contains_key(&bouton.text)
                 && mouse_x > bouton.x()
                 && mouse_x < bouton.x() + bouton.width()
                 && mouse_y > bouton.y()
                 && mouse_y < bouton.y() + bouton.height()
             {
-                if is_mouse_button_pressed(MouseButton::Left) && bouton.clickable {
-                    action = Some(Rc::clone(self.actions_boutons.get(&bouton.text).unwrap()));
+                if self.wrong_cell_handle.lock().unwrap().is_none()
+                    || bouton.text.chars().any(|c| !c.is_ascii_digit())
+                {
+                    if is_mouse_button_pressed(MouseButton::Left) && bouton.clickable {
+                        action = Some(Rc::clone(self.actions_boutons.get(&bouton.text).unwrap()));
+                    }
+                    bouton.set_hover(true);
                 }
-                bouton.set_hover(true);
             } else {
                 bouton.set_hover(false);
             }
             bouton.draw(self.font.clone()).await;
         }
+
         if let Some(action) = action {
             action(self);
         }
 
         if self.mode == ANALYSE {
-            let font_size = self.max_height / 30.;
-            let bx_offset = 150.0 * self.scale_factor;
+            let font_size = self.pixel_per_cell / 3.;
+            let bx_offset = 100. * self.scale_factor - self.pixel_per_cell / 2.;
             for (index, rule) in self.analyse_text.iter().enumerate() {
                 draw_text(
                     rule,
