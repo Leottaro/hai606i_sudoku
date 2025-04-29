@@ -67,6 +67,17 @@ impl CarpetPattern {
         }
     }
 
+    pub fn get_size(&self) -> usize {
+        match self {
+            CarpetPattern::Simple => 1,
+            CarpetPattern::Double => 2,
+            CarpetPattern::Diagonal(size) => *size,
+            CarpetPattern::Samurai => 5,
+            CarpetPattern::Carpet(size) => *size,
+            CarpetPattern::Custom(size) => *size,
+        }
+    }
+
     pub fn get_raw_links(&self, n: usize) -> Vec<RawLink> {
         let up_left = 0;
         let up_right = n - 1;

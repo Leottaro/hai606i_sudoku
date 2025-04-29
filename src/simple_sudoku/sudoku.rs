@@ -614,6 +614,7 @@ impl Sudoku {
         specific_rules: Option<Range<usize>>,
         max_difficulty: Option<SudokuDifficulty>,
     ) -> Result<Option<usize>, SudokuError> {
+        let mut used_rule: Option<usize> = None;
         let rules: Vec<_> = Sudoku::RULES
             .iter()
             .filter(|(rule_id, difficulty, _rule)| {
@@ -634,23 +635,20 @@ impl Sudoku {
             })
             .collect();
 
-        let mut rule_used: Option<usize> = None;
         // try the rules and set the difficulty in consequence
         for &&(rule_id, difficulty, rule) in rules.iter() {
             // if the rule can't be applied, then pass to the next one
             if !rule(self).unwrap_or(false) {
                 continue;
             }
-
+            used_rule = Some(rule_id);
             debug_only!("règle {} appliquée", rule_id);
             debug_only!("Sudoku actuel:\n{}", self);
 
-            rule_used = Some(rule_id);
             self.difficulty = max(self.difficulty, difficulty);
             break;
         }
-
-        Ok(rule_used)
+        Ok(used_rule)
     }
 
     pub fn rule_solve_until(
@@ -710,6 +708,10 @@ impl Sudoku {
     }
 
     // UTILITY
+
+    pub fn is_empty(&self) -> bool {
+        self.filled_cells == 0
+    }
 
     pub fn is_filled(&self) -> bool {
         self.filled_cells == self.n2 * self.n2
@@ -1045,6 +1047,16 @@ impl Sudoku {
     ) -> Self {
         database
             .get_random_canonical_sudoku_game(n as i16, difficulty as i16)
+            .unwrap()
+    }
+
+    pub fn load_minimal_game_from_db(
+        database: &mut Database,
+        n: usize,
+        difficulty: SudokuDifficulty,
+    ) -> Self {
+        database
+            .get_random_minimal_canonical_sudoku_game(n as i16, difficulty as i16)
             .unwrap()
     }
 }
