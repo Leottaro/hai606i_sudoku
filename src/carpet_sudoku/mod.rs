@@ -27,5 +27,7 @@ pub enum CarpetPattern {
     Samurai,
     Diagonal(usize),
     Carpet(usize),
+	DenseDiagonal(usize)
+	DenseCarpet(usize),
     Custom(usize),
 }

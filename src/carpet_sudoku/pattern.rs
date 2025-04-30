@@ -16,6 +16,8 @@ impl CarpetPattern {
             CarpetPattern::Samurai => (2, None),
             CarpetPattern::Diagonal(n) => (3, Some(*n as i16)),
             CarpetPattern::Carpet(n) => (4, Some(*n as i16)),
+            CarpetPattern::DenseDiagonal(n) => (5, Some(*n as i16)),
+            CarpetPattern::DenseCarpet(n) => (6, Some(*n as i16)),
             CarpetPattern::Custom(_) => panic!("Custom pattern not supported in DB"),
         }
     }
@@ -27,6 +29,8 @@ impl CarpetPattern {
             (2, None) => CarpetPattern::Samurai,
             (3, Some(n)) => CarpetPattern::Diagonal(n as usize),
             (4, Some(n)) => CarpetPattern::Carpet(n as usize),
+            (5, Some(n)) => CarpetPattern::DenseDiagonal(n as usize),
+            (6, Some(n)) => CarpetPattern::DenseCarpet(n as usize),
             (a, b) => panic!("pattern:{a} & pattern_size:{:?} not recognized !", b),
         }
     }
@@ -36,11 +40,16 @@ impl CarpetPattern {
             CarpetPattern::Simple,
             CarpetPattern::Double,
             CarpetPattern::Diagonal(3),
+			CarpetPattern::DenseDiagonal(3),
             CarpetPattern::Diagonal(4),
-            CarpetPattern::Diagonal(5),
-            CarpetPattern::Samurai,
+            CarpetPattern::DenseDiagonal(4),
             CarpetPattern::Carpet(2),
+            CarpetPattern::DenseCarpet(2),
+            CarpetPattern::Samurai,
+            CarpetPattern::Diagonal(5),
+            CarpetPattern::DenseDiagonal(5),
             CarpetPattern::Carpet(3),
+            CarpetPattern::DenseCarpet(3),
         ]
         .into_iter()
     }
@@ -52,6 +61,8 @@ impl CarpetPattern {
             CarpetPattern::Samurai,
             CarpetPattern::Diagonal(3),
             CarpetPattern::Carpet(2),
+            CarpetPattern::DenseDiagonal(3),
+            CarpetPattern::DenseCarpet(2),
         ]
         .into_iter()
     }
@@ -60,9 +71,9 @@ impl CarpetPattern {
         match self {
             CarpetPattern::Simple => 1,
             CarpetPattern::Double => 2,
-            CarpetPattern::Diagonal(size) => *size,
             CarpetPattern::Samurai => 5,
-            CarpetPattern::Carpet(size) => *size * *size,
+            CarpetPattern::Diagonal(size) | CarpetPattern::DenseDiagonal(size) => *size,
+            CarpetPattern::Carpet(size) | CarpetPattern::DenseCarpet(size) => *size * *size,
             CarpetPattern::Custom(size) => *size,
         }
     }
@@ -71,9 +82,9 @@ impl CarpetPattern {
         match self {
             CarpetPattern::Simple => 1,
             CarpetPattern::Double => 2,
-            CarpetPattern::Diagonal(size) => *size,
             CarpetPattern::Samurai => 5,
-            CarpetPattern::Carpet(size) => *size,
+            CarpetPattern::Diagonal(size) | CarpetPattern::DenseDiagonal(size) => *size,
+            CarpetPattern::Carpet(size) | CarpetPattern::DenseCarpet(size) => *size,
             CarpetPattern::Custom(size) => *size,
         }
     }
@@ -87,18 +98,24 @@ impl CarpetPattern {
         match self {
             CarpetPattern::Simple => vec![],
             CarpetPattern::Double => vec![((0, up_right), (1, bottom_left))],
+			CarpetPattern::Samurai => vec![
+				((0, up_left), (1, bottom_right)),
+				((0, up_right), (2, bottom_left)),
+				((0, bottom_left), (3, up_right)),
+				((0, bottom_right), (4, up_left)),
+			],
             CarpetPattern::Diagonal(size) => {
                 let size = *size;
                 (1..size)
                     .map(|i| ((i - 1, up_right), (i, bottom_left)))
                     .collect()
             }
-            CarpetPattern::Samurai => vec![
-                ((0, up_left), (1, bottom_right)),
-                ((0, up_right), (2, bottom_left)),
-                ((0, bottom_left), (3, up_right)),
-                ((0, bottom_right), (4, up_left)),
-            ],
+			CarpetPattern::DenseDiagonal(size) => {
+                let size = *size;
+                (1..size)
+                    .map(|i| ((i - 1, up_right), (i, bottom_left)))
+                    .collect()
+            }
             CarpetPattern::Carpet(size) => {
                 let size = *size;
                 let mut links = Vec::new();
