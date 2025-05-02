@@ -10,13 +10,15 @@ static PATTERN_SUB_LINKS: LazyLock<RwLock<HashMap<PatternSubLinksKey, Vec<Carpet
 
 impl CarpetPattern {
     pub fn to_db(&self) -> (i16, Option<i16>) {
-        match self {
+        match *self {
             CarpetPattern::Simple => (0, None),
             CarpetPattern::Samurai => (1, None),
-            CarpetPattern::Diagonal(n) => (2, Some(*n as i16)),
-            CarpetPattern::Carpet(n) => (3, Some(*n as i16)),
-            CarpetPattern::DenseDiagonal(n) => (4, Some(*n as i16)),
-            CarpetPattern::DenseCarpet(n) => (5, Some(*n as i16)),
+            CarpetPattern::Diagonal(size) => (2, Some(size as i16)),
+            CarpetPattern::DenseDiagonal(size) => (3, Some(size as i16)),
+            CarpetPattern::Carpet(size) => (4, Some(size as i16)),
+            CarpetPattern::DenseCarpet(size) => (5, Some(size as i16)),
+            CarpetPattern::Thorus(size) => (6, Some(size as i16)),
+            CarpetPattern::DenseThorus(size) => (7, Some(size as i16)),
             CarpetPattern::Custom(_) => panic!("Custom pattern not supported in DB"),
         }
     }
@@ -26,9 +28,11 @@ impl CarpetPattern {
             (0, None) => CarpetPattern::Simple,
             (1, None) => CarpetPattern::Samurai,
             (2, Some(n)) => CarpetPattern::Diagonal(n as usize),
-            (3, Some(n)) => CarpetPattern::Carpet(n as usize),
-            (4, Some(n)) => CarpetPattern::DenseDiagonal(n as usize),
+            (3, Some(n)) => CarpetPattern::DenseDiagonal(n as usize),
+            (4, Some(n)) => CarpetPattern::Carpet(n as usize),
             (5, Some(n)) => CarpetPattern::DenseCarpet(n as usize),
+            (6, Some(n)) => CarpetPattern::Thorus(n as usize),
+            (7, Some(n)) => CarpetPattern::DenseThorus(n as usize),
             (a, b) => panic!("pattern:{a} & pattern_size:{:?} not recognized !", b),
         }
     }
@@ -43,12 +47,16 @@ impl CarpetPattern {
             CarpetPattern::Diagonal(4),
             CarpetPattern::DenseDiagonal(4),
             CarpetPattern::Carpet(2),
+            CarpetPattern::Thorus(2),
             CarpetPattern::DenseCarpet(2),
+            CarpetPattern::DenseThorus(2),
             CarpetPattern::Samurai,
             CarpetPattern::Diagonal(5),
             CarpetPattern::DenseDiagonal(5),
             CarpetPattern::Carpet(3),
+            CarpetPattern::Thorus(3),
             CarpetPattern::DenseCarpet(3),
+            CarpetPattern::DenseThorus(3),
         ]
         .into_iter()
     }
@@ -58,30 +66,40 @@ impl CarpetPattern {
             CarpetPattern::Simple,
             CarpetPattern::Samurai,
             CarpetPattern::Diagonal(2),
-            CarpetPattern::Carpet(2),
             CarpetPattern::DenseDiagonal(2),
+            CarpetPattern::Carpet(2),
             CarpetPattern::DenseCarpet(2),
+            CarpetPattern::Thorus(2),
+            CarpetPattern::DenseThorus(2),
         ]
         .into_iter()
     }
 
     pub fn get_n_sudokus(&self) -> usize {
-        match self {
+        match *self {
             CarpetPattern::Simple => 1,
             CarpetPattern::Samurai => 5,
-            CarpetPattern::Diagonal(size) | CarpetPattern::DenseDiagonal(size) => *size,
-            CarpetPattern::Carpet(size) | CarpetPattern::DenseCarpet(size) => *size * *size,
-            CarpetPattern::Custom(size) => *size,
+            CarpetPattern::Diagonal(size)
+            | CarpetPattern::DenseDiagonal(size)
+            | CarpetPattern::Custom(size) => size,
+            CarpetPattern::Carpet(size)
+            | CarpetPattern::DenseCarpet(size)
+            | CarpetPattern::Thorus(size)
+            | CarpetPattern::DenseThorus(size) => size * size,
         }
     }
 
     pub fn get_size(&self) -> usize {
-        match self {
+        match *self {
             CarpetPattern::Simple => 1,
             CarpetPattern::Samurai => 5,
-            CarpetPattern::Diagonal(size) | CarpetPattern::DenseDiagonal(size) => *size,
-            CarpetPattern::Carpet(size) | CarpetPattern::DenseCarpet(size) => *size,
-            CarpetPattern::Custom(size) => *size,
+            CarpetPattern::Diagonal(size)
+            | CarpetPattern::DenseDiagonal(size)
+            | CarpetPattern::Carpet(size)
+            | CarpetPattern::DenseCarpet(size)
+            | CarpetPattern::Thorus(size)
+            | CarpetPattern::DenseThorus(size)
+            | CarpetPattern::Custom(size) => size,
         }
     }
 
@@ -91,6 +109,8 @@ impl CarpetPattern {
             | CarpetPattern::Carpet(size)
             | CarpetPattern::DenseDiagonal(size)
             | CarpetPattern::DenseCarpet(size)
+            | CarpetPattern::Thorus(size)
+            | CarpetPattern::DenseThorus(size)
             | CarpetPattern::Custom(size) => *size = new_size,
             _ => (),
         }
@@ -144,6 +164,33 @@ impl CarpetPattern {
                             let corner_i = (y + 1) * size + x - 1;
                             links.push(((sudoku_i, bottom_left), (corner_i, up_right)));
                         }
+                    }
+                }
+                links
+            }
+            CarpetPattern::Thorus(size) => {
+                let mut links = Vec::new();
+                for y in 0..size {
+                    for x in 0..size {
+                        let sudoku_i = y * size + x;
+
+                        let bottom_i = ((y + 1) % size) * size + x;
+                        links.extend(
+                            (0..n).map(|k| ((sudoku_i, bottom_left + k), (bottom_i, up_left + k))),
+                        );
+
+                        let right_i = y * size + (x + 1) % size;
+                        links.extend(
+                            (0..n).map(|k| {
+                                ((sudoku_i, n * k + up_right), (right_i, n * k + up_left))
+                            }),
+                        );
+
+                        let corner_i = ((y + 1) % size) * size + (x + 1) % size;
+                        links.push(((sudoku_i, bottom_right), (corner_i, up_left)));
+                        let corner_i =
+                            ((y + 1) % size) * size + if x == 0 { size - 1 } else { x - 1 };
+                        links.push(((sudoku_i, bottom_left), (corner_i, up_right)));
                     }
                 }
                 links
@@ -254,7 +301,77 @@ impl CarpetPattern {
                 }
                 links
             }
-            CarpetPattern::Custom(_) => panic!("Custom pattern not supported in DB"),
+            CarpetPattern::DenseThorus(size) => {
+                let mut links = Vec::new();
+                for y in 0..size {
+                    for x in 0..size {
+                        let sudoku_i = y * size + x;
+
+                        for dx in 1..n {
+                            let right_i = y * size + (x + dx) % size;
+                            for y1 in 0..n {
+                                let y2 = y1;
+                                for x1 in dx..n {
+                                    let x2 = x1 - dx;
+                                    links.push((
+                                        (sudoku_i, (y1 * n) + x1),
+                                        (right_i, (y2 * n) + x2),
+                                    ));
+                                }
+                            }
+                        }
+
+                        for dy in 1..n {
+                            let bottom_i = ((y + dy) % size) * size + x;
+                            for y1 in dy..n {
+                                let y2 = y1 - dy;
+                                for x1 in 0..n {
+                                    let x2 = x1;
+                                    links.push((
+                                        (sudoku_i, (y1 * n) + x1),
+                                        (bottom_i, (y2 * n) + x2),
+                                    ));
+                                }
+                            }
+                        }
+
+                        for dy in 1..n {
+                            for dx in 1..n {
+                                let corner_i = ((y + dy) % size) * size + (x + dx) % size;
+                                for y1 in dy..n {
+                                    let y2 = y1 - dy;
+                                    for x1 in dx..n {
+                                        let x2 = x1 - dx;
+                                        links.push((
+                                            (sudoku_i, (y1 * n) + x1),
+                                            (corner_i, (y2 * n) + x2),
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+
+                        for dy in 1..n {
+                            for dx in 1..n {
+                                let corner_i = ((y + dy) % size) * size
+                                    + if x < dx { size - dx } else { x - dx };
+                                for y1 in dy..n {
+                                    let y2 = y1 - dy;
+                                    for x1 in 0..n - dx {
+                                        let x2 = x1 + dx;
+                                        links.push((
+                                            (sudoku_i, (y1 * n) + x1),
+                                            (corner_i, (y2 * n) + x2),
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                links
+            }
+            CarpetPattern::Custom(_) => vec![],
         }
     }
 
@@ -392,9 +509,11 @@ impl std::fmt::Display for CarpetPattern {
             CarpetPattern::Simple => write!(f, "Simple"),
             CarpetPattern::Samurai => write!(f, "Samurai"),
             CarpetPattern::Diagonal(size) => write!(f, "Diagonal({size})"),
-            CarpetPattern::Carpet(size) => write!(f, "Carpet({size})"),
             CarpetPattern::DenseDiagonal(size) => write!(f, "DenseDiagonal({size})"),
+            CarpetPattern::Carpet(size) => write!(f, "Carpet({size})"),
             CarpetPattern::DenseCarpet(size) => write!(f, "DenseCarpet({size})"),
+            CarpetPattern::Thorus(size) => write!(f, "Thorus({size})"),
+            CarpetPattern::DenseThorus(size) => write!(f, "DenseThorus({size})"),
             CarpetPattern::Custom(size) => write!(f, "Custom({size})"),
         }
     }
