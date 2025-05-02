@@ -141,9 +141,7 @@ impl CarpetSudoku {
                 }
             }
 
-            if self.count_solutions(Some(1)) > 0
-                && self._generate_canonical_from(sudoku_id, x + 1, y)
-            {
+            if self._generate_canonical_from(sudoku_id, x + 1, y) {
                 return true;
             }
 
