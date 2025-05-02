@@ -136,8 +136,7 @@ impl CarpetSudoku {
 
     pub fn new(n: usize, pattern: CarpetPattern) -> Self {
         let pattern = match pattern {
-            CarpetPattern::Diagonal(1) | CarpetPattern::Carpet(1) => CarpetPattern::Simple,
-            CarpetPattern::Diagonal(2) => CarpetPattern::Double,
+            CarpetPattern::Diagonal(1) | CarpetPattern::Carpet(1) | CarpetPattern::DenseDiagonal(1) | CarpetPattern::DenseCarpet(1) => CarpetPattern::Simple,
 			CarpetPattern::Custom(_) => panic!("Can't call CarpetSudoku::new() with a CarpetPattern::Custom pattern ! Try using CarpetSudoku::new_custom() instead."),
             pattern => pattern,
         };
