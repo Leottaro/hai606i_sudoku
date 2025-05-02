@@ -62,16 +62,11 @@ impl SudokuDisplay {
         // ================== Buttons ==================
         let button_sizex = 150.0 * scale_factor;
         let button_sizey = 100.0 * scale_factor;
-        let button_xpadding = 10.0 * scale_factor;
-        let choosey_offset = (y_offset - 100.0) / 2.0;
         let b_padding = 10.0;
-        let b_size = (pixel_per_cell * 3.0) / 2.0;
-
-        let button_3rd = b_size * n as f32 / 3.0;
 
         let bouton_play = Button::new(
-            x_offset,
-            y_offset - choosey_offset - button_sizey,
+            2.0 * b_padding,
+            2.0 * b_padding,
             button_sizex,
             button_sizey,
             PLAY.to_string(),
@@ -87,8 +82,8 @@ impl SudokuDisplay {
         button_list.push(bouton_play);
 
         let button_analyse = Button::new(
-            x_offset + button_sizex + button_xpadding,
-            y_offset - choosey_offset - button_sizey,
+            2.0 * b_padding + b_padding + button_sizex,
+            2.0 * b_padding,
             button_sizex,
             button_sizey,
             ANALYSE.to_string(),
@@ -103,11 +98,15 @@ impl SudokuDisplay {
         );
         button_list.push(button_analyse);
 
+        let game_button_sizex = x_offset - b_padding * 4.;
+        let game_button_sizey = button_sizey * 0.9;
+        let game_button_offsety = 4.0 * b_padding + button_sizey;
+
         let new_game_btn = Button::new(
-            x_offset + (button_sizex + button_xpadding) * 2.5,
-            y_offset - choosey_offset - button_sizey,
-            button_sizex,
-            button_sizey,
+            2.0 * b_padding,
+            game_button_offsety,
+            game_button_sizex,
+            game_button_sizey,
             NEW_GAME.to_string(),
             false,
             scale_factor,
@@ -122,10 +121,10 @@ impl SudokuDisplay {
         button_list.push(new_game_btn);
 
         let mut new_game_cancel_btn = Button::new(
-            x_offset + (button_sizex + button_xpadding) * 2.5,
-            y_offset - choosey_offset - button_sizey,
-            button_sizex,
-            button_sizey,
+            2.0 * b_padding,
+            game_button_offsety,
+            game_button_sizex,
+            game_button_sizey,
             CANCEL.to_string(),
             false,
             scale_factor,
@@ -146,13 +145,13 @@ impl SudokuDisplay {
         // ==========================================================
         // ================= Sudoku Pattern Buttons =================
         // ==========================================================
+
         for (i, &pattern) in pattern_list.iter().enumerate() {
-            let offset = 3.5 + (i as f32);
             let mut bouton = Button::new(
-                x_offset + (button_sizex + button_xpadding) * offset,
-                y_offset - choosey_offset - button_sizey,
-                button_sizex,
-                button_sizey,
+                2.0 * b_padding,
+                game_button_offsety + ((i + 1) as f32) * (b_padding + game_button_sizey),
+                game_button_sizex,
+                game_button_sizey,
                 pattern.to_string(),
                 false,
                 scale_factor,
@@ -172,13 +171,13 @@ impl SudokuDisplay {
         // ==========================================================
         // ================== Increase / Decrease ===================
         // ==========================================================
-        let offset = 3.5 + pattern_list.len() as f32;
         let decrease_string = DECREASE.to_string();
         let mut decrease_button = Button::new(
-            x_offset + (button_sizex + button_xpadding) * offset,
-            y_offset - choosey_offset - button_sizey / 2.0,
-            button_sizex / 3.0,
-            button_sizey / 2.0,
+            2.0 * b_padding,
+            game_button_offsety
+                + ((pattern_list.len() + 1) as f32) * (b_padding + game_button_sizey),
+            game_button_sizex / 2.,
+            game_button_sizey / 3.,
             decrease_string.clone(),
             false,
             scale_factor,
@@ -194,10 +193,11 @@ impl SudokuDisplay {
 
         let increase_string = INCREASE.to_string();
         let mut increase_button = Button::new(
-            x_offset + (button_sizex + button_xpadding) * offset,
-            y_offset - choosey_offset - button_sizey,
-            button_sizex / 3.0,
-            button_sizey / 2.0,
+            2.0 * b_padding + game_button_sizex / 2.,
+            game_button_offsety
+                + ((pattern_list.len() + 1) as f32) * (b_padding + game_button_sizey),
+            game_button_sizex / 2.,
+            game_button_sizey / 3.,
             increase_string.clone(),
             false,
             scale_factor,
@@ -216,13 +216,11 @@ impl SudokuDisplay {
         // ==========================================================
         for (i, difficulty) in SudokuDifficulty::iter().enumerate() {
             let diff_string = difficulty.to_string();
-            let offset = 3.5 + ((i + 1) as f32);
-
             let mut bouton = Button::new(
-                x_offset + (button_sizex + button_xpadding) * offset,
-                y_offset - choosey_offset - button_sizey,
-                button_sizex,
-                button_sizey,
+                2.0 * b_padding,
+                game_button_offsety + ((i + 2) as f32) * (b_padding + game_button_sizey),
+                game_button_sizex,
+                game_button_sizey,
                 diff_string.clone(),
                 false,
                 scale_factor,
@@ -242,12 +240,11 @@ impl SudokuDisplay {
         // ==========================================================
         // ===================== Empty Button =======================
         // ==========================================================
-        let offset = 3.5;
         let mut bouton = Button::new(
-            x_offset + (button_sizex + button_xpadding) * offset,
-            y_offset - choosey_offset - button_sizey,
-            button_sizex,
-            button_sizey,
+            2.0 * b_padding,
+            game_button_offsety + b_padding + game_button_sizey,
+            game_button_sizex,
+            game_button_sizey,
             EMPTY.to_string(),
             false,
             scale_factor,
@@ -269,10 +266,10 @@ impl SudokuDisplay {
         // ================== Create and Browse Buttons =============
         // ==========================================================
         let mut bouton_create = Button::new(
-            x_offset + (button_sizex + button_xpadding) * 3.5,
-            y_offset - choosey_offset - button_sizey,
-            button_sizex,
-            button_sizey,
+            2.0 * b_padding,
+            game_button_offsety + b_padding + game_button_sizey,
+            game_button_sizex,
+            game_button_sizey,
             CREATE.to_string(),
             false,
             scale_factor,
@@ -287,10 +284,10 @@ impl SudokuDisplay {
         );
 
         let mut bouton_browse = Button::new(
-            x_offset + (button_sizex + button_xpadding) * 4.5,
-            y_offset - choosey_offset - button_sizey,
-            button_sizex,
-            button_sizey,
+            2.0 * b_padding,
+            game_button_offsety + 2. * (b_padding + game_button_sizey),
+            game_button_sizex,
+            game_button_sizey,
             BROWSE.to_string(),
             false,
             scale_factor,
@@ -306,16 +303,13 @@ impl SudokuDisplay {
                 sudoku_display.new_game(false, true);
             })),
         );
+
         // ==========================================================
-
-        let solvex_offset = 50.0 * scale_factor;
-        let solve_ypadding = 10.0 * scale_factor;
-        let solve1_x = x_offset - solvex_offset - button_sizex;
-        let solve1_y = y_offset + (grid_size - button_sizey * 2.0 - solve_ypadding) / 2.0;
-
+        // ============== Sovle and Solve Once Buttons ==============
+        // ==========================================================
         let button_solve_once = Button::new(
-            solve1_x,
-            solve1_y,
+            x_offset + grid_size / 2.0 - button_sizex - b_padding,
+            2.0 * b_padding,
             button_sizex,
             button_sizey,
             SOLVE_ONCE.to_string(),
@@ -328,10 +322,9 @@ impl SudokuDisplay {
         );
         button_list.push(button_solve_once);
 
-        let solve2_y = solve1_y + button_sizey + solve_ypadding;
         let button_solve = Button::new(
-            solve1_x,
-            solve2_y,
+            x_offset + grid_size / 2.0 + b_padding,
+            2.0 * b_padding,
             button_sizex,
             button_sizey,
             SOLVE.to_string(),
@@ -341,13 +334,17 @@ impl SudokuDisplay {
         actions_boutons.insert(SOLVE.to_string(), Rc::new(Box::new(SudokuDisplay::solve)));
         button_list.push(button_solve);
 
-        let bx_offset = 100.0 * scale_factor;
+        // ==========================================================
+        // ====================== Notes Buttons =====================
+        // ==========================================================
+        let pad_size = grid_size / 2.;
+        let pad_x_offset = x_offset + grid_size + button_sizey;
+        let pad_y_offset = y_offset + pad_size / 4.;
+
         let button_note = Button::new(
-            x_offset + grid_size + bx_offset,
-            y_offset + (grid_size - (b_size + b_padding) * (carpet.get_n() as f32)) / 2.0
-                - button_sizey
-                - solve_ypadding,
-            button_3rd,
+            pad_x_offset,
+            pad_y_offset,
+            pad_size / 3. - b_padding,
             button_sizey,
             NOTE.to_string(),
             false,
@@ -360,11 +357,9 @@ impl SudokuDisplay {
         button_list.push(button_note);
 
         let button_note_fill = Button::new(
-            x_offset + grid_size + bx_offset + b_padding + button_3rd,
-            y_offset + (grid_size - (b_size + b_padding) * (carpet.get_n() as f32)) / 2.0
-                - button_sizey
-                - solve_ypadding,
-            button_3rd,
+            pad_x_offset + pad_size / 3.,
+            pad_y_offset,
+            pad_size / 3. - b_padding,
             button_sizey,
             FILL_NOTES.to_string(),
             false,
@@ -379,11 +374,9 @@ impl SudokuDisplay {
         button_list.push(button_note_fill);
 
         let button_undo = Button::new(
-            x_offset + grid_size + bx_offset + (button_3rd + b_padding) * 2.0,
-            y_offset + (grid_size - (b_size + b_padding) * (carpet.get_n() as f32)) / 2.0
-                - button_sizey
-                - solve_ypadding,
-            button_3rd,
+            pad_x_offset + 2. * pad_size / 3.,
+            pad_y_offset,
+            pad_size / 3. - b_padding,
             button_sizey,
             UNDO.to_string(),
             false,
@@ -395,18 +388,19 @@ impl SudokuDisplay {
         );
         button_list.push(button_undo);
 
-        // Number buttons
+        // ==========================================================
+        // ===================== Number Buttons =====================
+        // ==========================================================
+        let value_button_size = pad_size / (n as f32);
         for x in 0..carpet.get_n() {
             for y in 0..carpet.get_n() {
                 let value1 = y * carpet.get_n() + x + 1;
 
                 let bouton_numero = Button::new(
-                    x_offset + grid_size + bx_offset + (x as f32) * (b_size + b_padding),
-                    y_offset
-                        + (grid_size - (b_size + b_padding) * (carpet.get_n() as f32)) / 2.0
-                        + (y as f32) * (b_size + b_padding),
-                    b_size,
-                    b_size,
+                    pad_x_offset + x as f32 * value_button_size,
+                    pad_y_offset + button_sizey + b_padding + y as f32 * value_button_size,
+                    value_button_size - b_padding,
+                    value_button_size - b_padding,
                     value1.to_string(),
                     false,
                     scale_factor,
@@ -425,9 +419,9 @@ impl SudokuDisplay {
         }
 
         let life_button = Button::new(
-            x_offset + grid_size + bx_offset,
-            y_offset + grid_size / 2.0 + ((b_size + b_padding) * (carpet.get_n() as f32)) / 2.0,
-            (b_size + b_padding) * carpet.get_n() as f32 - b_padding,
+            pad_x_offset,
+            pad_y_offset + button_sizey + pad_size + b_padding,
+            pad_size - b_padding,
             button_sizey,
             format!("Lifes: {lifes}"),
             false,
@@ -1224,7 +1218,7 @@ impl SudokuDisplay {
                     None
                 }
             }
-            CarpetPattern::Carpet(size) => {
+            CarpetPattern::Carpet(size) | CarpetPattern::Thorus(size) => {
                 for y0 in 0..size {
                     for x0 in 0..size {
                         let i = y0 * size + x0;
@@ -1252,7 +1246,7 @@ impl SudokuDisplay {
                 }
                 None
             }
-            CarpetPattern::DenseCarpet(size) => {
+            CarpetPattern::DenseCarpet(size) | CarpetPattern::DenseThorus(size) => {
                 for y0 in 0..size {
                     for x0 in 0..size {
                         let i = y0 * size + x0;
@@ -1293,12 +1287,12 @@ impl SudokuDisplay {
         self.pixel_per_cell = match self.carpet.get_pattern() {
             CarpetPattern::Simple => self.grid_size / n2 as f32,
             CarpetPattern::Samurai => self.grid_size / (n2 * 3 - 2 * n) as f32,
-            CarpetPattern::Diagonal(size) | CarpetPattern::Carpet(size) => {
-                self.grid_size / (n2 + (n2 - n) * (size - 1)) as f32
-            }
-            CarpetPattern::DenseDiagonal(size) | CarpetPattern::DenseCarpet(size) => {
-                self.grid_size / (n2 + n * (size - 1)) as f32
-            }
+            CarpetPattern::Diagonal(size)
+            | CarpetPattern::Carpet(size)
+            | CarpetPattern::Thorus(size) => self.grid_size / (n2 + (n2 - n) * (size - 1)) as f32,
+            CarpetPattern::DenseDiagonal(size)
+            | CarpetPattern::DenseCarpet(size)
+            | CarpetPattern::DenseThorus(size) => self.grid_size / (n2 + n * (size - 1)) as f32,
             CarpetPattern::Custom(_) => panic!("Custom pattern not implemented"),
         };
 
@@ -1799,9 +1793,11 @@ impl SudokuDisplay {
             CarpetPattern::Simple => self.draw_simple_sudoku(font.clone(), 0, 0, 0).await,
             CarpetPattern::Samurai => self.draw_samurai_sudoku(font.clone()).await,
             CarpetPattern::Diagonal(_) => self.draw_diag_sudoku(false, font.clone()).await,
-            CarpetPattern::Carpet(_) => self.draw_carpet_sudoku(false, font.clone()).await,
             CarpetPattern::DenseDiagonal(_) => self.draw_diag_sudoku(true, font.clone()).await,
+            CarpetPattern::Carpet(_) => self.draw_carpet_sudoku(false, font.clone()).await,
             CarpetPattern::DenseCarpet(_) => self.draw_carpet_sudoku(true, font.clone()).await,
+            CarpetPattern::Thorus(_) => self.draw_carpet_sudoku(false, font.clone()).await,
+            CarpetPattern::DenseThorus(_) => self.draw_carpet_sudoku(true, font.clone()).await,
             CarpetPattern::Custom(_) => panic!("Custom pattern not implemented"),
         }
     }
