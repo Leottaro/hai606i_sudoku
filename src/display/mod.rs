@@ -40,6 +40,7 @@ pub struct SudokuDisplay {
     selected_cell: Option<(usize, usize, usize)>,
     note: bool,
     lifes: usize,
+    #[allow(clippy::type_complexity)]
     wrong_cell: Arc<Mutex<Option<(usize, usize, usize, usize)>>>,
     wrong_cell_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
     player_pboard: Vec<Vec<Vec<HashSet<usize>>>>,
