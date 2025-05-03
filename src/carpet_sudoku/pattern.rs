@@ -305,63 +305,62 @@ impl CarpetPattern {
                 let mut links = Vec::new();
                 for y in 0..size {
                     for x in 0..size {
-                        let sudoku_i = y * size + x;
+                        let sudoku1 = y * size + x;
 
-                        for dx in 1..n {
-                            let right_i = y * size + (x + dx) % size;
-                            for y1 in 0..n {
-                                let y2 = y1;
-                                for x1 in dx..n {
-                                    let x2 = x1 - dx;
-                                    links.push((
-                                        (sudoku_i, (y1 * n) + x1),
-                                        (right_i, (y2 * n) + x2),
-                                    ));
+                        for dy in 0..n {
+                            for dx in 0..n {
+                                if dx == 0 && dy == 0 {
+                                    continue;
                                 }
-                            }
-                        }
+                                let x_plus_dx = (x + dx) % size;
+                                let y_plus_dy = (y + dy) % size;
+                                let x_minus_dx = if x >= dx { x - dx } else { x + size - dx };
+                                let y_minus_dy = if y >= dy { y - dy } else { y + size - dy };
 
-                        for dy in 1..n {
-                            let bottom_i = ((y + dy) % size) * size + x;
-                            for y1 in dy..n {
-                                let y2 = y1 - dy;
-                                for x1 in 0..n {
-                                    let x2 = x1;
-                                    links.push((
-                                        (sudoku_i, (y1 * n) + x1),
-                                        (bottom_i, (y2 * n) + x2),
-                                    ));
-                                }
-                            }
-                        }
-
-                        for dy in 1..n {
-                            for dx in 1..n {
-                                let corner_i = ((y + dy) % size) * size + (x + dx) % size;
+                                let sudoku2 = y_plus_dy * size + x_plus_dx;
                                 for y1 in dy..n {
                                     let y2 = y1 - dy;
                                     for x1 in dx..n {
                                         let x2 = x1 - dx;
                                         links.push((
-                                            (sudoku_i, (y1 * n) + x1),
-                                            (corner_i, (y2 * n) + x2),
+                                            (sudoku1, (y1 * n) + x1),
+                                            (sudoku2, (y2 * n) + x2),
                                         ));
                                     }
                                 }
-                            }
-                        }
 
-                        for dy in 1..n {
-                            for dx in 1..n {
-                                let corner_i = ((y + dy) % size) * size
-                                    + if x < dx { size - dx } else { x - dx };
+                                let sudoku2 = y_plus_dy * size + x_minus_dx;
                                 for y1 in dy..n {
                                     let y2 = y1 - dy;
                                     for x1 in 0..n - dx {
                                         let x2 = x1 + dx;
                                         links.push((
-                                            (sudoku_i, (y1 * n) + x1),
-                                            (corner_i, (y2 * n) + x2),
+                                            (sudoku1, (y1 * n) + x1),
+                                            (sudoku2, (y2 * n) + x2),
+                                        ));
+                                    }
+                                }
+
+                                let sudoku2 = y_minus_dy * size + x_plus_dx;
+                                for y1 in 0..n - dy {
+                                    let y2 = y1 + dy;
+                                    for x1 in dx..n {
+                                        let x2 = x1 - dx;
+                                        links.push((
+                                            (sudoku1, (y1 * n) + x1),
+                                            (sudoku2, (y2 * n) + x2),
+                                        ));
+                                    }
+                                }
+
+                                let sudoku2 = y_minus_dy * size + x_minus_dx;
+                                for y1 in 0..n - dy {
+                                    let y2 = y1 + dy;
+                                    for x1 in 0..n - dx {
+                                        let x2 = x1 + dx;
+                                        links.push((
+                                            (sudoku1, (y1 * n) + x1),
+                                            (sudoku2, (y2 * n) + x2),
                                         ));
                                     }
                                 }
