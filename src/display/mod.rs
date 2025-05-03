@@ -4,7 +4,7 @@ pub mod display;
 
 use crate::{
     carpet_sudoku::{CarpetPattern, CarpetSudoku},
-    simple_sudoku::SudokuDifficulty,
+    simple_sudoku::{Coords, SudokuDifficulty},
 };
 use macroquad::texture::Texture2D;
 use std::{
@@ -45,6 +45,7 @@ pub struct SudokuDisplay {
     player_pboard: Vec<Vec<Vec<HashSet<usize>>>>,
     player_pboard_history: Vec<Vec<Vec<Vec<HashSet<usize>>>>>,
     pattern_list: Vec<CarpetPattern>,
+    thorus_view: Coords,
 
     #[cfg(feature = "database")]
     database: Option<Database>,
