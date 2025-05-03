@@ -58,20 +58,16 @@ impl SudokuDisplay {
         let difficulty = SudokuDifficulty::Easy;
         let pattern: CarpetPattern = CarpetPattern::Simple;
         let pattern_list = CarpetPattern::iter_simple().collect::<Vec<_>>();
+        let thorus_view = (0, 0);
 
         // ================== Buttons ==================
         let button_sizex = 150.0 * scale_factor;
         let button_sizey = 100.0 * scale_factor;
-        let button_xpadding = 10.0 * scale_factor;
-        let choosey_offset = (y_offset - 100.0) / 2.0;
         let b_padding = 10.0;
-        let b_size = (pixel_per_cell * 3.0) / 2.0;
-
-        let button_3rd = b_size * n as f32 / 3.0;
 
         let bouton_play = Button::new(
-            x_offset,
-            y_offset - choosey_offset - button_sizey,
+            2.0 * b_padding,
+            2.0 * b_padding,
             button_sizex,
             button_sizey,
             PLAY.to_string(),
@@ -87,8 +83,8 @@ impl SudokuDisplay {
         button_list.push(bouton_play);
 
         let button_analyse = Button::new(
-            x_offset + button_sizex + button_xpadding,
-            y_offset - choosey_offset - button_sizey,
+            2.0 * b_padding + b_padding + button_sizex,
+            2.0 * b_padding,
             button_sizex,
             button_sizey,
             ANALYSE.to_string(),
@@ -103,11 +99,15 @@ impl SudokuDisplay {
         );
         button_list.push(button_analyse);
 
+        let game_button_sizex = x_offset - b_padding * 4.;
+        let game_button_sizey = button_sizey * 0.9;
+        let game_button_offsety = 4.0 * b_padding + button_sizey;
+
         let new_game_btn = Button::new(
-            x_offset + (button_sizex + button_xpadding) * 2.5,
-            y_offset - choosey_offset - button_sizey,
-            button_sizex,
-            button_sizey,
+            2.0 * b_padding,
+            game_button_offsety,
+            game_button_sizex,
+            game_button_sizey,
             NEW_GAME.to_string(),
             false,
             scale_factor,
@@ -122,10 +122,10 @@ impl SudokuDisplay {
         button_list.push(new_game_btn);
 
         let mut new_game_cancel_btn = Button::new(
-            x_offset + (button_sizex + button_xpadding) * 2.5,
-            y_offset - choosey_offset - button_sizey,
-            button_sizex,
-            button_sizey,
+            2.0 * b_padding,
+            game_button_offsety,
+            game_button_sizex,
+            game_button_sizey,
             CANCEL.to_string(),
             false,
             scale_factor,
@@ -146,31 +146,21 @@ impl SudokuDisplay {
         // ==========================================================
         // ================= Sudoku Pattern Buttons =================
         // ==========================================================
-        for (i, &pattern) in pattern_list.iter().enumerate() {
-            let pattern_string = {
-                let mut characters = pattern
-                    .to_string()
-                    .to_lowercase()
-                    .chars()
-                    .collect::<Vec<_>>();
-                characters[0] = characters[0].to_uppercase().nth(0).unwrap();
-                characters.into_iter().collect::<String>()
-            };
 
-            let offset = 3.5 + (i as f32);
+        for (i, &pattern) in pattern_list.iter().enumerate() {
             let mut bouton = Button::new(
-                x_offset + (button_sizex + button_xpadding) * offset,
-                y_offset - choosey_offset - button_sizey,
-                button_sizex,
-                button_sizey,
-                pattern_string.clone(),
+                2.0 * b_padding,
+                game_button_offsety + ((i + 1) as f32) * (b_padding + game_button_sizey),
+                game_button_sizex,
+                game_button_sizey,
+                pattern.to_string(),
                 false,
                 scale_factor,
             );
             bouton.set_enabled(false);
             button_list.push(bouton);
             actions_boutons.insert(
-                pattern_string,
+                pattern.to_string(),
                 Rc::new(Box::new(move |sudoku_display| {
                     sudoku_display.pattern = pattern;
                     sudoku_display.set_pattern_btn(false);
@@ -182,13 +172,13 @@ impl SudokuDisplay {
         // ==========================================================
         // ================== Increase / Decrease ===================
         // ==========================================================
-        let offset = 3.5 + pattern_list.len() as f32;
         let decrease_string = DECREASE.to_string();
         let mut decrease_button = Button::new(
-            x_offset + (button_sizex + button_xpadding) * offset,
-            y_offset - choosey_offset - button_sizey / 2.0,
-            button_sizex / 3.0,
-            button_sizey / 2.0,
+            2.0 * b_padding,
+            game_button_offsety
+                + ((pattern_list.len() + 1) as f32) * (b_padding + game_button_sizey),
+            game_button_sizex / 2.,
+            game_button_sizey / 3.,
             decrease_string.clone(),
             false,
             scale_factor,
@@ -204,10 +194,11 @@ impl SudokuDisplay {
 
         let increase_string = INCREASE.to_string();
         let mut increase_button = Button::new(
-            x_offset + (button_sizex + button_xpadding) * offset,
-            y_offset - choosey_offset - button_sizey,
-            button_sizex / 3.0,
-            button_sizey / 2.0,
+            2.0 * b_padding + game_button_sizex / 2.,
+            game_button_offsety
+                + ((pattern_list.len() + 1) as f32) * (b_padding + game_button_sizey),
+            game_button_sizex / 2.,
+            game_button_sizey / 3.,
             increase_string.clone(),
             false,
             scale_factor,
@@ -226,13 +217,11 @@ impl SudokuDisplay {
         // ==========================================================
         for (i, difficulty) in SudokuDifficulty::iter().enumerate() {
             let diff_string = difficulty.to_string();
-            let offset = 3.5 + ((i + 1) as f32);
-
             let mut bouton = Button::new(
-                x_offset + (button_sizex + button_xpadding) * offset,
-                y_offset - choosey_offset - button_sizey,
-                button_sizex,
-                button_sizey,
+                2.0 * b_padding,
+                game_button_offsety + ((i + 2) as f32) * (b_padding + game_button_sizey),
+                game_button_sizex,
+                game_button_sizey,
                 diff_string.clone(),
                 false,
                 scale_factor,
@@ -252,12 +241,11 @@ impl SudokuDisplay {
         // ==========================================================
         // ===================== Empty Button =======================
         // ==========================================================
-        let offset = 3.5;
         let mut bouton = Button::new(
-            x_offset + (button_sizex + button_xpadding) * offset,
-            y_offset - choosey_offset - button_sizey,
-            button_sizex,
-            button_sizey,
+            2.0 * b_padding,
+            game_button_offsety + b_padding + game_button_sizey,
+            game_button_sizex,
+            game_button_sizey,
             EMPTY.to_string(),
             false,
             scale_factor,
@@ -279,10 +267,10 @@ impl SudokuDisplay {
         // ================== Create and Browse Buttons =============
         // ==========================================================
         let mut bouton_create = Button::new(
-            x_offset + (button_sizex + button_xpadding) * 3.5,
-            y_offset - choosey_offset - button_sizey,
-            button_sizex,
-            button_sizey,
+            2.0 * b_padding,
+            game_button_offsety + b_padding + game_button_sizey,
+            game_button_sizex,
+            game_button_sizey,
             CREATE.to_string(),
             false,
             scale_factor,
@@ -297,10 +285,10 @@ impl SudokuDisplay {
         );
 
         let mut bouton_browse = Button::new(
-            x_offset + (button_sizex + button_xpadding) * 4.5,
-            y_offset - choosey_offset - button_sizey,
-            button_sizex,
-            button_sizey,
+            2.0 * b_padding,
+            game_button_offsety + 2. * (b_padding + game_button_sizey),
+            game_button_sizex,
+            game_button_sizey,
             BROWSE.to_string(),
             false,
             scale_factor,
@@ -316,16 +304,13 @@ impl SudokuDisplay {
                 sudoku_display.new_game(false, true);
             })),
         );
+
         // ==========================================================
-
-        let solvex_offset = 50.0 * scale_factor;
-        let solve_ypadding = 10.0 * scale_factor;
-        let solve1_x = x_offset - solvex_offset - button_sizex;
-        let solve1_y = y_offset + (grid_size - button_sizey * 2.0 - solve_ypadding) / 2.0;
-
+        // ============== Sovle and Solve Once Buttons ==============
+        // ==========================================================
         let button_solve_once = Button::new(
-            solve1_x,
-            solve1_y,
+            x_offset + grid_size / 2.0 - button_sizex - b_padding,
+            2.0 * b_padding,
             button_sizex,
             button_sizey,
             SOLVE_ONCE.to_string(),
@@ -338,10 +323,9 @@ impl SudokuDisplay {
         );
         button_list.push(button_solve_once);
 
-        let solve2_y = solve1_y + button_sizey + solve_ypadding;
         let button_solve = Button::new(
-            solve1_x,
-            solve2_y,
+            x_offset + grid_size / 2.0 + b_padding,
+            2.0 * b_padding,
             button_sizex,
             button_sizey,
             SOLVE.to_string(),
@@ -351,13 +335,17 @@ impl SudokuDisplay {
         actions_boutons.insert(SOLVE.to_string(), Rc::new(Box::new(SudokuDisplay::solve)));
         button_list.push(button_solve);
 
-        let bx_offset = 100.0 * scale_factor;
+        // ==========================================================
+        // ====================== Notes Buttons =====================
+        // ==========================================================
+        let pad_size = grid_size / 2.;
+        let pad_x_offset = x_offset + grid_size + button_sizey;
+        let pad_y_offset = y_offset + pad_size / 4.;
+
         let button_note = Button::new(
-            x_offset + grid_size + bx_offset,
-            y_offset + (grid_size - (b_size + b_padding) * (carpet.get_n() as f32)) / 2.0
-                - button_sizey
-                - solve_ypadding,
-            button_3rd,
+            pad_x_offset,
+            pad_y_offset,
+            pad_size / 3. - b_padding,
             button_sizey,
             NOTE.to_string(),
             false,
@@ -370,11 +358,9 @@ impl SudokuDisplay {
         button_list.push(button_note);
 
         let button_note_fill = Button::new(
-            x_offset + grid_size + bx_offset + b_padding + button_3rd,
-            y_offset + (grid_size - (b_size + b_padding) * (carpet.get_n() as f32)) / 2.0
-                - button_sizey
-                - solve_ypadding,
-            button_3rd,
+            pad_x_offset + pad_size / 3.,
+            pad_y_offset,
+            pad_size / 3. - b_padding,
             button_sizey,
             FILL_NOTES.to_string(),
             false,
@@ -389,11 +375,9 @@ impl SudokuDisplay {
         button_list.push(button_note_fill);
 
         let button_undo = Button::new(
-            x_offset + grid_size + bx_offset + (button_3rd + b_padding) * 2.0,
-            y_offset + (grid_size - (b_size + b_padding) * (carpet.get_n() as f32)) / 2.0
-                - button_sizey
-                - solve_ypadding,
-            button_3rd,
+            pad_x_offset + 2. * pad_size / 3.,
+            pad_y_offset,
+            pad_size / 3. - b_padding,
             button_sizey,
             UNDO.to_string(),
             false,
@@ -405,18 +389,19 @@ impl SudokuDisplay {
         );
         button_list.push(button_undo);
 
-        // Number buttons
+        // ==========================================================
+        // ===================== Number Buttons =====================
+        // ==========================================================
+        let value_button_size = pad_size / (n as f32);
         for x in 0..carpet.get_n() {
             for y in 0..carpet.get_n() {
                 let value1 = y * carpet.get_n() + x + 1;
 
                 let bouton_numero = Button::new(
-                    x_offset + grid_size + bx_offset + (x as f32) * (b_size + b_padding),
-                    y_offset
-                        + (grid_size - (b_size + b_padding) * (carpet.get_n() as f32)) / 2.0
-                        + (y as f32) * (b_size + b_padding),
-                    b_size,
-                    b_size,
+                    pad_x_offset + x as f32 * value_button_size,
+                    pad_y_offset + button_sizey + b_padding + y as f32 * value_button_size,
+                    value_button_size - b_padding,
+                    value_button_size - b_padding,
                     value1.to_string(),
                     false,
                     scale_factor,
@@ -435,9 +420,9 @@ impl SudokuDisplay {
         }
 
         let life_button = Button::new(
-            x_offset + grid_size + bx_offset,
-            y_offset + grid_size / 2.0 + ((b_size + b_padding) * (carpet.get_n() as f32)) / 2.0,
-            (b_size + b_padding) * carpet.get_n() as f32 - b_padding,
+            pad_x_offset,
+            pad_y_offset + button_sizey + pad_size + b_padding,
+            pad_size - b_padding,
             button_sizey,
             format!("Lifes: {lifes}"),
             false,
@@ -473,6 +458,7 @@ impl SudokuDisplay {
             difficulty,
             pattern,
             pattern_list,
+            thorus_view,
             correction_board,
             background_defaite,
             last_processed_keys: None,
@@ -497,6 +483,7 @@ impl SudokuDisplay {
                 self.carpet.get_n_sudokus()
             ];
         self.player_pboard_history.clear();
+        self.thorus_view = (0, 0);
     }
 
     #[cfg(feature = "database")]
@@ -544,37 +531,21 @@ impl SudokuDisplay {
     fn pattern_size_btn(&mut self, increase: bool) {
         for pattern in self.pattern_list.iter_mut() {
             let old_pattern = *pattern;
-            let new_pattern = match *pattern {
-                CarpetPattern::Diagonal(n) => {
-                    if increase {
-                        CarpetPattern::Diagonal(n + 1)
-                    } else if n > 3 {
-                        CarpetPattern::Diagonal(n - 1)
-                    } else {
-                        CarpetPattern::Diagonal(n)
-                    }
-                }
-                CarpetPattern::Carpet(n) => {
-                    if increase {
-                        CarpetPattern::Carpet(n + 1)
-                    } else if n > 2 {
-                        CarpetPattern::Carpet(n - 1)
-                    } else {
-                        CarpetPattern::Carpet(n)
-                    }
-                }
-                pattern => pattern,
-            };
-            *pattern = new_pattern;
+            if increase {
+                pattern.set_size(old_pattern.get_size() + 1);
+            } else if old_pattern.get_size() > 2 {
+                pattern.set_size(old_pattern.get_size() - 1);
+            }
 
             // changing button text
             for button in self.button_list.iter_mut() {
                 if button.text == old_pattern.to_string() {
-                    button.set_text(new_pattern.to_string());
+                    button.set_text(pattern.to_string());
                 }
             }
 
             // remapping button action
+            let new_pattern = *pattern;
             self.actions_boutons.remove(&old_pattern.to_string());
             self.actions_boutons.insert(
                 pattern.to_string(),
@@ -608,40 +579,33 @@ impl SudokuDisplay {
     fn new_game(&mut self, empty: bool, browse: bool) {
         self.init();
 
-        if empty {
-            self.carpet = CarpetSudoku::new(self.carpet.get_n(), self.pattern);
+        self.carpet = if empty {
+            CarpetSudoku::new(self.carpet.get_n(), self.pattern)
         } else {
             #[cfg(feature = "database")]
             match (browse, &mut self.database) {
-                (true, Some(database)) => {
-                    self.carpet = CarpetSudoku::load_game_from_db(
-                        database,
-                        self.carpet.get_n(),
-                        self.pattern,
-                        self.difficulty,
-                    );
-                }
-                _ => {
-                    self.carpet = CarpetSudoku::generate_new(
-                        self.carpet.get_n(),
-                        self.pattern,
-                        self.difficulty,
-                    );
-                }
+                (true, Some(database)) => CarpetSudoku::load_game_from_db(
+                    database,
+                    self.carpet.get_n(),
+                    self.pattern,
+                    self.difficulty,
+                ),
+                _ => CarpetSudoku::generate_new(self.carpet.get_n(), self.pattern, self.difficulty),
             }
 
             #[cfg(not(feature = "database"))]
             {
                 if browse {
                     eprintln!(
-					"SudokuDisplay Error: Cannot fetch a game from database because the database feature isn't enabled"
-				);
+						"SudokuDisplay Error: Cannot fetch a game from database because the database feature isn't enabled"
+					);
                 }
-                self.carpet =
-                    CarpetSudoku::generate_new(self.carpet.get_n(), self.pattern, self.difficulty);
+                CarpetSudoku::generate_new(self.carpet.get_n(), self.pattern, self.difficulty)
             }
+        };
+        if !empty {
+            let _ = self.carpet.randomize();
         }
-        let _ = self.carpet.randomize();
 
         for button in self.button_list.iter_mut() {
             if button.text == CREATE || button.text == BROWSE {
@@ -796,58 +760,69 @@ impl SudokuDisplay {
     }
 
     fn value_btn(&mut self, button_id: usize, (x, y): Coords) {
-        if self.selected_cell.is_some() {
-            let (sudoku_i, x1, y1) = self.selected_cell.unwrap();
-            let value = y * self.carpet.get_n() + x + 1;
-            let current_value = self.carpet.get_cell_value(sudoku_i, x1, y1);
-            if self.note && current_value == 0 {
-                self.player_pboard_history.push(self.player_pboard.clone());
+        if self.selected_cell.is_none() {
+            return;
+        }
+        let (sudoku_i, x1, y1) = self.selected_cell.unwrap();
 
-                for (sudoku2, x2, y2) in self.carpet.get_twin_cells(sudoku_i, x1, y1) {
-                    if self.button_list[button_id].clicked {
-                        self.player_pboard[sudoku2][y2][x2].remove(&value);
-                    } else {
-                        self.player_pboard[sudoku2][y2][x2].insert(value);
-                    }
-                }
-            } else if !self.note {
-                if self.correction_board[sudoku_i][y1][x1] == value {
-                    self.player_pboard_history.clear();
-                    if let Err(err) = self.carpet.set_value(sudoku_i, x1, y1, value) {
-                        eprintln!("Error setting value: {err}");
-                    }
+        let value = y * self.carpet.get_n() + x + 1;
+        let current_value = self.carpet.get_cell_value(sudoku_i, x1, y1);
 
-                    for (sudoku2, x2, y2) in self.carpet.get_twin_cells(sudoku_i, x1, y1) {
-                        self.player_pboard[sudoku2][y2][x2].clear();
-                    }
+        if current_value != 0 {
+            return;
+        }
 
-                    for (sudoku_id, x, y) in
-                        self.carpet.get_global_cell_group(sudoku_i, x1, y1, All)
-                    {
-                        if self.carpet.get_cell_value(sudoku_id, x, y) == 0 {
-                            self.player_pboard[sudoku_id][y][x].remove(&value);
-                        }
-                    }
-                    *self.wrong_cell.lock().unwrap() = None;
-                } else if current_value == 0 {
-                    self.lifes -= 1;
-                    let old_pboard = self.player_pboard.clone();
-                    if self.player_pboard[sudoku_i][y1][x1].remove(&value) {
-                        self.player_pboard_history.push(old_pboard);
-                    }
-                    *self.wrong_cell.lock().unwrap() = Some((sudoku_i, x1, y1, value));
+        if self.note {
+            self.player_pboard_history.push(self.player_pboard.clone());
 
-                    let thread_wrong_cell = Arc::clone(&self.wrong_cell);
-                    let thread_wrong_cell_handle = Arc::clone(&self.wrong_cell_handle);
-                    let handle = std::thread::spawn(move || {
-                        std::thread::sleep(Duration::from_secs(1));
-                        *thread_wrong_cell.lock().unwrap() = None;
-                        *thread_wrong_cell_handle.lock().unwrap() = None;
-                    });
-                    *self.wrong_cell_handle.lock().unwrap() = Some(handle);
+            for (sudoku2, x2, y2) in self.carpet.get_twin_cells(sudoku_i, x1, y1) {
+                if self.button_list[button_id].clicked {
+                    self.player_pboard[sudoku2][y2][x2].remove(&value);
+                } else {
+                    self.player_pboard[sudoku2][y2][x2].insert(value);
                 }
             }
+            return;
         }
+
+        if (self.correction_board[sudoku_i][y1][x1] == 0
+            && self
+                .carpet
+                .get_cell_possibilities(sudoku_i, x1, y1)
+                .contains(&value))
+            || self.correction_board[sudoku_i][y1][x1] == value
+        {
+            self.carpet.set_value(sudoku_i, x1, y1, value).unwrap();
+            self.player_pboard_history.clear();
+
+            for (sudoku2, x2, y2) in self.carpet.get_twin_cells(sudoku_i, x1, y1) {
+                self.player_pboard[sudoku2][y2][x2].clear();
+            }
+
+            for (sudoku_id, x, y) in self.carpet.get_global_cell_group(sudoku_i, x1, y1, All) {
+                if self.carpet.get_cell_value(sudoku_id, x, y) == 0 {
+                    self.player_pboard[sudoku_id][y][x].remove(&value);
+                }
+            }
+            *self.wrong_cell.lock().unwrap() = None;
+            return;
+        }
+
+        self.lifes -= 1;
+        let old_pboard = self.player_pboard.clone();
+        if self.player_pboard[sudoku_i][y1][x1].remove(&value) {
+            self.player_pboard_history.push(old_pboard);
+        }
+        *self.wrong_cell.lock().unwrap() = Some((sudoku_i, x1, y1, value));
+
+        let thread_wrong_cell = Arc::clone(&self.wrong_cell);
+        let thread_wrong_cell_handle = Arc::clone(&self.wrong_cell_handle);
+        let handle = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_secs(1));
+            *thread_wrong_cell.lock().unwrap() = None;
+            *thread_wrong_cell_handle.lock().unwrap() = None;
+        });
+        *self.wrong_cell_handle.lock().unwrap() = Some(handle);
     }
 
     // =============================================
@@ -893,21 +868,30 @@ impl SudokuDisplay {
                 self.carpet
                     .get_global_cell_group(selected_sudoku, selected_x, selected_y, All);
             for (i, x, y) in selected_group.iter() {
-                if *i == sudoku_i {
-                    draw_rectangle(
-                        (*x as f32) * self.pixel_per_cell + sudoku_x_offset,
-                        (*y as f32) * self.pixel_per_cell + sudoku_y_offset,
-                        self.pixel_per_cell,
-                        self.pixel_per_cell,
-                        Color::from_hex(0xe4ebf2),
-                    );
+                if *i != sudoku_i {
+                    continue;
                 }
+
+                draw_rectangle(
+                    (*x as f32) * self.pixel_per_cell + sudoku_x_offset,
+                    (*y as f32) * self.pixel_per_cell + sudoku_y_offset,
+                    self.pixel_per_cell,
+                    self.pixel_per_cell,
+                    Color::from_hex(0xe4ebf2),
+                );
             }
 
-            if selected_sudoku == sudoku_i {
+            for (i, x, y) in self
+                .carpet
+                .get_twin_cells(selected_sudoku, selected_x, selected_y)
+            {
+                if i != sudoku_i {
+                    continue;
+                }
+
                 draw_rectangle(
-                    (selected_x as f32) * self.pixel_per_cell + sudoku_x_offset,
-                    (selected_y as f32) * self.pixel_per_cell + sudoku_y_offset,
+                    (x as f32) * self.pixel_per_cell + sudoku_x_offset,
+                    (y as f32) * self.pixel_per_cell + sudoku_y_offset,
                     self.pixel_per_cell,
                     self.pixel_per_cell,
                     Color::from_hex(0xc2ddf8),
@@ -1107,60 +1091,86 @@ impl SudokuDisplay {
         }
     }
 
-    async fn draw_diag_sudoku(&mut self, font: Font) {
+    async fn draw_diag_sudoku(&mut self, dense: bool, font: Font) {
         let n = self.carpet.get_n();
         let n2 = self.carpet.get_n2();
         let n_sudokus = self.carpet.get_n_sudokus();
-        if let Some((sudoku_i, _, _)) = self.selected_cell {
-            let selected_x1 = sudoku_i * (n2 - n);
-            let selected_y1 = (n_sudokus - sudoku_i - 1) * (n2 - n);
+        if let Some((selected_i, _, _)) = self.selected_cell {
+            let (selected_x1, selected_y1) = if dense {
+                (selected_i * n, (n_sudokus - selected_i - 1) * n)
+            } else {
+                (
+                    selected_i * (n2 - n),
+                    (n_sudokus - selected_i - 1) * (n2 - n),
+                )
+            };
 
             for i in 0..n_sudokus {
-                if i == sudoku_i {
+                if i == selected_i {
                     continue;
                 }
-                let x1 = i * (n2 - n);
-                let y1 = (n_sudokus - i - 1) * (n2 - n);
+                let (x1, y1) = if dense {
+                    (i * n, (n_sudokus - i - 1) * n)
+                } else {
+                    (i * (n2 - n), (n_sudokus - i - 1) * (n2 - n))
+                };
                 self.draw_simple_sudoku(font.clone(), i, x1, y1).await;
-
-                self.draw_simple_sudoku(font.clone(), sudoku_i, selected_x1, selected_y1)
+                self.draw_simple_sudoku(font.clone(), selected_i, selected_x1, selected_y1)
                     .await;
             }
         } else {
             for i in 0..n_sudokus {
-                let x1 = i * (n2 - n);
-                let y1 = (n_sudokus - i - 1) * (n2 - n);
+                let (x1, y1) = if dense {
+                    (i * n, (n_sudokus - i - 1) * n)
+                } else {
+                    (i * (n2 - n), (n_sudokus - i - 1) * (n2 - n))
+                };
                 self.draw_simple_sudoku(font.clone(), i, x1, y1).await;
             }
         }
     }
 
-    async fn draw_carpet_sudoku(&mut self, font: Font) {
+    async fn draw_carpet_sudoku(&mut self, dense: bool, font: Font) {
         let n = self.carpet.get_n();
         let n2 = self.carpet.get_n2();
         let n_sudokus = self.carpet.get_n_sudokus();
         let carpet_size = self.carpet.get_pattern().get_size();
 
-        if let Some((sudoku_i, _, _)) = self.selected_cell {
-            let selected_x1 = (sudoku_i % carpet_size) * (n2 - n);
-            let selected_y1 = (sudoku_i / carpet_size) * (n2 - n);
+        if let Some((selected_i, _, _)) = self.selected_cell {
+            let (selected_x1, selected_y1) = if dense {
+                (
+                    (selected_i % carpet_size) * n,
+                    (selected_i / carpet_size) * n,
+                )
+            } else {
+                (
+                    (selected_i % carpet_size) * (n2 - n),
+                    (selected_i / carpet_size) * (n2 - n),
+                )
+            };
 
             for i in 0..n_sudokus {
-                if i == sudoku_i {
+                if i == selected_i {
                     continue;
                 }
 
-                let x1 = (i % carpet_size) * (n2 - n);
-                let y1 = (i / carpet_size) * (n2 - n);
+                let (x1, y1) = if dense {
+                    ((i % carpet_size) * n, (i / carpet_size) * n)
+                } else {
+                    ((i % carpet_size) * (n2 - n), (i / carpet_size) * (n2 - n))
+                };
                 self.draw_simple_sudoku(font.clone(), i, x1, y1).await;
 
-                self.draw_simple_sudoku(font.clone(), sudoku_i, selected_x1, selected_y1)
+                self.draw_simple_sudoku(font.clone(), selected_i, selected_x1, selected_y1)
                     .await;
             }
         } else {
             for i in 0..n_sudokus {
-                let x1 = (i % carpet_size) * (n2 - n);
-                let y1 = (i / carpet_size) * (n2 - n);
+                let (x1, y1) = if dense {
+                    ((i % carpet_size) * n, (i / carpet_size) * n)
+                } else {
+                    ((i % carpet_size) * (n2 - n), (i / carpet_size) * (n2 - n))
+                };
                 self.draw_simple_sudoku(font.clone(), i, x1, y1).await;
             }
         }
@@ -1184,12 +1194,12 @@ impl SudokuDisplay {
         }
 
         match self.carpet.get_pattern() {
-            CarpetPattern::Simple | CarpetPattern::Diagonal(1) | CarpetPattern::Carpet(1) => {
-                Some((0, x, y))
-            }
-            CarpetPattern::Double | CarpetPattern::Diagonal(_) => {
-                let size = self.carpet.get_n_sudokus();
-
+            CarpetPattern::Simple
+            | CarpetPattern::Diagonal(1)
+            | CarpetPattern::Carpet(1)
+            | CarpetPattern::DenseDiagonal(1)
+            | CarpetPattern::DenseCarpet(1) => Some((0, x, y)),
+            CarpetPattern::Diagonal(size) => {
                 let max_n = n2 + (size - 1) * n * (n - 1);
                 for i in 0..size {
                     let min_x = i * n * (n - 1);
@@ -1244,6 +1254,37 @@ impl SudokuDisplay {
                 }
                 None
             }
+            CarpetPattern::DenseDiagonal(size) => {
+                let max_n = n2 + (size - 1) * n;
+                for i in 0..size {
+                    let min_x = i * n;
+                    let max_x = min_x + n2;
+                    let max_y = max_n - min_x;
+                    let min_y = max_y - n2;
+                    if x >= min_x && x < max_x && y >= min_y && y < max_y {
+                        return Some((i, x - min_x, y - min_y));
+                    }
+                }
+                None
+            }
+            CarpetPattern::DenseCarpet(size) => {
+                for y0 in 0..size {
+                    for x0 in 0..size {
+                        let i = y0 * size + x0;
+                        let min_x = x0 * n;
+                        let max_x = min_x + n2;
+                        let min_y = y0 * n;
+                        let max_y = min_y + n2;
+                        if x >= min_x && x < max_x && y >= min_y && y < max_y {
+                            return Some((i, x - min_x, y - min_y));
+                        }
+                    }
+                }
+                None
+            }
+            CarpetPattern::Thorus(size) | CarpetPattern::DenseThorus(size) => {
+                Some((self.thorus_view.1 * size + self.thorus_view.0, x, y))
+            }
             CarpetPattern::Custom(_) => panic!("Custom pattern not implemented"),
         }
     }
@@ -1268,13 +1309,16 @@ impl SudokuDisplay {
 
         self.grid_size = 900.0 * self.scale_factor;
         self.pixel_per_cell = match self.carpet.get_pattern() {
-            CarpetPattern::Simple => self.grid_size / n2 as f32,
-            CarpetPattern::Samurai => self.grid_size / (n2 * 3 - 2 * n) as f32,
-            CarpetPattern::Double | CarpetPattern::Diagonal(_) => {
-                let n_sudokus = self.carpet.get_n_sudokus();
-                self.grid_size / (((n2 - n) as f32) * n_sudokus as f32 + (n as f32))
+            CarpetPattern::Simple | CarpetPattern::Thorus(_) | CarpetPattern::DenseThorus(_) => {
+                self.grid_size / n2 as f32
             }
-            CarpetPattern::Carpet(size) => self.grid_size / (n2 + (size - 1) * (n2 - n)) as f32,
+            CarpetPattern::Samurai => self.grid_size / (n2 * 3 - 2 * n) as f32,
+            CarpetPattern::Diagonal(size) | CarpetPattern::Carpet(size) => {
+                self.grid_size / (n2 + (n2 - n) * (size - 1)) as f32
+            }
+            CarpetPattern::DenseDiagonal(size) | CarpetPattern::DenseCarpet(size) => {
+                self.grid_size / (n2 + n * (size - 1)) as f32
+            }
             CarpetPattern::Custom(_) => panic!("Custom pattern not implemented"),
         };
 
@@ -1345,12 +1389,11 @@ impl SudokuDisplay {
         }
     }
 
-    pub fn move_infinite_carpet(&mut self, key_pressed: &HashSet<KeyCode>) -> bool {
-        let carpet_size = match self.carpet.get_pattern() {
-            CarpetPattern::Carpet(size) => size,
+    pub fn move_thorus_view(&mut self, key_pressed: &HashSet<KeyCode>) -> bool {
+        let thorus_size = match self.carpet.get_pattern() {
+            CarpetPattern::Thorus(size) | CarpetPattern::DenseThorus(size) => size,
             _ => return false,
         };
-        let n_sudokus = carpet_size * carpet_size;
 
         if key_pressed.len() != 2 {
             return false;
@@ -1370,52 +1413,27 @@ impl SudokuDisplay {
             return false;
         }
 
-        let arrow_pressed = *arrows_pressed.next().unwrap();
-        let sudokus_map = (0..n_sudokus)
-            .filter_map(move |sudoku_id| {
-                let y = sudoku_id / carpet_size;
-                let x = sudoku_id % carpet_size;
-                match arrow_pressed {
-                    KeyCode::Left => {
-                        if x == carpet_size - 1 {
-                            None
-                        } else {
-                            Some((sudoku_id, y * carpet_size + x + 1))
-                        }
-                    }
-                    KeyCode::Right => {
-                        if x == 0 {
-                            None
-                        } else {
-                            Some((sudoku_id, y * carpet_size + x - 1))
-                        }
-                    }
-                    KeyCode::Up => {
-                        if y == carpet_size - 1 {
-                            None
-                        } else {
-                            Some((sudoku_id, (y + 1) * carpet_size + x))
-                        }
-                    }
-                    KeyCode::Down => {
-                        if y == 0 {
-                            None
-                        } else {
-                            Some((sudoku_id, (y - 1) * carpet_size + x))
-                        }
-                    }
-                    _ => panic!(),
+        match *arrows_pressed.next().unwrap() {
+            KeyCode::Left => {
+                self.thorus_view.0 = if self.thorus_view.0 == 0 {
+                    thorus_size - 1
+                } else {
+                    self.thorus_view.0 - 1
                 }
-            })
-            .collect::<HashMap<_, _>>();
+            }
+            KeyCode::Right => self.thorus_view.0 = (self.thorus_view.0 + 1) % thorus_size,
+            KeyCode::Up => {
+                self.thorus_view.1 = if self.thorus_view.1 == 0 {
+                    thorus_size - 1
+                } else {
+                    self.thorus_view.1 - 1
+                }
+            }
+            KeyCode::Down => self.thorus_view.1 = (self.thorus_view.1 + 1) % thorus_size,
+            _ => panic!(),
+        };
 
-        if let Some(new_carpet) = self.carpet.carpet_move_from(sudokus_map) {
-            self.carpet = new_carpet;
-            true
-        } else {
-            eprintln!("couldn't move the carpet");
-            false
-        }
+        true
     }
 
     pub fn process_single_key(&mut self, last_key_pressed: KeyCode) -> bool {
@@ -1517,121 +1535,184 @@ impl SudokuDisplay {
                 }
             }
             KeyCode::Up | KeyCode::Down | KeyCode::Left | KeyCode::Right => {
-                if let Some((sudoku_i, x1, y1)) = &mut self.selected_cell {
-                    let n2 = self.carpet.get_n2();
-                    let twin_cells = self.carpet.get_twin_cells(*sudoku_i, *x1, *y1);
-                    if twin_cells.len() == 1 {
-                        let mut modified = false;
+                let n2 = self.carpet.get_n2();
+
+                if self.selected_cell.is_none() {
+                    self.selected_cell = match self.carpet.get_pattern() {
+                        CarpetPattern::Thorus(size) | CarpetPattern::DenseThorus(size) => {
+                            Some((self.thorus_view.1 * size + self.thorus_view.0, 0, 0))
+                        }
+                        _ => Some((0, 0, 0)),
+                    };
+                    return true;
+                }
+
+                match self.carpet.get_pattern() {
+                    CarpetPattern::Simple
+                    | CarpetPattern::DenseThorus(_)
+                    | CarpetPattern::Thorus(_) => {
+                        let (sudoku_id, mut x1, mut y1) = self.selected_cell.unwrap();
                         match last_key_pressed {
                             KeyCode::Up => {
-                                if *y1 > 0 {
-                                    *y1 -= 1;
-                                    modified = true;
-                                }
+                                y1 = if y1 == 0 { n2 - 1 } else { y1 - 1 };
                             }
                             KeyCode::Down => {
-                                if *y1 < n2 - 1 {
-                                    *y1 += 1;
-                                    modified = true;
-                                }
+                                y1 = (y1 + 1) % n2;
                             }
                             KeyCode::Left => {
-                                if *x1 > 0 {
-                                    *x1 -= 1;
-                                    modified = true;
-                                }
+                                x1 = if x1 == 0 { n2 - 1 } else { x1 - 1 };
                             }
                             KeyCode::Right => {
-                                if *x1 < n2 - 1 {
-                                    *x1 += 1;
-                                    modified = true;
-                                }
+                                x1 = (x1 + 1) % n2;
                             }
                             _ => (),
                         };
-                        if modified {
-                            return true;
-                        }
+                        self.selected_cell = Some((sudoku_id, x1, y1));
+                        return true;
+                    }
+                    _ => (),
+                }
 
-                        let direction = match last_key_pressed {
-                            KeyCode::Up => KeyCode::Down,
-                            KeyCode::Down => KeyCode::Up,
-                            KeyCode::Left => KeyCode::Right,
-                            KeyCode::Right => KeyCode::Left,
-                            _ => panic!(),
-                        };
-
-                        modified = true;
-                        while modified {
-                            modified = false;
-                            for (new_sudoku_i, new_x, new_y) in
-                                self.carpet.get_twin_cells(*sudoku_i, *x1, *y1)
-                            {
-                                match direction {
-                                    KeyCode::Up => {
-                                        if new_y == 0 {
-                                            continue;
-                                        }
-                                        (*sudoku_i, *x1, *y1) = (new_sudoku_i, new_x, new_y - 1);
-                                        modified = true;
-                                    }
-                                    KeyCode::Down => {
-                                        if new_y >= n2 - 1 {
-                                            continue;
-                                        }
-                                        (*sudoku_i, *x1, *y1) = (new_sudoku_i, new_x, new_y + 1);
-                                        modified = true;
-                                    }
-                                    KeyCode::Left => {
-                                        if new_x == 0 {
-                                            continue;
-                                        }
-                                        (*sudoku_i, *x1, *y1) = (new_sudoku_i, new_x - 1, new_y);
-                                        modified = true;
-                                    }
-                                    KeyCode::Right => {
-                                        if new_x >= n2 - 1 {
-                                            continue;
-                                        }
-                                        (*sudoku_i, *x1, *y1) = (new_sudoku_i, new_x + 1, new_y);
-                                        modified = true;
-                                    }
-                                    _ => (),
-                                }
-                            }
+                let (mut sudoku_i, mut x1, mut y1) = self.selected_cell.unwrap();
+                let mut modified = false;
+                match last_key_pressed {
+                    KeyCode::Up => {
+                        if y1 > 0 {
+                            y1 -= 1;
+                            modified = true;
                         }
-                    } else {
-                        for (new_sudoku_i, new_x, new_y) in twin_cells {
-                            match last_key_pressed {
-                                KeyCode::Up => {
-                                    if new_y == 0 {
-                                        continue;
-                                    }
-                                    (*sudoku_i, *x1, *y1) = (new_sudoku_i, new_x, new_y - 1);
-                                }
-                                KeyCode::Down => {
-                                    if new_y >= n2 - 1 {
-                                        continue;
-                                    }
-                                    (*sudoku_i, *x1, *y1) = (new_sudoku_i, new_x, new_y + 1);
-                                }
-                                KeyCode::Left => {
-                                    if new_x == 0 {
-                                        continue;
-                                    }
-                                    (*sudoku_i, *x1, *y1) = (new_sudoku_i, new_x - 1, new_y);
-                                }
-                                KeyCode::Right => {
-                                    if new_x >= n2 - 1 {
-                                        continue;
-                                    }
-                                    (*sudoku_i, *x1, *y1) = (new_sudoku_i, new_x + 1, new_y);
-                                }
-                                _ => (),
+                    }
+                    KeyCode::Down => {
+                        if y1 < n2 - 1 {
+                            y1 += 1;
+                            modified = true;
+                        }
+                    }
+                    KeyCode::Left => {
+                        if x1 > 0 {
+                            x1 -= 1;
+                            modified = true;
+                        }
+                    }
+                    KeyCode::Right => {
+                        if x1 < n2 - 1 {
+                            x1 += 1;
+                            modified = true;
+                        }
+                    }
+                    _ => (),
+                };
+                if modified {
+                    match self.carpet.get_pattern() {
+                        CarpetPattern::Thorus(size) | CarpetPattern::DenseThorus(size) => {
+                            self.thorus_view = (sudoku_i % size, sudoku_i / size);
+                        }
+                        _ => (),
+                    }
+                    self.selected_cell = Some((sudoku_i, x1, y1));
+                    return true;
+                }
+
+                modified = false;
+                for (new_sudoku_i, new_x, new_y) in self.carpet.get_twin_cells(sudoku_i, x1, y1) {
+                    match last_key_pressed {
+                        KeyCode::Up => {
+                            if new_y == 0 {
+                                continue;
                             }
+                            (sudoku_i, x1, y1) = (new_sudoku_i, new_x, new_y - 1);
+                            modified = true;
+                        }
+                        KeyCode::Down => {
+                            if new_y >= n2 - 1 {
+                                continue;
+                            }
+                            (sudoku_i, x1, y1) = (new_sudoku_i, new_x, new_y + 1);
+                            modified = true;
+                        }
+                        KeyCode::Left => {
+                            if new_x == 0 {
+                                continue;
+                            }
+                            (sudoku_i, x1, y1) = (new_sudoku_i, new_x - 1, new_y);
+                            modified = true;
+                        }
+                        KeyCode::Right => {
+                            if new_x >= n2 - 1 {
+                                continue;
+                            }
+                            (sudoku_i, x1, y1) = (new_sudoku_i, new_x + 1, new_y);
+                            modified = true;
+                        }
+                        _ => (),
+                    }
+
+                    if modified {
+                        match self.carpet.get_pattern() {
+                            CarpetPattern::Thorus(size) | CarpetPattern::DenseThorus(size) => {
+                                self.thorus_view = (sudoku_i % size, sudoku_i / size);
+                            }
+                            _ => (),
+                        }
+                        self.selected_cell = Some((sudoku_i, x1, y1));
+                        return true;
+                    }
+                }
+
+                let reverse_direction = match last_key_pressed {
+                    KeyCode::Up => KeyCode::Down,
+                    KeyCode::Down => KeyCode::Up,
+                    KeyCode::Left => KeyCode::Right,
+                    KeyCode::Right => KeyCode::Left,
+                    _ => panic!(),
+                };
+
+                modified = true;
+                while modified {
+                    modified = false;
+                    for (new_sudoku_i, new_x, new_y) in self.carpet.get_twin_cells(sudoku_i, x1, y1)
+                    {
+                        match reverse_direction {
+                            KeyCode::Up => {
+                                if new_y == 0 {
+                                    continue;
+                                }
+                                (sudoku_i, x1, y1) = (new_sudoku_i, new_x, new_y - 1);
+                                modified = true;
+                            }
+                            KeyCode::Down => {
+                                if new_y >= n2 - 1 {
+                                    continue;
+                                }
+                                (sudoku_i, x1, y1) = (new_sudoku_i, new_x, new_y + 1);
+                                modified = true;
+                            }
+                            KeyCode::Left => {
+                                if new_x == 0 {
+                                    continue;
+                                }
+                                (sudoku_i, x1, y1) = (new_sudoku_i, new_x - 1, new_y);
+                                modified = true;
+                            }
+                            KeyCode::Right => {
+                                if new_x >= n2 - 1 {
+                                    continue;
+                                }
+                                (sudoku_i, x1, y1) = (new_sudoku_i, new_x + 1, new_y);
+                                modified = true;
+                            }
+                            _ => (),
                         }
                     }
                 }
+
+                match self.carpet.get_pattern() {
+                    CarpetPattern::Thorus(size) | CarpetPattern::DenseThorus(size) => {
+                        self.thorus_view = (sudoku_i % size, sudoku_i / size);
+                    }
+                    _ => (),
+                }
+                self.selected_cell = Some((sudoku_i, x1, y1));
             }
             _ => return false,
         }
@@ -1759,11 +1840,10 @@ impl SudokuDisplay {
         }
 
         if self.last_processed_keys.is_none()
-            || self.last_processed_keys.unwrap().elapsed() > Duration::from_millis(100)
+            || self.last_processed_keys.unwrap().elapsed() > Duration::from_millis(200)
         {
             self.last_processed_keys = None;
-            if self.carpet.get_difficulty() > SudokuDifficulty::Easy
-                && self.move_infinite_carpet(&pressed_keys)
+            if self.move_thorus_view(&pressed_keys)
                 || pressed_keys.iter().any(|key| self.process_single_key(*key))
             {
                 self.last_processed_keys = Some(Instant::now());
@@ -1772,17 +1852,16 @@ impl SudokuDisplay {
 
         // CARPET DRAWING
         match self.carpet.get_pattern() {
-            CarpetPattern::Simple => {
-                self.draw_simple_sudoku(font.clone(), 0, 0, 0).await;
-            }
-            CarpetPattern::Samurai => {
-                self.draw_samurai_sudoku(font.clone()).await;
-            }
-            CarpetPattern::Double | CarpetPattern::Diagonal(_) => {
-                self.draw_diag_sudoku(font.clone()).await;
-            }
-            CarpetPattern::Carpet(_) => {
-                self.draw_carpet_sudoku(font.clone()).await;
+            CarpetPattern::Simple => self.draw_simple_sudoku(font.clone(), 0, 0, 0).await,
+            CarpetPattern::Samurai => self.draw_samurai_sudoku(font.clone()).await,
+            CarpetPattern::Diagonal(_) => self.draw_diag_sudoku(false, font.clone()).await,
+            CarpetPattern::DenseDiagonal(_) => self.draw_diag_sudoku(true, font.clone()).await,
+            CarpetPattern::Carpet(_) => self.draw_carpet_sudoku(false, font.clone()).await,
+            CarpetPattern::DenseCarpet(_) => self.draw_carpet_sudoku(true, font.clone()).await,
+            CarpetPattern::Thorus(_) | CarpetPattern::DenseThorus(_) => {
+                let (sudoku_x, sudoku_y) = self.thorus_view;
+                let sudoku_i = sudoku_y * self.carpet.get_pattern().get_size() + sudoku_x;
+                self.draw_simple_sudoku(font.clone(), sudoku_i, 0, 0).await
             }
             CarpetPattern::Custom(_) => panic!("Custom pattern not implemented"),
         }

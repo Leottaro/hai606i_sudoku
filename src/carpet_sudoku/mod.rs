@@ -23,9 +23,12 @@ pub struct CarpetSudoku {
 #[derive(PartialEq, Eq, Copy, Clone, Hash, Debug)]
 pub enum CarpetPattern {
     Simple,
-    Double,
     Samurai,
     Diagonal(usize),
+    DenseDiagonal(usize),
     Carpet(usize),
+    DenseCarpet(usize),
+    DenseThorus(usize),
+    Thorus(usize),
     Custom(usize),
 }

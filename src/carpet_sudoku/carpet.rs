@@ -109,14 +109,15 @@ impl CarpetSudoku {
         x: usize,
         y: usize,
     ) -> Vec<(usize, usize, usize)> {
-        let dx = x % self.n;
-        let dy = y % self.n;
-        let x0 = x - dx;
-        let y0: usize = y - dy;
-        let square_id = y0 + x0 / self.n;
         let mut twins = vec![(sudoku_id, x, y)];
 
         if self.links.contains_key(&sudoku_id) {
+            let dx = x % self.n;
+            let dy = y % self.n;
+            let x0 = x - dx;
+            let y0: usize = y - dy;
+            let square_id = y0 + x0 / self.n;
+
             for &(square1, sudoku2, square2) in self.links.get(&sudoku_id).unwrap() {
                 if square_id != square1 {
                     continue;
@@ -136,8 +137,7 @@ impl CarpetSudoku {
 
     pub fn new(n: usize, pattern: CarpetPattern) -> Self {
         let pattern = match pattern {
-            CarpetPattern::Diagonal(1) | CarpetPattern::Carpet(1) => CarpetPattern::Simple,
-            CarpetPattern::Diagonal(2) => CarpetPattern::Double,
+            CarpetPattern::Diagonal(1) | CarpetPattern::Carpet(1) | CarpetPattern::DenseDiagonal(1) | CarpetPattern::DenseCarpet(1) => CarpetPattern::Simple,
 			CarpetPattern::Custom(_) => panic!("Can't call CarpetSudoku::new() with a CarpetPattern::Custom pattern ! Try using CarpetSudoku::new_custom() instead."),
             pattern => pattern,
         };
@@ -307,88 +307,6 @@ impl CarpetSudoku {
 
         self.update_link()?;
         Ok(value)
-    }
-
-    pub fn carpet_move_from(&self, sudokus_map: HashMap<usize, usize>) -> Option<Self> {
-        let mut carpet = self.clone();
-
-        // solve the carpet
-        carpet.rule_solve_until((false, false), None);
-        if !carpet.is_filled() {
-            return None;
-        }
-        carpet.difficulty = SudokuDifficulty::Unknown;
-
-        // canonize the carpet
-        let mut values_swap = None;
-        let mut rows_swap = Vec::new();
-        if !self.is_canonical {
-            values_swap = Some(self.sudokus[0].get_values_swap());
-            rows_swap = self
-                .sudokus
-                .iter()
-                .map(|sudoku| Some(sudoku.get_rows_swap()))
-                .collect::<Vec<_>>();
-            carpet.canonize().unwrap();
-        }
-
-        // move the sudokus
-        let mut new_sudokus = vec![Sudoku::new(self.n); self.sudokus.len()];
-        for (&from_sudoku_id, &to_sudoku_id) in sudokus_map.iter() {
-            new_sudokus[to_sudoku_id] = carpet.sudokus[from_sudoku_id].clone();
-        }
-        carpet.sudokus = new_sudokus;
-        carpet.update_link().unwrap();
-
-        // generate the new sudokus
-        carpet = carpet.into_generate_full_from();
-
-        // if the old carpet was randomized, we need to randomize the new one with the same rules
-        if !self.is_canonical {
-            for (i, sudoku) in carpet.sudokus.iter_mut().enumerate() {
-                sudoku
-                    .randomize(rows_swap[i].clone(), values_swap.clone(), false)
-                    .unwrap();
-            }
-        }
-
-        // remove the old empty cells
-        let mut is_filled = true;
-        for cell_i in 0..self.sudokus.len() * self.n2 * self.n2 {
-            let sudoku_id = cell_i / (self.n2 * self.n2);
-            let square_i = cell_i - sudoku_id * self.n2 * self.n2;
-            let y: usize = square_i / self.n2;
-            let x: usize = square_i % self.n2;
-
-            if let Some(new_sudoku_id) = sudokus_map.get(&sudoku_id) {
-                if self.get_cell_value(sudoku_id, x, y) == 0
-                    && carpet.get_cell_value(*new_sudoku_id, x, y) != 0
-                {
-                    is_filled = false;
-                    let value = carpet.remove_value(*new_sudoku_id, x, y).unwrap();
-                    if !carpet.is_unique() {
-                        carpet.set_value(*new_sudoku_id, x, y, value).unwrap();
-                    }
-                }
-            }
-        }
-
-        let mut veify_carpet = carpet.clone();
-        veify_carpet.rule_solve_until((false, false), Some(self.difficulty));
-        if !veify_carpet.is_filled() || !carpet.is_unique() {
-            return None;
-        }
-
-        // if there were any empty cells, generate a new carpet taking the current one as a base
-        if !is_filled {
-            if let Some(new_carpet) = carpet.generate_from(self.difficulty) {
-                carpet = new_carpet;
-            } else {
-                return None;
-            }
-        }
-
-        Some(carpet)
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

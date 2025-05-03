@@ -82,7 +82,10 @@ impl CarpetSudoku {
     }
 
     pub fn into_generate_full_from(self) -> Self {
+        let mut tries = 0;
         loop {
+            tries += 1;
+            print!("\r{} generate_full has {tries} tries", self.pattern);
             let mut carpet = self.clone();
             if !carpet._generate_canonical_from(0, 0, 0) {
                 panic!("pattern: {} juste pas possible en fait", carpet.pattern);
@@ -97,6 +100,7 @@ impl CarpetSudoku {
             carpet.is_canonical = true;
 
             if carpet.backtrack_solve() {
+                println!();
                 return carpet;
             }
         }
@@ -141,9 +145,7 @@ impl CarpetSudoku {
                 }
             }
 
-            if self.count_solutions(Some(1)) > 0
-                && self._generate_canonical_from(sudoku_id, x + 1, y)
-            {
+            if self._generate_canonical_from(sudoku_id, x + 1, y) {
                 return true;
             }
 
@@ -313,7 +315,7 @@ impl CarpetSudoku {
                 let _ = join_handle.join();
             }
 
-            println!("{}", log_infos.lock().unwrap());
+            println!("{} {}", self.pattern, log_infos.lock().unwrap());
             carpet.difficulty = aimed_difficulty;
             return Some(carpet);
         }
@@ -341,7 +343,7 @@ impl CarpetSudoku {
         {
             let mut log_infos = log_infos.lock().unwrap();
             log_infos.skipped_counter += 1;
-            print!("{log_infos}          \r");
+            print!("{} {}          \r", self.pattern, log_infos);
             stdout().flush().unwrap();
             return;
         }
@@ -351,7 +353,7 @@ impl CarpetSudoku {
         // {
         //     let mut log_infos = log_infos.lock().unwrap();
         //     log_infos.minimal_filled_cells_counter += 1;
-        //     print!("{log_infos}          \r");
+        //     print!("{} {}          \r", self.pattern, log_infos);
         //     stdout().flush().unwrap();
         //     return;
         // }
@@ -360,7 +362,7 @@ impl CarpetSudoku {
         {
             let mut log_infos = log_infos.lock().unwrap();
             log_infos.explored_counter += 1;
-            print!("{log_infos}          \r");
+            print!("{} {}          \r", self.pattern, log_infos);
             stdout().flush().unwrap();
         }
 
@@ -424,7 +426,7 @@ impl CarpetSudoku {
         if can_remove_a_cell {
             let mut log_infos = log_infos.lock().unwrap();
             log_infos.can_remove_a_cell_counter += 1;
-            print!("{log_infos}          \r");
+            print!("{} {}          \r", self.pattern, log_infos);
             stdout().flush().unwrap();
             return;
         }
@@ -435,7 +437,7 @@ impl CarpetSudoku {
         if !verify_carpet.is_filled() || verify_carpet.difficulty != aimed_difficulty {
             let mut log_infos = log_infos.lock().unwrap();
             log_infos.wrong_difficulty_counter += 1;
-            print!("{log_infos}          \r");
+            print!("{} {}          \r", self.pattern, log_infos);
             stdout().flush().unwrap();
             return;
         }
@@ -453,7 +455,7 @@ impl CarpetSudoku {
             if sub_carpet.is_filled() {
                 let mut log_infos = log_infos.lock().unwrap();
                 log_infos.solvable_sub_carpet_counter += 1;
-                print!("{log_infos}          \r");
+                print!("{} {}          \r", self.pattern, log_infos);
                 stdout().flush().unwrap();
                 return;
             }

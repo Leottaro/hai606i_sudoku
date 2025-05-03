@@ -17,7 +17,7 @@ mod tests {
                 stdout().flush().unwrap();
 
                 let mut randomized = original.clone();
-                randomized.randomize().unwrap(); // TODO: fix
+                randomized.randomize().unwrap();
                 print!(", randomized");
                 stdout().flush().unwrap();
 
