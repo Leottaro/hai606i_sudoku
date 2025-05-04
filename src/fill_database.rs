@@ -126,7 +126,7 @@ fn sudoku_games(max_number: usize) {
         for difficulty in SudokuDifficulty::iter() {
             println!("{difficulty}:{}", " ".repeat(50));
 
-            let game = sudoku.generate_from(difficulty);
+            let game = sudoku.generate_from(difficulty).unwrap();
             let mut game_db = game.game_to_db().unwrap();
             game_db.sudoku_game_difficulty = difficulty as i16;
             passed_games.push(game_db);
@@ -277,19 +277,75 @@ fn carpet_filled(max_number: usize) {
 
 fn carpet_games(max_number: usize) {
     let database = Arc::new(Mutex::new(Database::connect().unwrap()));
-    let mut join_handle: Option<thread::JoinHandle<()>> = None;
+    let mut join_handle: Option<thread::JoinHandle<bool>> = None;
 
     let mut remaining_number = max_number;
     while remaining_number > 0 {
         println!("\n\n\n{remaining_number} filled carpets remaining");
 
-        for difficulty in SudokuDifficulty::iter() {
-            println!("\n{}: ", difficulty);
-            for pattern in CarpetPattern::iter() {
-                print!("{} \r", pattern);
+        for pattern in CarpetPattern::iter() {
+            println!("\n{}: ", pattern);
+
+            let filled = CarpetSudoku::generate_full(3, pattern);
+
+            if let Some(my_join_handle) = join_handle {
+                my_join_handle.join().unwrap();
+            }
+
+            let thread_database = database.clone();
+            let thread_filled = filled.clone();
+            join_handle = Some(thread::spawn(move || {
+                let (db_filled, db_filled_sudokus) = thread_filled.db_to_filled().unwrap();
+                let (db_sudokus_data, db_sudokus_data_square): (Vec<_>, Vec<_>) = thread_filled
+                    .db_sudokus_to_filled()
+                    .unwrap()
+                    .into_iter()
+                    .unzip();
+
+                if thread_filled.get_pattern() == CarpetPattern::Simple {
+                    if let Ok((db_sudoku, db_squares)) =
+                        thread_filled.get_sudokus()[0].filled_to_db()
+                    {
+                        let _ = thread_database
+                            .lock()
+                            .unwrap()
+                            .insert_canonical_sudoku(true, db_sudoku, db_squares);
+                    }
+                }
+
+                if let Err(err) = thread_database
+                    .lock()
+                    .unwrap()
+                    .insert_ignore_multiple_canonical_sudokus(
+                        db_sudokus_data,
+                        db_sudokus_data_square
+                            .into_iter()
+                            .flatten()
+                            .collect::<Vec<_>>(),
+                    )
+                {
+                    eprintln!("\nERROR :\n{thread_filled}\nCOULDN'T INSERT THIS FILLED CARPET'S SUDOKUS: {err}\n");
+                    return false;
+                }
+
+                if let Err(err) = thread_database.lock().unwrap().insert_canonical_carpet(
+                    true,
+                    db_filled,
+                    db_filled_sudokus,
+                ) {
+                    eprintln!(
+                        "\nERROR :\n{thread_filled}\nCOULDN'T INSERT THIS FILLED CARPET: {err}\n"
+                    );
+                    return false;
+                }
+
+                true
+            }));
+
+            for difficulty in SudokuDifficulty::iter() {
+                print!("{}: \r", difficulty);
                 stdout().flush().unwrap();
 
-                let filled = CarpetSudoku::generate_full(3, pattern);
                 let game = filled.generate_from(difficulty).unwrap();
 
                 if let Some(my_join_handle) = join_handle {
@@ -298,47 +354,6 @@ fn carpet_games(max_number: usize) {
 
                 let database = Arc::clone(&database);
                 join_handle = Some(thread::spawn(move || {
-                    let filled = filled.clone();
-                    let (db_filled, db_filled_sudokus) = filled.db_to_filled().unwrap();
-                    let (db_sudokus_data, db_sudokus_data_square): (Vec<_>, Vec<_>) =
-                        filled.db_sudokus_to_filled().unwrap().into_iter().unzip();
-
-                    if filled.get_pattern() == CarpetPattern::Simple {
-                        if let Ok((db_sudoku, db_squares)) = filled.get_sudokus()[0].filled_to_db()
-                        {
-                            let _ = database
-                                .lock()
-                                .unwrap()
-                                .insert_canonical_sudoku(true, db_sudoku, db_squares);
-                        }
-                    }
-
-                    if let Err(err) = database
-                        .lock()
-                        .unwrap()
-                        .insert_ignore_multiple_canonical_sudokus(
-                            db_sudokus_data,
-                            db_sudokus_data_square
-                                .into_iter()
-                                .flatten()
-                                .collect::<Vec<_>>(),
-                        )
-                    {
-                        eprintln!(
-                            "\nERROR :\n{filled}\nCOULDN'T INSERT THIS FILLED CARPET'S SUDOKUS: {err}\n"
-                        )
-                    }
-
-                    if let Err(err) = database.lock().unwrap().insert_canonical_carpet(
-                        true,
-                        db_filled,
-                        db_filled_sudokus,
-                    ) {
-                        eprintln!(
-                            "\nERROR :\n{filled}\nCOULDN'T INSERT THIS FILLED CARPET: {err}\n"
-                        )
-                    }
-
                     if game.get_pattern() == CarpetPattern::Simple {
                         if let Ok(sudoku_game_db) = game.get_sudokus()[0].game_to_db() {
                             let _ = database
@@ -353,8 +368,11 @@ fn carpet_games(max_number: usize) {
                         .unwrap()
                         .insert_canonical_carpet_game(game.db_to_game())
                     {
-                        eprintln!("\nERROR :\n{game}\nCOULDN'T INSERT THIS CARPET GAME: {err}\n")
+                        eprintln!("\nERROR :\n{game}\nCOULDN'T INSERT THIS CARPET GAME: {err}\n");
+                        return false;
                     }
+
+                    true
                 }));
             }
         }

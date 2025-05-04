@@ -717,15 +717,11 @@ impl Sudoku {
         self.filled_cells == self.n2 * self.n2
     }
 
-    pub fn is_unique(&mut self, safe_possibilities: Option<&HashSet<Vec<bool>>>) -> bool {
-        self.count_solutions(Some(2), safe_possibilities) == 1
+    pub fn is_unique(&mut self) -> bool {
+        self.count_solutions(Some(2)) == 1
     }
 
-    pub fn count_solutions(
-        &self,
-        max_solutions: Option<usize>,
-        safe_possibilities: Option<&HashSet<Vec<bool>>>,
-    ) -> usize {
+    pub fn count_solutions(&self, max_solutions: Option<usize>) -> usize {
         self.clone()._count_solutions(
             (0..self.n2 * self.n2)
                 .filter_map(|cell_i| {
@@ -740,7 +736,6 @@ impl Sudoku {
                 })
                 .collect::<Vec<_>>(),
             max_solutions,
-            safe_possibilities,
         )
     }
 
@@ -748,27 +743,8 @@ impl Sudoku {
         &mut self,
         mut empty_cells: Vec<Coords>,
         max_solutions: Option<usize>,
-        safe_possibilities: Option<&HashSet<Vec<bool>>>,
     ) -> usize {
-        if let Some(safe_possibilities) = safe_possibilities {
-            let filled_cells = (0..self.n2 * self.n2)
-                .map(|cell_i| {
-                    let y = cell_i / self.n2;
-                    let x = cell_i % self.n2;
-                    let value = self.board[y][x];
-                    value > 0
-                })
-                .collect::<Vec<_>>();
-            if safe_possibilities.contains(&filled_cells) {
-                return 1;
-            }
-        }
-
-        empty_cells.sort_by(|&(x1, y1), &(x2, y2)| {
-            self.possibility_board[y1][x1]
-                .len()
-                .cmp(&self.possibility_board[y2][x2].len())
-        });
+        empty_cells.sort_by_key(|&(x1, y1)| self.possibility_board[y1][x1].len());
 
         let mut i = 0;
         while i < empty_cells.len() {
@@ -803,8 +779,7 @@ impl Sudoku {
                 }
             }
 
-            sub_solutions +=
-                self._count_solutions(empty_cells.clone(), max_solutions, safe_possibilities);
+            sub_solutions += self._count_solutions(empty_cells.clone(), max_solutions);
             if let Some(max_solutions) = max_solutions {
                 if sub_solutions >= max_solutions {
                     return sub_solutions;

@@ -1,10 +1,9 @@
 use super::{CarpetPattern, CarpetSudoku};
-use crate::simple_sudoku::{sudoku_generation::duration_to_string, SudokuDifficulty};
+use crate::simple_sudoku::{sudoku_generation::duration_to_string, SudokuDifficulty, SudokuGroups};
 use rand::seq::SliceRandom;
 use std::{
     collections::HashSet,
     io::{stdout, Write},
-    ops::SubAssign,
     sync::{mpsc, Arc, Mutex},
     thread::{self, available_parallelism},
 };
@@ -14,7 +13,6 @@ struct CarpetGenerationThreadInput {
     pub rng: rand::rngs::ThreadRng,
     pub exploring_filled_cells: Vec<bool>,
     pub cells_to_remove: HashSet<(usize, usize, usize, usize)>,
-    pub max_depth: Option<usize>,
 }
 struct CarpetGenerationLogInfos {
     pub start_time: std::time::Instant,
@@ -31,7 +29,7 @@ impl std::fmt::Display for CarpetGenerationLogInfos {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
 			f,
-			"{}: explored:{} skipped:{} below_minimal_filled_cells:{} non_unique:{} can_remove_a_cell:{} not_right_difficulty:{} solvable_sub_carpet:{}",
+			"{}: explored:{} skipped:{} below_minimal_filled_cells:{} non_unique:{} can_remove_a_cell:{} wrong_difficulty:{} solvable_sub_carpet:{}",
 			duration_to_string(self.start_time.elapsed()),
 			self.explored_counter,
 			self.skipped_counter,
@@ -63,9 +61,6 @@ impl CarpetSudoku {
             if !carpet._generate_canonical_from(0, 0, 0) {
                 panic!("pattern: {} juste pas possible en fait", carpet.pattern);
             }
-            if carpet.count_solutions(Some(1)) == 0 {
-                continue;
-            }
 
             for sudoku in carpet.sudokus.iter_mut() {
                 sudoku.set_is_canonical(true);
@@ -84,22 +79,33 @@ impl CarpetSudoku {
         mut x: usize,
         mut y: usize,
     ) -> bool {
-        loop {
-            if x == self.n2 {
+        let backup = self.clone();
+
+        while self.sudokus[sudoku_id].get_cell_value(x, y) != 0 {
+            if y == 0 {
+                x += 1;
+
+                if x == self.n2 {
+                    x = 0;
+                    sudoku_id += 1;
+                }
+
+                if sudoku_id == self.sudokus.len() {
+                    sudoku_id = 0;
+                    y = 1;
+                }
+            } else {
                 y += 1;
-                x = 0;
+
+                if y == self.n2 {
+                    y = 1;
+                    sudoku_id += 1;
+                }
+
+                if sudoku_id == self.sudokus.len() {
+                    return true;
+                }
             }
-            if y == self.n2 {
-                y = 0;
-                sudoku_id += 1;
-            }
-            if sudoku_id == self.sudokus.len() {
-                return true;
-            }
-            if (y == 0 || x == 0) && self.sudokus[sudoku_id].get_cell_value(x, y) == 0 {
-                break;
-            }
-            x += 1;
         }
 
         let mut possibilities = self.sudokus[sudoku_id]
@@ -108,42 +114,15 @@ impl CarpetSudoku {
             .cloned()
             .collect::<Vec<_>>();
         possibilities.sort();
+
         for value in possibilities {
-            match self.set_value(sudoku_id, x, y, value) {
-                Ok(()) => (),
-                Err(_) => {
-                    let _ = self.remove_value(sudoku_id, x, y);
-                    continue;
-                }
+            if self.set_value(sudoku_id, x, y, value).is_ok()
+                && self._generate_canonical_from(sudoku_id, x, y)
+            {
+                return true;
             }
 
-            match self.pattern {
-                CarpetPattern::DenseCarpet(_)
-                | CarpetPattern::Carpet(_)
-                | CarpetPattern::Samurai
-                | CarpetPattern::Diagonal(_)
-                | CarpetPattern::Simple => {
-                    if self.count_solutions(Some(1)) > 0
-                        && self._generate_canonical_from(sudoku_id, x + 1, y)
-                    {
-                        return true;
-                    }
-                }
-                CarpetPattern::DenseThorus(_)
-                | CarpetPattern::Thorus(_)
-                | CarpetPattern::DenseDiagonal(_)
-                | CarpetPattern::Custom(_) => {
-                    if self._generate_canonical_from(sudoku_id, x + 1, y) {
-                        return true;
-                    }
-                }
-            }
-
-            if let Err(err) = self.remove_value(sudoku_id, x, y) {
-                eprintln!(
-                    "ERRROR AFTER self.remove_value({sudoku_id}, {x}, {y}): {err}\nFOR CARPET:{self}"
-                );
-            }
+            *self = backup.clone();
         }
 
         false
@@ -264,7 +243,6 @@ impl CarpetSudoku {
                             rng: rng.clone(),
                             exploring_filled_cells: starting_exploring_filled_cells,
                             cells_to_remove: starting_cells_to_remove,
-                            max_depth: None,
                         };
 
                         if *thread_should_stop.lock().unwrap() {
@@ -331,14 +309,6 @@ impl CarpetSudoku {
             return;
         }
 
-        // stop if the max depth is reached
-        if let Some(max_depth) = &mut carpet_generation_input.max_depth {
-            if *max_depth == 0 {
-                return;
-            }
-            max_depth.sub_assign(1);
-        }
-
         // skip if this possibility has already been explored
         if !already_explored_filled_cells
             .lock()
@@ -352,6 +322,7 @@ impl CarpetSudoku {
             return;
         }
 
+        // skip if we are below the minimal filled cells
         if carpet_generation_input.cells_to_remove.len() < (2 * self.n2 - 1) {
             let mut log_infos = log_infos.lock().unwrap();
             log_infos.minimal_filled_cells_counter += 1;
@@ -375,6 +346,17 @@ impl CarpetSudoku {
             .into_iter()
             .collect::<Vec<_>>();
         randomized_cells_to_remove.shuffle(&mut carpet_generation_input.rng);
+        randomized_cells_to_remove.sort_by_key(|(sudoku_id, x, y, _)| {
+            let mut possibilities = (1..=self.n2).collect::<HashSet<_>>();
+            for (i, x, y) in self.get_global_cell_group(*sudoku_id, *x, *y, SudokuGroups::All) {
+                let cell_value = self.sudokus[i].get_cell_value(x, y);
+                if cell_value != 0 {
+                    possibilities.remove(&cell_value);
+                }
+            }
+            possibilities.len()
+        });
+
         let mut can_remove_a_cell = false;
         for (sudoku_id, x, y, removed_value) in randomized_cells_to_remove {
             // stop if a solution was found by another thread

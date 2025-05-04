@@ -7,7 +7,7 @@ use std::{
 
 use rand::seq::SliceRandom;
 
-use super::{Sudoku, SudokuDifficulty};
+use super::{Sudoku, SudokuDifficulty, SudokuGroups};
 
 pub fn duration_to_string(duration: std::time::Duration) -> String {
     let milliseconds = duration.as_millis();
@@ -37,15 +37,16 @@ pub fn duration_to_string(duration: std::time::Duration) -> String {
 }
 
 struct SudokuGenerationThreadInput {
+    pub tx: mpsc::Sender<Option<Sudoku>>,
     pub rng: rand::rngs::ThreadRng,
     pub exploring_filled_cells: Vec<bool>,
     pub cells_to_remove: HashSet<(usize, usize, usize)>,
 }
-
 struct SudokuGenerationLogInfos {
     pub start_time: std::time::Instant,
     pub explored_counter: usize,
     pub skipped_counter: usize,
+    pub minimal_filled_cells_counter: usize,
     pub non_unique_counter: usize,
     pub can_remove_a_cell_counter: usize,
     pub wrong_difficulty_counter: usize,
@@ -54,15 +55,16 @@ struct SudokuGenerationLogInfos {
 impl std::fmt::Display for SudokuGenerationLogInfos {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
-            f,
-            "{}: explored:{} skipped:{} non_unique:{} can_remove_a_cell:{} not_right_difficulty:{}",
-            duration_to_string(self.start_time.elapsed()),
-            self.explored_counter,
-            self.skipped_counter,
-            self.non_unique_counter,
-            self.can_remove_a_cell_counter,
-            self.wrong_difficulty_counter,
-        )
+			f,
+			"{}: explored:{} skipped:{} below_minimal_filled_cells:{} non_unique:{} can_remove_a_cell:{} wrong_difficulty:{}",
+			duration_to_string(self.start_time.elapsed()),
+			self.explored_counter,
+			self.skipped_counter,
+			self.minimal_filled_cells_counter,
+			self.non_unique_counter,
+			self.can_remove_a_cell_counter,
+			self.wrong_difficulty_counter,
+		)
     }
 }
 
@@ -76,14 +78,16 @@ impl Sudoku {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     pub fn generate_new(n: usize, aimed_difficulty: SudokuDifficulty) -> Self {
-        Sudoku::generate_full(n).into_generate_from(aimed_difficulty)
+        Sudoku::generate_full(n)
+            .into_generate_from(aimed_difficulty)
+            .unwrap()
     }
 
-    pub fn generate_from(&self, aimed_difficulty: SudokuDifficulty) -> Self {
+    pub fn generate_from(&self, aimed_difficulty: SudokuDifficulty) -> Option<Self> {
         self.clone().into_generate_from(aimed_difficulty)
     }
 
-    pub fn into_generate_from(mut self, aimed_difficulty: SudokuDifficulty) -> Self {
+    pub fn into_generate_from(mut self, aimed_difficulty: SudokuDifficulty) -> Option<Self> {
         self.difficulty = SudokuDifficulty::Unknown;
 
         let temp = (0..self.n2 * self.n2)
@@ -108,16 +112,21 @@ impl Sudoku {
             start_time: std::time::Instant::now(),
             explored_counter: 0,
             skipped_counter: 0,
+            minimal_filled_cells_counter: 0,
             non_unique_counter: 0,
             can_remove_a_cell_counter: 0,
             wrong_difficulty_counter: 0,
         }));
         let starting_points = Arc::new(Mutex::new(
             (0..self.n2 * self.n2)
-                .map(|cell_i| {
+                .filter_map(|cell_i| {
                     let y = cell_i / self.n2;
                     let x = cell_i % self.n2;
                     let value = self.board[y][x];
+
+                    if value == 0 {
+                        return None;
+                    }
 
                     let mut starting_sudoku = self.clone();
                     let mut starting_exploring_filled_cells =
@@ -125,14 +134,15 @@ impl Sudoku {
                     let mut starting_cells_to_remove = original_cells_to_remove.clone();
 
                     starting_sudoku.remove_value(x, y).unwrap();
+                    starting_sudoku.difficulty = SudokuDifficulty::Unknown;
                     starting_exploring_filled_cells[y * self.n2 + x] = false;
                     starting_cells_to_remove.remove(&(x, y, value));
 
-                    (
+                    Some((
                         starting_sudoku,
                         starting_exploring_filled_cells,
                         starting_cells_to_remove,
-                    )
+                    ))
                 })
                 .collect::<Vec<_>>()
                 .into_iter(),
@@ -140,7 +150,8 @@ impl Sudoku {
 
         let (sudoku_tx, sudoku_rx) = mpsc::channel();
         let thread_count = available_parallelism().unwrap().get();
-        let mut thread_infos = Vec::new();
+        let mut threads_should_stop = Vec::new();
+        let mut threads_join_handles = Vec::new();
 
         for thread_id in 0..thread_count {
             let starting_points = Arc::clone(&starting_points);
@@ -165,6 +176,7 @@ impl Sudoku {
                         .and_then(|mut owned_starting_points| owned_starting_points.next())
                     {
                         let mut sudoku_generation_input = SudokuGenerationThreadInput {
+                            tx: sudoku_tx.clone(),
                             rng: rng.clone(),
                             exploring_filled_cells: starting_exploring_filled_cells,
                             cells_to_remove: starting_cells_to_remove,
@@ -174,33 +186,46 @@ impl Sudoku {
                             break;
                         }
 
-                        starting_sudoku.difficulty = SudokuDifficulty::Unknown;
-                        if starting_sudoku._generate_from(
+                        starting_sudoku._generate_from(
                             aimed_difficulty,
                             &mut sudoku_generation_input,
                             &thread_should_stop,
                             &already_explored_filled_cells,
                             &log_infos,
-                        ) {
-                            let _ = sudoku_tx.send(starting_sudoku);
-                        }
+                        );
+
+                        let _ = sudoku_tx.send(None);
                     }
                 })
                 .unwrap();
-            thread_infos.push((should_stop, join_handle));
+            threads_should_stop.push(should_stop);
+            threads_join_handles.push(join_handle);
         }
 
-        let sudoku = sudoku_rx.recv().unwrap();
+        while starting_points.lock().unwrap().len() > 0 {
+            let sudoku = sudoku_rx.recv().unwrap();
+            if sudoku.is_none() {
+                continue;
+            }
+            let mut sudoku = sudoku.unwrap();
 
-        for (should_stop, _) in thread_infos.iter() {
-            *should_stop.lock().unwrap() = true;
-        }
-        for (_, join_handle) in thread_infos {
-            let _ = join_handle.join();
-        }
+            // if this possibility isn't unique
+            if !self.is_unique() {
+                continue;
+            }
 
-        println!("{}", log_infos.lock().unwrap());
-        sudoku
+            for should_stop in threads_should_stop {
+                *should_stop.lock().unwrap() = true;
+            }
+            for join_handle in threads_join_handles {
+                let _ = join_handle.join();
+            }
+
+            println!("{}: {}", aimed_difficulty, log_infos.lock().unwrap());
+            sudoku.difficulty = aimed_difficulty;
+            return Some(sudoku);
+        }
+        None
     }
 
     fn _generate_from(
@@ -210,10 +235,10 @@ impl Sudoku {
         thread_should_stop: &Arc<Mutex<bool>>,
         already_explored_filled_cells: &Arc<Mutex<HashSet<Vec<bool>>>>,
         log_infos: &Arc<Mutex<SudokuGenerationLogInfos>>,
-    ) -> bool {
+    ) {
         // stop if a solution was found by another thread
         if *thread_should_stop.lock().unwrap() {
-            return false;
+            return;
         }
 
         // skip if this possibility has already been explored
@@ -224,25 +249,25 @@ impl Sudoku {
         {
             let mut log_infos = log_infos.lock().unwrap();
             log_infos.skipped_counter += 1;
-            print!("{log_infos}          \r");
+            print!("{}          \r", log_infos);
             stdout().flush().unwrap();
-            return false;
+            return;
         }
 
-        // skip if this possibility has not a unique solution
-        if !self.is_unique(Some(&already_explored_filled_cells.lock().unwrap().clone())) {
+        // skip if we are below the minimal filled cells
+        if sudoku_generation_input.cells_to_remove.len() < (2 * self.n2 - 1) {
             let mut log_infos = log_infos.lock().unwrap();
-            log_infos.non_unique_counter += 1;
+            log_infos.minimal_filled_cells_counter += 1;
             print!("{log_infos}          \r");
             stdout().flush().unwrap();
-            return false;
+            return;
         }
 
         // printing progress
         {
             let mut log_infos = log_infos.lock().unwrap();
             log_infos.explored_counter += 1;
-            print!("{log_infos}          \r");
+            print!("{}          \r", log_infos);
             stdout().flush().unwrap();
         }
 
@@ -253,14 +278,25 @@ impl Sudoku {
             .into_iter()
             .collect::<Vec<_>>();
         randomized_cells_to_remove.shuffle(&mut sudoku_generation_input.rng);
+        randomized_cells_to_remove.sort_by_key(|(x, y, _)| {
+            let mut possibilities = (1..=self.n2).collect::<HashSet<_>>();
+            for (x, y) in self.get_cell_group(*x, *y, SudokuGroups::All) {
+                let cell_value = self.board[y][x];
+                if cell_value != 0 {
+                    possibilities.remove(&cell_value);
+                }
+            }
+            possibilities.len()
+        });
+
         let mut can_remove_a_cell = false;
         for (x, y, removed_value) in randomized_cells_to_remove {
             // stop if a solution was found by another thread
             if *thread_should_stop.lock().unwrap() {
-                return false;
+                return;
             }
 
-            // remove the cell
+            // remove the cell and its twins
             self.remove_value(x, y).unwrap();
             sudoku_generation_input.exploring_filled_cells[y * self.n2 + x] = false;
             sudoku_generation_input
@@ -273,16 +309,13 @@ impl Sudoku {
             if sudoku.is_filled() {
                 can_remove_a_cell = true;
                 // recurcively try to remove more cells
-                if self._generate_from(
+                self._generate_from(
                     aimed_difficulty,
                     sudoku_generation_input,
                     thread_should_stop,
                     already_explored_filled_cells,
                     log_infos,
-                ) {
-                    // if a solution was found, stop everything
-                    return true;
-                }
+                );
             }
 
             // add back the cell and its twins
@@ -295,31 +328,30 @@ impl Sudoku {
 
         // stop if a solution was found by another thread
         if *thread_should_stop.lock().unwrap() {
-            return false;
+            return;
         }
 
         // if no cell can be removed...
         if can_remove_a_cell {
             let mut log_infos = log_infos.lock().unwrap();
             log_infos.can_remove_a_cell_counter += 1;
-            print!("{log_infos}          \r");
+            print!("{}          \r", log_infos);
             stdout().flush().unwrap();
-            return false;
+            return;
         }
 
-        // if we can solve the sudoku and its the right difficulty...
+        // and if we can solve the sudoku and its the right difficulty...
         let mut verify_sudoku = self.clone();
         verify_sudoku.rule_solve_until(None, None, Some(aimed_difficulty));
         if !verify_sudoku.is_filled() || verify_sudoku.difficulty != aimed_difficulty {
             let mut log_infos = log_infos.lock().unwrap();
             log_infos.wrong_difficulty_counter += 1;
-            print!("{log_infos}          \r");
+            print!("{}          \r", log_infos);
             stdout().flush().unwrap();
-            return false;
+            return;
         }
 
         // we just found a solution !
-        self.difficulty = aimed_difficulty;
-        true
+        sudoku_generation_input.tx.send(Some(self.clone())).unwrap();
     }
 }
