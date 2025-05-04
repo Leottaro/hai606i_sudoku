@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS canonical_carpet_games (
 	carpet_game_id SERIAL,
 	carpet_game_carpet_filled_board_hash BIGINT NOT NULL,
 	carpet_game_difficulty SMALLINT NOT NULL,
+	carpet_game_difficulty_score SMALLINT NOT NULL,
 	carpet_game_filled_cells BYTEA NOT NULL,
 	carpet_game_filled_cells_count SMALLINT NOT NULL,
 	UNIQUE (carpet_game_id, carpet_game_filled_cells),
@@ -70,5 +71,6 @@ CREATE TABLE IF NOT EXISTS canonical_carpet_games (
 );
 CREATE INDEX IF NOT EXISTS idx_carpet_game_carpet_filled_board_hash ON canonical_carpet_games(carpet_game_carpet_filled_board_hash);
 CREATE INDEX IF NOT EXISTS idx_carpet_game_difficulty ON canonical_carpet_games(carpet_game_difficulty);
+CREATE INDEX IF NOT EXISTS idx_carpet_game_difficulty_score ON canonical_carpet_games(carpet_game_difficulty_score);
 CREATE INDEX IF NOT EXISTS idx_carpet_game_filled_cells ON canonical_carpet_games(carpet_game_filled_cells);
 CREATE INDEX IF NOT EXISTS idx_carpet_game_filled_cells_count ON canonical_carpet_games(carpet_game_filled_cells_count);

@@ -14,7 +14,9 @@ pub struct CarpetSudoku {
     pattern: CarpetPattern,
     sudokus: Vec<Sudoku>,
     links: CarpetLinks,
+
     difficulty: SudokuDifficulty,
+    difficulty_score: usize,
 
     filled_board_hash: u64,
     is_canonical: bool,

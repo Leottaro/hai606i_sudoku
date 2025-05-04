@@ -148,6 +148,7 @@ impl CarpetSudoku {
 
     pub fn into_generate_from(mut self, aimed_difficulty: SudokuDifficulty) -> Option<Self> {
         self.difficulty = SudokuDifficulty::Unknown;
+        self.difficulty_score = 0;
 
         let temp = (0..self.sudokus.len() * self.n2 * self.n2)
             .map(|i| {
@@ -163,10 +164,27 @@ impl CarpetSudoku {
             .iter()
             .map(|(_, _, _, value)| *value > 0)
             .collect::<Vec<_>>();
-        let original_cells_to_remove = temp
-            .into_iter()
-            .filter(|(_, _, _, value)| *value > 0)
-            .collect::<HashSet<_>>();
+        let original_cells_to_remove = {
+            let mut cells_to_remove = HashSet::new();
+            for (i, x, y, value) in temp {
+                if value == 0 {
+                    continue;
+                }
+
+                let mut to_insert = true;
+                for (i2, x2, y2) in self.get_twin_cells(i, x, y) {
+                    if cells_to_remove.contains(&(i2, x2, y2, value)) {
+                        to_insert = false;
+                        break;
+                    }
+                }
+
+                if to_insert {
+                    cells_to_remove.insert((i, x, y, value));
+                }
+            }
+            cells_to_remove
+        };
 
         let already_explored_filled_cells = Arc::new(Mutex::new(HashSet::new()));
         let log_infos = Arc::new(Mutex::new(CarpetGenerationLogInfos {
@@ -199,6 +217,7 @@ impl CarpetSudoku {
 
                     starting_carpet.remove_value(sudoku_id, x, y).unwrap();
                     starting_carpet.difficulty = SudokuDifficulty::Unknown;
+                    starting_carpet.difficulty_score = 0;
                     for (sudoku_id, x, y) in self.get_twin_cells(sudoku_id, x, y) {
                         starting_exploring_filled_cells[(sudoku_id * self.n2 + y) * self.n2 + x] =
                             false;
@@ -277,7 +296,7 @@ impl CarpetSudoku {
             let mut carpet = carpet.unwrap();
 
             // if this possibility isn't unique
-            if !self.is_unique() {
+            if !carpet.is_unique() {
                 continue;
             }
 
@@ -288,13 +307,20 @@ impl CarpetSudoku {
                 let _ = join_handle.join();
             }
 
+            {
+                let mut solved_carpet = carpet.clone();
+                solved_carpet.rule_solve_until((false, false), Some(aimed_difficulty));
+                carpet.difficulty = solved_carpet.difficulty;
+                carpet.difficulty_score = solved_carpet.difficulty_score;
+            }
+
             println!(
-                "{} {}: {}",
-                self.pattern,
-                aimed_difficulty,
+                "{} {} score {}: {}",
+                carpet.pattern,
+                carpet.difficulty,
+                carpet.difficulty_score,
                 log_infos.lock().unwrap()
             );
-            carpet.difficulty = aimed_difficulty;
             return Some(carpet);
         }
         None

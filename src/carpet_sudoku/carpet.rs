@@ -150,6 +150,7 @@ impl CarpetSudoku {
             n2: n * n,
             pattern,
             difficulty: SudokuDifficulty::Unknown,
+            difficulty_score: 0,
             sudokus,
             links,
             filled_board_hash: 0,
@@ -163,6 +164,7 @@ impl CarpetSudoku {
             n2: n * n,
             pattern: CarpetPattern::Custom(links.len()),
             difficulty: SudokuDifficulty::Unknown,
+            difficulty_score: 0,
             sudokus,
             links,
             filled_board_hash: 0,
@@ -337,6 +339,7 @@ impl CarpetSudoku {
             }
             self.difficulty = self.difficulty.max(sudoku.get_difficulty());
         }
+        self.difficulty_score += rules_used.iter().fold(0, |acc, e| acc + *e);
         self.update_link()
             .map(|_| (modified_possibility, modified_value, rules_used))
     }
@@ -349,6 +352,7 @@ impl CarpetSudoku {
         let mut used_rules = Vec::new();
         let (rule_solve_result1, rule_solve_result2) = rule_solve_result;
         self.difficulty = SudokuDifficulty::Unknown;
+        self.difficulty_score = 0;
         let mut did_anything = false;
         while let Ok((result1, result2, rules)) = self.rule_solve(max_difficulty) {
             used_rules.push(rules);
@@ -535,7 +539,7 @@ impl CarpetSudoku {
         self.sudokus.iter().all(|sudoku| sudoku.is_filled())
     }
 
-    pub fn is_unique(&mut self) -> bool {
+    pub fn is_unique(&self) -> bool {
         self.count_solutions(Some(2)) == 1
     }
 
@@ -711,6 +715,7 @@ impl CarpetSudoku {
                 .wrapping_sub(u64::MAX / 2 + 1)
                 as i64,
             carpet_game_difficulty: self.difficulty as i16,
+            carpet_game_difficulty_score: self.difficulty_score as i16,
             carpet_game_filled_cells: filled_cells,
             carpet_game_filled_cells_count: filled_cells_count,
         }

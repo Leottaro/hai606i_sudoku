@@ -283,13 +283,24 @@ fn carpet_games(max_number: usize) {
     while remaining_number > 0 {
         println!("\n\n\n{remaining_number} filled carpets remaining");
 
-        for pattern in CarpetPattern::iter() {
+        let mut patterns = CarpetPattern::iter().collect::<Vec<_>>();
+        patterns.sort_by(|a, b| {
+            a.get_n_sudokus().cmp(&b.get_n_sudokus()).then(
+                a.get_carpet_links(3)
+                    .len()
+                    .cmp(&b.get_carpet_links(3).len()),
+            )
+        });
+        for pattern in patterns.into_iter().cycle() {
             println!("\n{}: ", pattern);
 
             let filled = CarpetSudoku::generate_full(3, pattern);
 
             if let Some(my_join_handle) = join_handle {
-                my_join_handle.join().unwrap();
+                let no_problem = my_join_handle.join().unwrap();
+                if !no_problem {
+                    return;
+                }
             }
 
             let thread_database = database.clone();
@@ -349,7 +360,10 @@ fn carpet_games(max_number: usize) {
                 let game = filled.generate_from(difficulty).unwrap();
 
                 if let Some(my_join_handle) = join_handle {
-                    my_join_handle.join().unwrap();
+                    let no_problem = my_join_handle.join().unwrap();
+                    if !no_problem {
+                        return;
+                    }
                 }
 
                 let database = Arc::clone(&database);
