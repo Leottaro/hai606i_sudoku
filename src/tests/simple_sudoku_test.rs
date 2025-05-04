@@ -199,7 +199,7 @@ mod tests {
         }
 
         for difficulty in SudokuDifficulty::iter() {
-            let game1 = filled1.generate_from(difficulty);
+            let game1 = filled1.generate_from(difficulty).unwrap();
             let db_game = game1.game_to_db().unwrap();
             let game2 = Sudoku::db_from_game(db_game, db_canonical_sudoku.clone());
             if game1.ne(&game2) {

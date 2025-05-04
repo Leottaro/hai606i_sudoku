@@ -377,12 +377,8 @@ impl CarpetSudoku {
     }
 
     fn _backtrack_solve(&mut self, mut empty_cells: Vec<(usize, usize, usize)>) -> bool {
-        empty_cells.sort_by(|&a, &b| {
-            self.sudokus[a.0]
-                .get_cell_possibilities(a.1, a.2)
-                .len()
-                .cmp(&self.sudokus[b.0].get_cell_possibilities(b.1, b.2).len())
-        });
+        empty_cells
+            .sort_by_key(|&(sudoku, x, y)| self.sudokus[sudoku].get_cell_possibilities(x, y).len());
 
         let mut i = 0;
         while i < empty_cells.len() {
@@ -567,12 +563,8 @@ impl CarpetSudoku {
         mut empty_cells: Vec<(usize, usize, usize)>,
         max_solutions: Option<usize>,
     ) -> usize {
-        empty_cells.sort_by(|&a, &b| {
-            self.sudokus[a.0]
-                .get_cell_possibilities(a.1, a.2)
-                .len()
-                .cmp(&self.sudokus[b.0].get_cell_possibilities(b.1, b.2).len())
-        });
+        empty_cells
+            .sort_by_key(|&(sudoku, x, y)| self.sudokus[sudoku].get_cell_possibilities(x, y).len());
 
         let mut i = 0;
         while i < empty_cells.len() {

@@ -1,4 +1,8 @@
-use super::{CarpetLinks, CarpetPattern, RawLink};
+use super::{
+    CarpetLinks,
+    CarpetPattern::{self, *},
+    RawLink,
+};
 use std::{
     collections::{HashMap, HashSet},
     sync::{LazyLock, RwLock},
@@ -11,108 +15,127 @@ static PATTERN_SUB_LINKS: LazyLock<RwLock<HashMap<PatternSubLinksKey, Vec<Carpet
 impl CarpetPattern {
     pub fn to_db(&self) -> (i16, Option<i16>) {
         match *self {
-            CarpetPattern::Simple => (0, None),
-            CarpetPattern::Samurai => (1, None),
-            CarpetPattern::Diagonal(size) => (2, Some(size as i16)),
-            CarpetPattern::DenseDiagonal(size) => (3, Some(size as i16)),
-            CarpetPattern::Carpet(size) => (4, Some(size as i16)),
-            CarpetPattern::DenseCarpet(size) => (5, Some(size as i16)),
-            CarpetPattern::Thorus(size) => (6, Some(size as i16)),
-            CarpetPattern::DenseThorus(size) => (7, Some(size as i16)),
-            CarpetPattern::Custom(_) => panic!("Custom pattern not supported in DB"),
+            Simple => (0, None),
+            Samurai => (1, None),
+            Diagonal(size) => (2, Some(size as i16)),
+            DenseDiagonal(size) => (3, Some(size as i16)),
+            Carpet(size) => (4, Some(size as i16)),
+            DenseCarpet(size) => (5, Some(size as i16)),
+            Thorus(size) => (6, Some(size as i16)),
+            DenseThorus(size) => (7, Some(size as i16)),
+            Custom(_) => panic!("Custom pattern not supported in DB"),
         }
     }
 
     pub fn from_db(pattern: i16, pattern_size: Option<i16>) -> Self {
         match (pattern, pattern_size) {
-            (0, None) => CarpetPattern::Simple,
-            (1, None) => CarpetPattern::Samurai,
-            (2, Some(n)) => CarpetPattern::Diagonal(n as usize),
-            (3, Some(n)) => CarpetPattern::DenseDiagonal(n as usize),
-            (4, Some(n)) => CarpetPattern::Carpet(n as usize),
-            (5, Some(n)) => CarpetPattern::DenseCarpet(n as usize),
-            (6, Some(n)) => CarpetPattern::Thorus(n as usize),
-            (7, Some(n)) => CarpetPattern::DenseThorus(n as usize),
+            (0, None) => Simple,
+            (1, None) => Samurai,
+            (2, Some(n)) => Diagonal(n as usize),
+            (3, Some(n)) => DenseDiagonal(n as usize),
+            (4, Some(n)) => Carpet(n as usize),
+            (5, Some(n)) => DenseCarpet(n as usize),
+            (6, Some(n)) => Thorus(n as usize),
+            (7, Some(n)) => DenseThorus(n as usize),
             (a, b) => panic!("pattern:{a} & pattern_size:{:?} not recognized !", b),
         }
     }
 
     pub fn iter() -> impl Iterator<Item = CarpetPattern> {
         vec![
-            CarpetPattern::Simple,
-            CarpetPattern::Diagonal(2),
-            CarpetPattern::DenseDiagonal(2),
-            CarpetPattern::Diagonal(3),
-            CarpetPattern::DenseDiagonal(3),
-            CarpetPattern::Diagonal(4),
-            CarpetPattern::DenseDiagonal(4),
-            CarpetPattern::Carpet(2),
-            CarpetPattern::Thorus(2),
-            CarpetPattern::DenseCarpet(2),
-            CarpetPattern::DenseThorus(2),
-            CarpetPattern::Samurai,
-            CarpetPattern::Diagonal(5),
-            CarpetPattern::DenseDiagonal(5),
-            CarpetPattern::Carpet(3),
-            CarpetPattern::Thorus(3),
-            CarpetPattern::DenseCarpet(3),
-            CarpetPattern::DenseThorus(3),
+            Simple,
+            Samurai,
+            Diagonal(2),
+            DenseDiagonal(2),
+            Carpet(2),
+            DenseCarpet(2),
+            Thorus(2),
+            Diagonal(3),
+            DenseDiagonal(3),
+            Carpet(3),
+            DenseCarpet(3),
+            Thorus(3),
+            DenseThorus(3),
+            Diagonal(4),
+            DenseDiagonal(4),
+            Carpet(4),
+            DenseCarpet(4),
+            Thorus(4),
+            DenseThorus(4),
+            Diagonal(5),
+            DenseDiagonal(5),
+            Carpet(5),
+            DenseCarpet(5),
+            Thorus(5),
+            DenseThorus(5),
         ]
         .into_iter()
     }
 
     pub fn iter_simple() -> impl Iterator<Item = CarpetPattern> {
         vec![
-            CarpetPattern::Simple,
-            CarpetPattern::Samurai,
-            CarpetPattern::Diagonal(2),
-            CarpetPattern::DenseDiagonal(2),
-            CarpetPattern::Carpet(2),
-            CarpetPattern::DenseCarpet(2),
-            CarpetPattern::Thorus(2),
-            CarpetPattern::DenseThorus(2),
+            Simple,
+            Samurai,
+            Diagonal(2),
+            DenseDiagonal(2),
+            Carpet(2),
+            DenseCarpet(2),
+            Thorus(2),
+            DenseThorus(3),
         ]
         .into_iter()
     }
 
     pub fn get_n_sudokus(&self) -> usize {
         match *self {
-            CarpetPattern::Simple => 1,
-            CarpetPattern::Samurai => 5,
-            CarpetPattern::Diagonal(size)
-            | CarpetPattern::DenseDiagonal(size)
-            | CarpetPattern::Custom(size) => size,
-            CarpetPattern::Carpet(size)
-            | CarpetPattern::DenseCarpet(size)
-            | CarpetPattern::Thorus(size)
-            | CarpetPattern::DenseThorus(size) => size * size,
+            Simple => 1,
+            Samurai => 5,
+            Diagonal(size) | DenseDiagonal(size) | Custom(size) => size,
+            Carpet(size) | DenseCarpet(size) | Thorus(size) | DenseThorus(size) => size * size,
         }
     }
 
     pub fn get_size(&self) -> usize {
         match *self {
-            CarpetPattern::Simple => 1,
-            CarpetPattern::Samurai => 5,
-            CarpetPattern::Diagonal(size)
-            | CarpetPattern::DenseDiagonal(size)
-            | CarpetPattern::Carpet(size)
-            | CarpetPattern::DenseCarpet(size)
-            | CarpetPattern::Thorus(size)
-            | CarpetPattern::DenseThorus(size)
-            | CarpetPattern::Custom(size) => size,
+            Simple => 1,
+            Samurai => 5,
+            Diagonal(size) | DenseDiagonal(size) | Carpet(size) | DenseCarpet(size)
+            | Thorus(size) | DenseThorus(size) | Custom(size) => size,
         }
     }
 
-    pub fn set_size(&mut self, new_size: usize) {
+    pub fn sub_assign(&mut self, rhs: usize) {
         match self {
-            CarpetPattern::Diagonal(size)
-            | CarpetPattern::Carpet(size)
-            | CarpetPattern::DenseDiagonal(size)
-            | CarpetPattern::DenseCarpet(size)
-            | CarpetPattern::Thorus(size)
-            | CarpetPattern::DenseThorus(size)
-            | CarpetPattern::Custom(size) => *size = new_size,
-            _ => (),
+            Diagonal(size) | Carpet(size) | DenseDiagonal(size) | DenseCarpet(size) => {
+                if *size >= rhs + 2 {
+                    *size -= rhs;
+                } else {
+                    *size = 2;
+                }
+            }
+            Thorus(size) | DenseThorus(size) => {
+                if *size >= rhs + 3 {
+                    *size -= rhs;
+                } else {
+                    *size = 3;
+                }
+            }
+            Custom(size) => {
+                if *size > rhs {
+                    *size -= rhs;
+                } else {
+                    *size = 1;
+                }
+            }
+            Simple | Samurai => (),
+        }
+    }
+
+    pub fn add_assign(&mut self, rhs: usize) {
+        match self {
+            Diagonal(size) | Carpet(size) | DenseDiagonal(size) | DenseCarpet(size)
+            | Thorus(size) | DenseThorus(size) | Custom(size) => *size += rhs,
+            Simple | Samurai => (),
         }
     }
 
@@ -123,17 +146,17 @@ impl CarpetPattern {
         let bottom_right = n * n - 1;
 
         match *self {
-            CarpetPattern::Simple => vec![],
-            CarpetPattern::Samurai => vec![
+            Simple => vec![],
+            Samurai => vec![
                 ((0, up_left), (1, bottom_right)),
                 ((0, up_right), (2, bottom_left)),
                 ((0, bottom_left), (3, up_right)),
                 ((0, bottom_right), (4, up_left)),
             ],
-            CarpetPattern::Diagonal(size) => (1..size)
+            Diagonal(size) => (1..size)
                 .map(|i| ((i - 1, up_right), (i, bottom_left)))
                 .collect(),
-            CarpetPattern::Carpet(size) => {
+            Carpet(size) => {
                 let mut links = Vec::new();
                 for y in 0..size {
                     for x in 0..size {
@@ -168,7 +191,7 @@ impl CarpetPattern {
                 }
                 links
             }
-            CarpetPattern::Thorus(size) => {
+            Thorus(size) => {
                 let mut links = Vec::new();
                 for y in 0..size {
                     for x in 0..size {
@@ -195,7 +218,7 @@ impl CarpetPattern {
                 }
                 links
             }
-            CarpetPattern::DenseDiagonal(size) => {
+            DenseDiagonal(size) => {
                 let mut links = Vec::new();
                 for sudoku_i in 0..size - 1 {
                     for j in 1..n {
@@ -214,7 +237,7 @@ impl CarpetPattern {
                 }
                 links
             }
-            CarpetPattern::DenseCarpet(size) => {
+            DenseCarpet(size) => {
                 let mut links = Vec::new();
                 for y in 0..size {
                     for x in 0..size {
@@ -301,7 +324,7 @@ impl CarpetPattern {
                 }
                 links
             }
-            CarpetPattern::DenseThorus(size) => {
+            DenseThorus(size) => {
                 let mut links = Vec::new();
                 for y in 0..size {
                     for x in 0..size {
@@ -370,7 +393,7 @@ impl CarpetPattern {
                 }
                 links
             }
-            CarpetPattern::Custom(_) => vec![],
+            Custom(_) => vec![],
         }
     }
 
@@ -398,7 +421,7 @@ impl CarpetPattern {
 
     pub fn get_sub_links(&self, n: usize) -> Vec<CarpetLinks> {
         match self {
-            CarpetPattern::Custom(_) => (),
+            Custom(_) => (),
             pattern => {
                 if let Some(links) = PATTERN_SUB_LINKS.read().unwrap().get(&(n, *pattern)) {
                     return links.clone();
@@ -416,7 +439,7 @@ impl CarpetPattern {
         );
 
         match self {
-            CarpetPattern::Custom(_) => (),
+            Custom(_) => (),
             pattern => {
                 PATTERN_SUB_LINKS
                     .write()
@@ -505,15 +528,15 @@ impl CarpetPattern {
 impl std::fmt::Display for CarpetPattern {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CarpetPattern::Simple => write!(f, "Simple"),
-            CarpetPattern::Samurai => write!(f, "Samurai"),
-            CarpetPattern::Diagonal(size) => write!(f, "Diagonal({size})"),
-            CarpetPattern::DenseDiagonal(size) => write!(f, "DenseDiagonal({size})"),
-            CarpetPattern::Carpet(size) => write!(f, "Carpet({size})"),
-            CarpetPattern::DenseCarpet(size) => write!(f, "DenseCarpet({size})"),
-            CarpetPattern::Thorus(size) => write!(f, "Thorus({size})"),
-            CarpetPattern::DenseThorus(size) => write!(f, "DenseThorus({size})"),
-            CarpetPattern::Custom(size) => write!(f, "Custom({size})"),
+            Simple => write!(f, "Simple"),
+            Samurai => write!(f, "Samurai"),
+            Diagonal(size) => write!(f, "Diagonal({size})"),
+            DenseDiagonal(size) => write!(f, "DenseDiagonal({size})"),
+            Carpet(size) => write!(f, "Carpet({size})"),
+            DenseCarpet(size) => write!(f, "DenseCarpet({size})"),
+            Thorus(size) => write!(f, "Thorus({size})"),
+            DenseThorus(size) => write!(f, "DenseThorus({size})"),
+            Custom(size) => write!(f, "Custom({size})"),
         }
     }
 }
