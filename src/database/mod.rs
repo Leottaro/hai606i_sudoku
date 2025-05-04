@@ -88,6 +88,7 @@ pub struct DBCanonicalCarpetGame {
     pub carpet_game_id: i32,
     pub carpet_game_carpet_filled_board_hash: i64,
     pub carpet_game_difficulty: i16,
+    pub carpet_game_difficulty_score: i16,
     pub carpet_game_filled_cells: Vec<u8>,
     pub carpet_game_filled_cells_count: i16,
 }
@@ -99,6 +100,7 @@ pub struct DBCanonicalCarpetGame {
 pub struct DBNewCanonicalCarpetGame {
     pub carpet_game_carpet_filled_board_hash: i64,
     pub carpet_game_difficulty: i16,
+    pub carpet_game_difficulty_score: i16,
     pub carpet_game_filled_cells: Vec<u8>,
     pub carpet_game_filled_cells_count: i16,
 }
@@ -108,6 +110,7 @@ impl From<DBCanonicalCarpetGame> for DBNewCanonicalCarpetGame {
         DBNewCanonicalCarpetGame {
             carpet_game_carpet_filled_board_hash: game.carpet_game_carpet_filled_board_hash,
             carpet_game_difficulty: game.carpet_game_difficulty,
+            carpet_game_difficulty_score: game.carpet_game_difficulty_score,
             carpet_game_filled_cells: game.carpet_game_filled_cells,
             carpet_game_filled_cells_count: game.carpet_game_filled_cells_count,
         }

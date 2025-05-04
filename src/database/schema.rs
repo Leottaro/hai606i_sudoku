@@ -5,6 +5,7 @@ diesel::table! {
         carpet_game_id -> Int4,
         carpet_game_carpet_filled_board_hash -> Int8,
         carpet_game_difficulty -> Int2,
+        carpet_game_difficulty_score -> Int2,
         carpet_game_filled_cells -> Bytea,
         carpet_game_filled_cells_count -> Int2,
     }
