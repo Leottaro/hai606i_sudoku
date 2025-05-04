@@ -532,9 +532,9 @@ impl SudokuDisplay {
         for pattern in self.pattern_list.iter_mut() {
             let old_pattern = *pattern;
             if increase {
-                pattern.set_size(old_pattern.get_size() + 1);
+                pattern.add_assign(1);
             } else if old_pattern.get_size() > 2 {
-                pattern.set_size(old_pattern.get_size() - 1);
+                pattern.sub_assign(1);
             }
 
             // changing button text
@@ -798,12 +798,14 @@ impl SudokuDisplay {
             for (sudoku2, x2, y2) in self.carpet.get_twin_cells(sudoku_i, x1, y1) {
                 self.player_pboard[sudoku2][y2][x2].clear();
             }
-
-            for (sudoku_id, x, y) in self.carpet.get_global_cell_group(sudoku_i, x1, y1, All) {
-                if self.carpet.get_cell_value(sudoku_id, x, y) == 0 {
-                    self.player_pboard[sudoku_id][y][x].remove(&value);
+            for (sudoku2, x2, y2) in self.carpet.get_global_cell_group(sudoku_i, x1, y1, All) {
+                for (sudoku3, x3, y3) in self.carpet.get_twin_cells(sudoku2, x2, y2) {
+                    if self.carpet.get_cell_value(sudoku3, x3, y3) == 0 {
+                        self.player_pboard[sudoku3][y3][x3].remove(&value);
+                    }
                 }
             }
+
             *self.wrong_cell.lock().unwrap() = None;
             return;
         }

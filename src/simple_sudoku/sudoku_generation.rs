@@ -9,7 +9,7 @@ use rand::seq::SliceRandom;
 
 use super::{Sudoku, SudokuDifficulty};
 
-fn duration_to_string(duration: std::time::Duration) -> String {
+pub fn duration_to_string(duration: std::time::Duration) -> String {
     let milliseconds = duration.as_millis();
     let seconds = milliseconds / 1000;
     let minutes = milliseconds / 60_000;

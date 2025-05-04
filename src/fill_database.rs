@@ -286,7 +286,8 @@ fn carpet_games(max_number: usize) {
         for difficulty in SudokuDifficulty::iter() {
             println!("\n{}: ", difficulty);
             for pattern in CarpetPattern::iter() {
-                println!("{}: ", pattern);
+                print!("{} \r", pattern);
+                stdout().flush().unwrap();
 
                 let filled = CarpetSudoku::generate_full(3, pattern);
                 let game = filled.generate_from(difficulty).unwrap();

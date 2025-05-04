@@ -1,5 +1,5 @@
 use super::{CarpetPattern, CarpetSudoku};
-use crate::simple_sudoku::SudokuDifficulty;
+use crate::simple_sudoku::{sudoku_generation::duration_to_string, SudokuDifficulty};
 use rand::seq::SliceRandom;
 use std::{
     collections::HashSet,
@@ -9,32 +9,6 @@ use std::{
     thread::{self, available_parallelism},
 };
 
-fn duration_to_string(duration: std::time::Duration) -> String {
-    let milliseconds = duration.as_millis();
-    let seconds = milliseconds / 1000;
-    let minutes = milliseconds / 60_000;
-    let hours = milliseconds / 3_600_000;
-    if hours > 0 {
-        format!(
-            "{}h {}m {}.{}s",
-            hours,
-            minutes % 60,
-            seconds % 60,
-            milliseconds % 1000
-        )
-    } else if minutes > 0 {
-        format!(
-            "{}m {}.{}s",
-            minutes % 60,
-            seconds % 60,
-            milliseconds % 1000
-        )
-    } else if seconds > 0 {
-        format!("{}.{}s", seconds % 60, milliseconds % 1000)
-    } else {
-        format!("{}ms", milliseconds % 1000)
-    }
-}
 struct CarpetGenerationThreadInput {
     pub tx: mpsc::Sender<Option<CarpetSudoku>>,
     pub rng: rand::rngs::ThreadRng,
@@ -84,10 +58,7 @@ impl CarpetSudoku {
     }
 
     pub fn into_generate_full_from(self) -> Self {
-        let mut tries = 0;
         loop {
-            tries += 1;
-            print!("\r{} generate_full has {tries} tries", self.pattern);
             let mut carpet = self.clone();
             if !carpet._generate_canonical_from(0, 0, 0) {
                 panic!("pattern: {} juste pas possible en fait", carpet.pattern);
@@ -102,7 +73,6 @@ impl CarpetSudoku {
             carpet.is_canonical = true;
 
             if carpet.backtrack_solve() {
-                println!();
                 return carpet;
             }
         }
@@ -147,8 +117,26 @@ impl CarpetSudoku {
                 }
             }
 
-            if self._generate_canonical_from(sudoku_id, x + 1, y) {
-                return true;
+            match self.pattern {
+                CarpetPattern::DenseCarpet(_)
+                | CarpetPattern::Carpet(_)
+                | CarpetPattern::Samurai
+                | CarpetPattern::Diagonal(_)
+                | CarpetPattern::Simple => {
+                    if self.count_solutions(Some(1)) > 0
+                        && self._generate_canonical_from(sudoku_id, x + 1, y)
+                    {
+                        return true;
+                    }
+                }
+                CarpetPattern::DenseThorus(_)
+                | CarpetPattern::Thorus(_)
+                | CarpetPattern::DenseDiagonal(_)
+                | CarpetPattern::Custom(_) => {
+                    if self._generate_canonical_from(sudoku_id, x + 1, y) {
+                        return true;
+                    }
+                }
             }
 
             if let Err(err) = self.remove_value(sudoku_id, x, y) {
