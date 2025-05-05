@@ -6,6 +6,8 @@ use crate::{
     carpet_sudoku::{CarpetPattern, CarpetSudoku},
     simple_sudoku::{Coords, SudokuDifficulty},
 };
+
+use macroquad::texture::Texture2D;
 use macroquad::color::Color;
 use std::{
     collections::HashMap,
@@ -42,6 +44,7 @@ pub struct SudokuDisplay {
     wrong_cell: Arc<Mutex<Option<(usize, usize, usize, usize)>>>,
     wrong_cell_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
     player_pboard: Vec<Vec<Vec<HashMap<usize, u32>>>>,
+    #[allow(clippy::type_complexity)]
     player_pboard_history: Vec<Vec<Vec<Vec<HashMap<usize, u32>>>>>,
     selected_color: u32,
     pattern_list: Vec<CarpetPattern>,
@@ -53,6 +56,8 @@ pub struct SudokuDisplay {
     difficulty: SudokuDifficulty,
     pattern: CarpetPattern,
     correction_board: Vec<Vec<Vec<usize>>>,
+    cloud_texture: Texture2D,
+    no_cloud_texture: Texture2D,
 }
 
 pub struct Button {
@@ -69,4 +74,5 @@ pub struct Button {
     pub background_color: Color,
     pub draw_text: bool,
     pub draw_border: bool,
+    pub stroke: bool
 }
