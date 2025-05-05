@@ -31,7 +31,7 @@ pub struct SudokuDisplay {
     y_offset: f32,
     font: macroquad::text::Font,
     button_list: Vec<Button>,
-    actions_boutons: HashMap<String, ButtonFunction>,
+    buttons_action: HashMap<String, ButtonFunction>,
     last_processed_keys: Option<Instant>,
 
     mode: String,

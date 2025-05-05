@@ -14,6 +14,7 @@ pub const PLAY: &str = "Play";
 pub const ANALYSE: &str = "Analyse";
 pub const SOLVE_ONCE: &str = "Solve once";
 pub const SOLVE: &str = "Solve";
+pub const HINT: &str = "Hint";
 
 pub const NOTE: &str = "Note";
 pub const FILL_NOTES: &str = "Fill Notes";
@@ -46,10 +47,10 @@ impl SudokuDisplay {
         let max_height = screen_height() * 1.05;
         let max_width = screen_width() * 1.05;
         let scale_factor = 1.0;
-        let grid_size = 900.0 * scale_factor;
+        let grid_size = 900. * scale_factor;
         let pixel_per_cell = grid_size / ((n * n) as f32);
-        let x_offset = 250.0 * scale_factor;
-        let y_offset = 150.0 * scale_factor;
+        let x_offset = 250. * scale_factor;
+        let y_offset = 150. * scale_factor;
 
         let carpet = CarpetSudoku::new(n, CarpetPattern::Simple);
         let mode = PLAY.to_string();
@@ -76,11 +77,11 @@ impl SudokuDisplay {
         let no_cloud_texture = load_texture("res/icons/no_cloud.png").await.unwrap();
 
         // ================== Buttons ==================
-        let button_sizex = 150.0 * scale_factor;
-        let button_sizey = 100.0 * scale_factor;
-        let b_padding = 10.0;
+        let button_sizex = 150. * scale_factor;
+        let button_sizey = 100. * scale_factor;
+        let b_padding = 10.;
 
-        let bouton_play = Button {
+        let button_play = Button {
             x: 2.0 * b_padding,
             y: 2.0 * b_padding,
             width: button_sizex,
@@ -90,12 +91,12 @@ impl SudokuDisplay {
             ..Default::default()
         };
         buttons_action.insert(
-            bouton_play.text.to_string(),
+            button_play.text.to_string(),
             Rc::new(Box::new(|sudoku_display| {
                 sudoku_display.set_mode(PLAY);
             })),
         );
-        button_list.push(bouton_play);
+        button_list.push(button_play);
 
         let button_analyse = Button {
             x: 2.0 * b_padding + b_padding + button_sizex,
@@ -339,7 +340,7 @@ impl SudokuDisplay {
         button_list.push(button_solve_once);
 
         let button_solve = Button {
-            x: x_offset + grid_size / 2.0 + b_padding,
+            x: x_offset + grid_size / 2.0,
             y: 2.0 * b_padding,
             width: button_sizex,
             height: button_sizey,
@@ -349,6 +350,18 @@ impl SudokuDisplay {
         };
         buttons_action.insert(SOLVE.to_string(), Rc::new(Box::new(SudokuDisplay::solve)));
         button_list.push(button_solve);
+
+        let button_hint = Button {
+            x: x_offset + grid_size / 2.0 + button_sizex + b_padding,
+            y: 2.0 * b_padding,
+            width: button_sizex,
+            height: button_sizey,
+            text: HINT.to_string(),
+            scale_factor,
+            ..Default::default()
+        };
+        buttons_action.insert(HINT.to_string(), Rc::new(Box::new(SudokuDisplay::hint)));
+        button_list.push(button_hint);
 
         // ==========================================================
         // ====================== Notes Buttons =====================
@@ -520,7 +533,7 @@ impl SudokuDisplay {
             note,
             button_list,
             font,
-            actions_boutons: buttons_action,
+            buttons_action,
             lifes,
             wrong_cell,
             wrong_cell_handle,
@@ -618,8 +631,8 @@ impl SudokuDisplay {
 
             // remapping button action
             let new_pattern = *pattern;
-            self.actions_boutons.remove(&old_pattern.to_string());
-            self.actions_boutons.insert(
+            self.buttons_action.remove(&old_pattern.to_string());
+            self.buttons_action.insert(
                 pattern.to_string(),
                 Rc::new(Box::new(move |sudoku_display| {
                     sudoku_display.pattern = new_pattern;
@@ -706,6 +719,11 @@ impl SudokuDisplay {
 
     fn set_mode(&mut self, mode: &str) {
         self.mode = mode.to_string();
+        if self.note {
+            if let Some(action) = self.buttons_action.get(NOTE).cloned() {
+                action(self);
+            }
+        }
 
         for bouton in self.button_list.iter_mut() {
             if bouton.text.eq(ANALYSE) {
@@ -728,6 +746,11 @@ impl SudokuDisplay {
     }
 
     pub fn solve_once(&mut self) {
+        if self.mode != ANALYSE {
+            if let Some(action) = self.buttons_action.get(ANALYSE).cloned() {
+                action(self);
+            }
+        }
         let previous_boards = self
             .carpet
             .get_sudokus()
@@ -775,6 +798,28 @@ impl SudokuDisplay {
                 }
             }
         }
+    }
+
+    pub fn hint(&mut self) {
+        if self.carpet.get_filled_cells() == 0 {
+            return;
+        }
+        if self.mode != ANALYSE {
+            if let Some(action) = self.buttons_action.get(ANALYSE).cloned() {
+                action(self);
+            }
+        }
+        let reponse = self.carpet.clone().rule_solve_until((true, true), None);
+        let (_, rules_used) = reponse;
+        self.analyse_text.clear();
+        self.analyse_text.push("Hint used".to_string());
+        let sudoku = rand::gen_range(0, rules_used[0].len());
+        let used_rule = rules_used[0][sudoku];
+        self.analyse_text.push(format!(
+            "Sudoku {} could use \"{}\" somewhere",
+            sudoku,
+            Sudoku::get_rule_name_by_id(used_rule)
+        ));
     }
 
     fn solve(&mut self) {
@@ -1016,7 +1061,7 @@ impl SudokuDisplay {
             let i = i as f32;
             // row
             draw_line(
-                0.0 + sudoku_x_offset,
+                0. + sudoku_x_offset,
                 i * self.pixel_per_cell + sudoku_y_offset,
                 self.pixel_per_cell * (n2 as f32) + sudoku_x_offset,
                 i * self.pixel_per_cell + sudoku_y_offset,
@@ -1026,7 +1071,7 @@ impl SudokuDisplay {
             // col
             draw_line(
                 i * self.pixel_per_cell + sudoku_x_offset,
-                0.0 + sudoku_y_offset,
+                0. + sudoku_y_offset,
                 i * self.pixel_per_cell + sudoku_x_offset,
                 self.pixel_per_cell * (n2 as f32) + sudoku_y_offset,
                 1.0,
@@ -1433,7 +1478,7 @@ impl SudokuDisplay {
             self.scale_factor = screen_height() / self.max_height;
         }
 
-        self.grid_size = 900.0 * self.scale_factor;
+        self.grid_size = 900. * self.scale_factor;
         self.pixel_per_cell = match self.carpet.get_pattern() {
             CarpetPattern::Simple | CarpetPattern::Thorus(_) | CarpetPattern::DenseThorus(_) => {
                 self.grid_size / n2 as f32
@@ -1448,8 +1493,8 @@ impl SudokuDisplay {
             CarpetPattern::Custom(_) => panic!("Custom pattern not implemented"),
         };
 
-        self.x_offset = 250.0 * self.scale_factor;
-        self.y_offset = 150.0 * self.scale_factor;
+        self.x_offset = 250. * self.scale_factor;
+        self.y_offset = 150. * self.scale_factor;
     }
 
     pub fn update_selected_buttons(&mut self) {
@@ -1583,79 +1628,79 @@ impl SudokuDisplay {
         match last_key_pressed {
             KeyCode::Kp1 | KeyCode::Key1 => {
                 if self.wrong_cell_handle.lock().unwrap().is_none() {
-                    if let Some(action) = self.actions_boutons.get("1").cloned() {
+                    if let Some(action) = self.buttons_action.get("1").cloned() {
                         action(self);
                     }
                 }
             }
             KeyCode::Kp2 | KeyCode::Key2 => {
                 if self.wrong_cell_handle.lock().unwrap().is_none() {
-                    if let Some(action) = self.actions_boutons.get("2").cloned() {
+                    if let Some(action) = self.buttons_action.get("2").cloned() {
                         action(self);
                     }
                 }
             }
             KeyCode::Kp3 | KeyCode::Key3 => {
                 if self.wrong_cell_handle.lock().unwrap().is_none() {
-                    if let Some(action) = self.actions_boutons.get("3").cloned() {
+                    if let Some(action) = self.buttons_action.get("3").cloned() {
                         action(self);
                     }
                 }
             }
             KeyCode::Kp4 | KeyCode::Key4 => {
                 if self.wrong_cell_handle.lock().unwrap().is_none() {
-                    if let Some(action) = self.actions_boutons.get("4").cloned() {
+                    if let Some(action) = self.buttons_action.get("4").cloned() {
                         action(self);
                     }
                 }
             }
             KeyCode::Kp5 | KeyCode::Key5 => {
                 if self.wrong_cell_handle.lock().unwrap().is_none() {
-                    if let Some(action) = self.actions_boutons.get("5").cloned() {
+                    if let Some(action) = self.buttons_action.get("5").cloned() {
                         action(self);
                     }
                 }
             }
             KeyCode::Kp6 | KeyCode::Key6 => {
                 if self.wrong_cell_handle.lock().unwrap().is_none() {
-                    if let Some(action) = self.actions_boutons.get("6").cloned() {
+                    if let Some(action) = self.buttons_action.get("6").cloned() {
                         action(self);
                     }
                 }
             }
             KeyCode::Kp7 | KeyCode::Key7 => {
                 if self.wrong_cell_handle.lock().unwrap().is_none() {
-                    if let Some(action) = self.actions_boutons.get("7").cloned() {
+                    if let Some(action) = self.buttons_action.get("7").cloned() {
                         action(self);
                     }
                 }
             }
             KeyCode::Kp8 | KeyCode::Key8 => {
                 if self.wrong_cell_handle.lock().unwrap().is_none() {
-                    if let Some(action) = self.actions_boutons.get("8").cloned() {
+                    if let Some(action) = self.buttons_action.get("8").cloned() {
                         action(self);
                     }
                 }
             }
             KeyCode::Kp9 | KeyCode::Key9 => {
                 if self.wrong_cell_handle.lock().unwrap().is_none() {
-                    if let Some(action) = self.actions_boutons.get("9").cloned() {
+                    if let Some(action) = self.buttons_action.get("9").cloned() {
                         action(self);
                     }
                 }
             }
             KeyCode::N => {
-                if let Some(action) = self.actions_boutons.get(NOTE).cloned() {
+                if let Some(action) = self.buttons_action.get(NOTE).cloned() {
                     action(self);
                 }
             }
             KeyCode::F => {
-                if let Some(action) = self.actions_boutons.get(FILL_NOTES).cloned() {
+                if let Some(action) = self.buttons_action.get(FILL_NOTES).cloned() {
                     action(self);
                 }
             }
             KeyCode::U => {
-                if let Some(action) = self.actions_boutons.get(UNDO).cloned() {
+                if let Some(action) = self.buttons_action.get(UNDO).cloned() {
                     action(self);
                 }
             }
@@ -1663,17 +1708,17 @@ impl SudokuDisplay {
                 self.selected_cell = None;
             }
             KeyCode::A => {
-                if let Some(action) = self.actions_boutons.get(ANALYSE).cloned() {
+                if let Some(action) = self.buttons_action.get(ANALYSE).cloned() {
                     action(self);
                 }
             }
             KeyCode::P => {
-                if let Some(action) = self.actions_boutons.get(PLAY).cloned() {
+                if let Some(action) = self.buttons_action.get(PLAY).cloned() {
                     action(self);
                 }
             }
             KeyCode::S => {
-                if let Some(action) = self.actions_boutons.get(SOLVE).cloned() {
+                if let Some(action) = self.buttons_action.get(SOLVE).cloned() {
                     action(self);
                 }
             }
@@ -1873,15 +1918,15 @@ impl SudokuDisplay {
         if self.database.is_some() {
             draw_texture(
                 &self.cloud_texture,
-                screen_width() - 50.0,
-                screen_height() - 50.0,
+                screen_width() - 50.,
+                screen_height() - 50.,
                 Color::from_hex(0x00ff00),
             );
         } else {
             draw_texture(
                 &self.no_cloud_texture,
-                screen_width() - 50.0,
-                screen_height() - 50.0,
+                screen_width() - 50.,
+                screen_height() - 50.,
                 Color::from_hex(0xff0000),
             );
         }
@@ -1925,7 +1970,7 @@ impl SudokuDisplay {
                 continue;
             }
 
-            if self.actions_boutons.contains_key(&bouton.text)
+            if self.buttons_action.contains_key(&bouton.text)
                 && mouse_x > bouton.x()
                 && mouse_x < bouton.x() + bouton.width()
                 && mouse_y > bouton.y()
@@ -1935,7 +1980,7 @@ impl SudokuDisplay {
                     || bouton.text.chars().any(|c| !c.is_ascii_digit())
                 {
                     if is_mouse_button_pressed(MouseButton::Left) && bouton.clickable {
-                        action = Some(Rc::clone(self.actions_boutons.get(&bouton.text).unwrap()));
+                        action = Some(Rc::clone(self.buttons_action.get(&bouton.text).unwrap()));
                     }
                     bouton.set_hover(true);
                 }
@@ -1950,17 +1995,21 @@ impl SudokuDisplay {
         }
 
         if self.mode == ANALYSE {
-            let font_size = self.pixel_per_cell / 3.;
+            let font_size = self.grid_size / 30.;
             let bx_offset = 100. * self.scale_factor - self.pixel_per_cell / 2.;
             for (index, rule) in self.analyse_text.iter().enumerate() {
-                draw_text(
+                draw_text_ex(
                     rule,
                     self.x_offset + self.grid_size + bx_offset,
                     self.y_offset
                         + font_size * (index + 1) as f32
                         + (self.grid_size - font_size * self.analyse_text.len() as f32) / 2.,
-                    font_size,
-                    Color::from_hex(FOREGROUND_COLOR),
+                    TextParams {
+                        font: Some(&font),
+                        font_size: font_size as u16,
+                        color: Color::from_hex(FOREGROUND_COLOR),
+                        ..Default::default()
+                    },
                 );
             }
         }
