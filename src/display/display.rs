@@ -54,7 +54,7 @@ impl SudokuDisplay {
         let selected_color = COLORS[0];
         let correction_board =
             vec![vec![vec![0; carpet.get_n2()]; carpet.get_n2()]; carpet.get_n_sudokus()];
-        let note = false;
+        let note = true;
         let mut button_list = Vec::new();
         let mut actions_boutons: HashMap<String, ButtonFunction> = HashMap::new();
         let lifes = 3;
@@ -354,6 +354,7 @@ impl SudokuDisplay {
             height: button_sizey,
             text: NOTE.to_string(),
             scale_factor,
+            clicked: note,
             ..Default::default()
         };
         actions_boutons.insert(
@@ -532,7 +533,9 @@ impl SudokuDisplay {
         self.set_mode(PLAY);
         self.selected_cell = None;
         self.hovered_cell = None;
-        self.note = false;
+        if !self.note {
+            self.notes_btn();
+        }
         self.lifes = 3;
         self.player_pboard =
             vec![
@@ -778,6 +781,12 @@ impl SudokuDisplay {
         for bouton in self.button_list.iter_mut() {
             if bouton.text.eq(NOTE) {
                 bouton.set_clicked(!bouton.clicked());
+            } else if bouton.text.eq(COLOR_INDICATOR) {
+                bouton.enabled = self.note;
+            } else if let Ok(valeur) = bouton.text.parse::<u32>() {
+                if COLORS.contains(&valeur) {
+                    bouton.enabled = self.note;
+                }
             }
         }
     }
