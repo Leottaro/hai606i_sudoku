@@ -6,9 +6,9 @@ use crate::{
     carpet_sudoku::{CarpetPattern, CarpetSudoku},
     simple_sudoku::{Coords, SudokuDifficulty},
 };
-use macroquad::texture::Texture2D;
+use macroquad::color::Color;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     rc::Rc,
     sync::{Arc, Mutex},
     thread::JoinHandle,
@@ -30,8 +30,6 @@ pub struct SudokuDisplay {
     font: macroquad::text::Font,
     button_list: Vec<Button>,
     actions_boutons: HashMap<String, ButtonFunction>,
-    background_victoire: Texture2D,
-    background_defaite: Texture2D,
     last_processed_keys: Option<Instant>,
 
     mode: String,
@@ -43,8 +41,9 @@ pub struct SudokuDisplay {
     #[allow(clippy::type_complexity)]
     wrong_cell: Arc<Mutex<Option<(usize, usize, usize, usize)>>>,
     wrong_cell_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
-    player_pboard: Vec<Vec<Vec<HashSet<usize>>>>,
-    player_pboard_history: Vec<Vec<Vec<Vec<HashSet<usize>>>>>,
+    player_pboard: Vec<Vec<Vec<HashMap<usize, u32>>>>,
+    player_pboard_history: Vec<Vec<Vec<Vec<HashMap<usize, u32>>>>>,
+    selected_color: u32,
     pattern_list: Vec<CarpetPattern>,
     thorus_view: Coords,
 
@@ -67,4 +66,7 @@ pub struct Button {
     pub clicked: bool,
     pub hover: bool,
     pub scale_factor: f32,
+    pub background_color: Color,
+    pub draw_text: bool,
+    pub draw_border: bool,
 }

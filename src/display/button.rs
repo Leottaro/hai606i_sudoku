@@ -1,31 +1,11 @@
 use macroquad::prelude::*;
 
-use super::Button;
+use super::{
+    display::{DECREASE, INCREASE},
+    Button,
+};
 
 impl Button {
-    pub fn new(
-        x: f32,
-        y: f32,
-        width: f32,
-        height: f32,
-        text: String,
-        clicked: bool,
-        scale_factor: f32,
-    ) -> Self {
-        Button {
-            x,
-            y,
-            width,
-            height,
-            enabled: true,
-            clickable: true,
-            text,
-            clicked,
-            hover: false,
-            scale_factor,
-        }
-    }
-
     pub fn x(&self) -> f32 {
         self.x * self.scale_factor
     }
@@ -75,41 +55,72 @@ impl Button {
     }
 
     pub async fn draw(&self, font: Font) {
-        let color = Color::from_hex(0xe4ebf2);
-        let hover_color = Color::from_hex(0xd0dbe7);
-        let clicked_color = Color::from_hex(0xc2ddf8);
-        let clicked_hovered_color = Color::from_hex(0x9ac5f8);
-        let blocked_color = Color::from_hex(0x818294);
+        let hover_color = Color::from_hex(0xd0dbe7).with_alpha(0.25);
+        let clicked_color = Color::from_hex(0xc2ddf8).with_alpha(0.75);
+        let blocked_color = Color::from_hex(0x818294).with_alpha(0.75);
 
-        let mut text_color = Color::from_hex(0x000000);
-        if !self.clickable {
-            text_color = Color::from_hex(0xffffff);
+        if self.draw_border {
+            draw_rectangle(
+                self.x * self.scale_factor - 1.,
+                self.y * self.scale_factor - 1.,
+                self.width * self.scale_factor + 2.,
+                self.height * self.scale_factor + 2.,
+                Color::from_hex(0),
+            );
         }
-
-        let actual_color = if self.clickable {
-            if self.clicked {
-                if self.hover {
-                    clicked_hovered_color
-                } else {
-                    clicked_color
-                }
-            } else if self.hover {
-                hover_color
-            } else {
-                color
-            }
-        } else {
-            blocked_color
-        };
 
         draw_rectangle(
             self.x * self.scale_factor,
             self.y * self.scale_factor,
             self.width * self.scale_factor,
             self.height * self.scale_factor,
-            actual_color,
+            self.background_color,
         );
-        let font_size = ((self.height * self.scale_factor) as u16) / 4;
+
+        if self.clickable {
+            if self.hover {
+                draw_rectangle(
+                    self.x * self.scale_factor,
+                    self.y * self.scale_factor,
+                    self.width * self.scale_factor,
+                    self.height * self.scale_factor,
+                    hover_color,
+                );
+            }
+
+            if self.clicked {
+                draw_rectangle(
+                    self.x * self.scale_factor,
+                    self.y * self.scale_factor,
+                    self.width * self.scale_factor,
+                    self.height * self.scale_factor,
+                    clicked_color,
+                );
+            }
+        } else {
+            draw_rectangle(
+                self.x * self.scale_factor,
+                self.y * self.scale_factor,
+                self.width * self.scale_factor,
+                self.height * self.scale_factor,
+                blocked_color,
+            );
+        }
+
+        if !self.draw_text {
+            return;
+        }
+
+        let mut text_color = Color::from_hex(0x000000);
+        if !self.clickable {
+            text_color = Color::from_hex(0xffffff);
+        }
+
+        let font_size = if self.text.eq(DECREASE) || self.text.eq(INCREASE) {
+            (self.height * self.scale_factor) as u16
+        } else {
+            ((self.height * self.scale_factor) as u16) / 4
+        };
         let text = self.text.clone();
         let text_dimensions = measure_text(&text, Some(&font), font_size, 1.0);
         let text_x = self.x * self.scale_factor
@@ -127,5 +138,25 @@ impl Button {
                 ..Default::default()
             },
         );
+    }
+}
+
+impl Default for Button {
+    fn default() -> Self {
+        Self {
+            x: 0.,
+            y: 0.,
+            width: 0.,
+            height: 0.,
+            enabled: true,
+            clickable: true,
+            text: "Default".to_string(),
+            clicked: false,
+            hover: false,
+            scale_factor: 1.,
+            background_color: Color::from_hex(0xe4ebf2),
+            draw_text: true,
+            draw_border: false,
+        }
     }
 }
