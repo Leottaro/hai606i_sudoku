@@ -73,7 +73,9 @@ impl SudokuDisplay {
         let pattern: CarpetPattern = CarpetPattern::Simple;
         let pattern_list = CarpetPattern::iter_simple().collect::<Vec<_>>();
         let thorus_view = (0, 0);
+        #[cfg(feature = "database")]
         let cloud_texture = load_texture("res/icons/cloud.png").await.unwrap();
+        #[cfg(feature = "database")]
         let no_cloud_texture = load_texture("res/icons/no_cloud.png").await.unwrap();
 
         // ================== Buttons ==================
@@ -543,7 +545,9 @@ impl SudokuDisplay {
             thorus_view,
             correction_board,
             last_processed_keys: None,
+            #[cfg(feature = "database")]
             cloud_texture,
+            #[cfg(feature = "database")]
             no_cloud_texture,
         }
     }
@@ -1453,7 +1457,7 @@ impl SudokuDisplay {
                 }
                 None
             }
-            CarpetPattern::Thorus(size) | CarpetPattern::DenseThorus(size) => {
+            CarpetPattern::Torus(size) | CarpetPattern::DenseThorus(size) => {
                 Some((self.thorus_view.1 * size + self.thorus_view.0, x, y))
             }
             CarpetPattern::Custom(_) => panic!("Custom pattern not implemented"),
@@ -1480,7 +1484,7 @@ impl SudokuDisplay {
 
         self.grid_size = 900. * self.scale_factor;
         self.pixel_per_cell = match self.carpet.get_pattern() {
-            CarpetPattern::Simple | CarpetPattern::Thorus(_) | CarpetPattern::DenseThorus(_) => {
+            CarpetPattern::Simple | CarpetPattern::Torus(_) | CarpetPattern::DenseThorus(_) => {
                 self.grid_size / n2 as f32
             }
             CarpetPattern::Samurai => self.grid_size / (n2 * 3 - 2 * n) as f32,
@@ -1562,7 +1566,7 @@ impl SudokuDisplay {
 
     pub fn move_thorus_view(&mut self, key_pressed: &HashSet<KeyCode>) -> bool {
         let thorus_size = match self.carpet.get_pattern() {
-            CarpetPattern::Thorus(size) | CarpetPattern::DenseThorus(size) => size,
+            CarpetPattern::Torus(size) | CarpetPattern::DenseThorus(size) => size,
             _ => return false,
         };
 
@@ -1727,7 +1731,7 @@ impl SudokuDisplay {
 
                 if self.selected_cell.is_none() {
                     self.selected_cell = match self.carpet.get_pattern() {
-                        CarpetPattern::Thorus(size) | CarpetPattern::DenseThorus(size) => {
+                        CarpetPattern::Torus(size) | CarpetPattern::DenseThorus(size) => {
                             Some((self.thorus_view.1 * size + self.thorus_view.0, 0, 0))
                         }
                         _ => Some((0, 0, 0)),
@@ -1738,7 +1742,7 @@ impl SudokuDisplay {
                 match self.carpet.get_pattern() {
                     CarpetPattern::Simple
                     | CarpetPattern::DenseThorus(_)
-                    | CarpetPattern::Thorus(_) => {
+                    | CarpetPattern::Torus(_) => {
                         let (sudoku_id, mut x1, mut y1) = self.selected_cell.unwrap();
                         match last_key_pressed {
                             KeyCode::Up => {
@@ -1792,7 +1796,7 @@ impl SudokuDisplay {
                 };
                 if modified {
                     match self.carpet.get_pattern() {
-                        CarpetPattern::Thorus(size) | CarpetPattern::DenseThorus(size) => {
+                        CarpetPattern::Torus(size) | CarpetPattern::DenseThorus(size) => {
                             self.thorus_view = (sudoku_i % size, sudoku_i / size);
                         }
                         _ => (),
@@ -1837,7 +1841,7 @@ impl SudokuDisplay {
 
                     if modified {
                         match self.carpet.get_pattern() {
-                            CarpetPattern::Thorus(size) | CarpetPattern::DenseThorus(size) => {
+                            CarpetPattern::Torus(size) | CarpetPattern::DenseThorus(size) => {
                                 self.thorus_view = (sudoku_i % size, sudoku_i / size);
                             }
                             _ => (),
@@ -1895,7 +1899,7 @@ impl SudokuDisplay {
                 }
 
                 match self.carpet.get_pattern() {
-                    CarpetPattern::Thorus(size) | CarpetPattern::DenseThorus(size) => {
+                    CarpetPattern::Torus(size) | CarpetPattern::DenseThorus(size) => {
                         self.thorus_view = (sudoku_i % size, sudoku_i / size);
                     }
                     _ => (),
@@ -1918,14 +1922,14 @@ impl SudokuDisplay {
         if self.database.is_some() {
             draw_texture(
                 &self.cloud_texture,
-                screen_width() - 50.,
+                50.,
                 screen_height() - 50.,
                 Color::from_hex(0x00ff00),
             );
         } else {
             draw_texture(
                 &self.no_cloud_texture,
-                screen_width() - 50.,
+                50.,
                 screen_height() - 50.,
                 Color::from_hex(0xff0000),
             );
@@ -2039,7 +2043,7 @@ impl SudokuDisplay {
             CarpetPattern::DenseDiagonal(_) => self.draw_diag_sudoku(true, font.clone()).await,
             CarpetPattern::Carpet(_) => self.draw_carpet_sudoku(false, font.clone()).await,
             CarpetPattern::DenseCarpet(_) => self.draw_carpet_sudoku(true, font.clone()).await,
-            CarpetPattern::Thorus(_) | CarpetPattern::DenseThorus(_) => {
+            CarpetPattern::Torus(_) | CarpetPattern::DenseThorus(_) => {
                 let (sudoku_x, sudoku_y) = self.thorus_view;
                 let sudoku_i = sudoku_y * self.carpet.get_pattern().get_size() + sudoku_x;
                 self.draw_simple_sudoku(font.clone(), sudoku_i, 0, 0).await

@@ -7,6 +7,7 @@ use crate::{
     simple_sudoku::{Coords, SudokuDifficulty},
 };
 
+#[cfg(feature = "database")]
 use macroquad::texture::Texture2D;
 use macroquad::color::Color;
 use std::{
@@ -56,7 +57,9 @@ pub struct SudokuDisplay {
     difficulty: SudokuDifficulty,
     pattern: CarpetPattern,
     correction_board: Vec<Vec<Vec<usize>>>,
+    #[cfg(feature = "database")]
     cloud_texture: Texture2D,
+    #[cfg(feature = "database")]
     no_cloud_texture: Texture2D,
 }
 
