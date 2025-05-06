@@ -117,8 +117,8 @@ impl Button {
         }
 
         if self.stroke {
-            draw_line(x, y, x + width, y + height, 2.0, Color::from_hex(0xff0000));
-            draw_line(x, y + height, x + width, y, 2.0, Color::from_hex(0xff0000));
+            draw_line(x, y, x + width, y + height, 1.0, Color::from_hex(0x000000));
+            draw_line(x, y + height, x + width, y, 1.0, Color::from_hex(0x000000));
         }
 
         if !self.draw_text {
