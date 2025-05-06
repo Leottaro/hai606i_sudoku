@@ -28,6 +28,14 @@ impl CarpetSudoku {
         &self.sudokus
     }
 
+    pub fn get_sudoku(&self, key: usize) -> Option<&Sudoku> {
+        if self.sudokus.len() > key {
+            Some(&self.sudokus[key])
+        } else {
+            None
+        }
+    }
+
     pub fn get_n_sudokus(&self) -> usize {
         self.sudokus.len()
     }

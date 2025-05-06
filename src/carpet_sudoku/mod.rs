@@ -31,6 +31,6 @@ pub enum CarpetPattern {
     Carpet(usize),
     DenseCarpet(usize),
     Torus(usize),
-    DenseThorus(usize),
+    DenseTorus(usize),
     Custom(usize),
 }

@@ -49,7 +49,7 @@ pub struct SudokuDisplay {
     player_pboard_history: Vec<Vec<Vec<Vec<HashMap<usize, u32>>>>>,
     selected_color: u32,
     pattern_list: Vec<CarpetPattern>,
-    thorus_view: Coords,
+    torus_view: Coords,
 
     #[cfg(feature = "database")]
     database: Option<Database>,
