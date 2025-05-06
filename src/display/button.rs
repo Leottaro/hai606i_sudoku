@@ -59,7 +59,7 @@ impl Button {
     }
 
     pub async fn draw(&self, font: Font) {
-        let hover_color = Color::from_hex(0xd0dbe7).with_alpha(0.25);
+        let hover_color = Color::from_hex(0xd0dbe7).with_alpha(0.75);
         let clicked_color = Color::from_hex(0xc2ddf8).with_alpha(0.75);
         let blocked_color = Color::from_hex(0x818294).with_alpha(0.75);
 
@@ -69,51 +69,21 @@ impl Button {
         let height = self.height * self.scale_factor;
 
         if self.draw_border {
-            draw_rectangle(
-                x - 1.,
-                y - 1.,
-                width + 2.,
-                height + 2.,
-                Color::from_hex(0),
-            );
+            draw_rectangle(x - 1., y - 1., width + 2., height + 2., Color::from_hex(0));
         }
 
-        draw_rectangle(
-            x,
-            y,
-            width,
-            height,
-            self.background_color,
-        );
+        draw_rectangle(x, y, width, height, self.background_color);
 
         if self.clickable {
             if self.hover {
-                draw_rectangle(
-                    x,
-                    y,
-                    width,
-                    height,
-                    hover_color,
-                );
+                draw_rectangle(x, y, width, height, hover_color);
             }
 
             if self.clicked {
-                draw_rectangle(
-                    x,
-                    y,
-                    width,
-                    height,
-                    clicked_color,
-                );
+                draw_rectangle(x, y, width, height, clicked_color);
             }
         } else {
-            draw_rectangle(
-                x,
-                y,
-                width,
-                height,
-                blocked_color,
-            );
+            draw_rectangle(x, y, width, height, blocked_color);
         }
 
         if self.stroke {
@@ -137,10 +107,8 @@ impl Button {
         };
         let text = self.text.clone();
         let text_dimensions = measure_text(&text, Some(&font), font_size, 1.0);
-        let text_x = x
-            + (width - text_dimensions.width) / 2.0;
-        let text_y = y
-            + (height + text_dimensions.height) / 2.0;
+        let text_x = x + (width - text_dimensions.width) / 2.0;
+        let text_y = y + (height + text_dimensions.height) / 2.0;
         draw_text_ex(
             &text,
             text_x,
@@ -171,7 +139,7 @@ impl Default for Button {
             background_color: Color::from_hex(0xe4ebf2),
             draw_text: true,
             draw_border: false,
-            stroke: false
+            stroke: false,
         }
     }
 }

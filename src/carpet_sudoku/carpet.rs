@@ -781,10 +781,14 @@ impl CarpetSudoku {
         carpet
     }
 
-    pub fn load_filled_from_db(database: &mut Database, n: usize, pattern: CarpetPattern) -> Self {
+    pub fn load_filled_from_db(
+        database: &mut Database,
+        n: usize,
+        pattern: CarpetPattern,
+    ) -> Option<Self> {
         database
             .get_random_canonical_carpet(n as i16, pattern.to_db())
-            .unwrap()
+            .ok()
     }
 
     pub fn load_game_from_db(
@@ -792,10 +796,10 @@ impl CarpetSudoku {
         n: usize,
         pattern: CarpetPattern,
         difficulty: SudokuDifficulty,
-    ) -> Self {
+    ) -> Option<Self> {
         database
             .get_random_canonical_carpet_game(n as i16, pattern.to_db(), difficulty as i16)
-            .unwrap()
+            .ok()
     }
 
     pub fn load_minimal_game_from_db(
@@ -803,10 +807,10 @@ impl CarpetSudoku {
         n: usize,
         pattern: CarpetPattern,
         difficulty: SudokuDifficulty,
-    ) -> Self {
+    ) -> Option<Self> {
         database
             .get_random_minimal_canonical_carpet_game(n as i16, pattern.to_db(), difficulty as i16)
-            .unwrap()
+            .ok()
     }
 
     // TODO:

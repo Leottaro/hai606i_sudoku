@@ -106,14 +106,15 @@ impl CarpetPattern {
 
     pub fn sub_assign(&mut self, rhs: usize) {
         match self {
-            Diagonal(size) | Carpet(size) | DenseDiagonal(size) | DenseCarpet(size) => {
+            Diagonal(size) | Carpet(size) | DenseDiagonal(size) | DenseCarpet(size)
+            | Torus(size) => {
                 if *size >= rhs + 2 {
                     *size -= rhs;
                 } else {
                     *size = 2;
                 }
             }
-            Torus(size) | DenseTorus(size) => {
+            DenseTorus(size) => {
                 if *size >= rhs + 3 {
                     *size -= rhs;
                 } else {

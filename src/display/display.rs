@@ -4,9 +4,9 @@ use crate::database::Database;
 use crate::simple_sudoku::{Coords, Sudoku, SudokuDifficulty, SudokuGroups::*};
 
 use super::{Button, ButtonFunction, SudokuDisplay};
-use macroquad::prelude::*;
-use ::rand::seq::IteratorRandom;
 use ::rand::rng;
+use ::rand::seq::IteratorRandom;
+use macroquad::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
@@ -670,20 +670,31 @@ impl SudokuDisplay {
     fn new_game(&mut self, empty: bool, browse: bool) {
         self.init();
 
-        self.carpet = if empty {
-            CarpetSudoku::new(self.carpet.get_n(), self.pattern)
+        let new_carpet;
+        if empty {
+            new_carpet = Some(CarpetSudoku::new(
+                self.carpet.get_n(),
+                self.carpet.get_pattern(),
+            ));
         } else {
             #[cfg(feature = "database")]
             match (browse, &mut self.database) {
-                (true, Some(database)) => CarpetSudoku::load_game_from_db(
-                    database,
-                    self.carpet.get_n(),
-                    self.pattern,
-                    self.difficulty,
-                ),
-                _ => CarpetSudoku::generate_new(self.carpet.get_n(), self.pattern, self.difficulty),
+                (true, Some(database)) => {
+                    new_carpet = CarpetSudoku::load_game_from_db(
+                        database,
+                        self.carpet.get_n(),
+                        self.pattern,
+                        self.difficulty,
+                    )
+                }
+                _ => {
+                    new_carpet = Some(CarpetSudoku::generate_new(
+                        self.carpet.get_n(),
+                        self.pattern,
+                        self.difficulty,
+                    ))
+                }
             }
-
             #[cfg(not(feature = "database"))]
             {
                 if browse {
@@ -691,11 +702,17 @@ impl SudokuDisplay {
 						"SudokuDisplay Error: Cannot fetch a game from database because the database feature isn't enabled"
 					);
                 }
-                CarpetSudoku::generate_new(self.carpet.get_n(), self.pattern, self.difficulty)
+                new_carpet = Some(CarpetSudoku::generate_new(
+                    self.carpet.get_n(),
+                    self.pattern,
+                    self.difficulty,
+                ))
             }
-        };
-        if !empty {
-            self.carpet.randomize().unwrap();
+        }
+
+        if let Some(new_carpet) = new_carpet {
+            self.carpet = new_carpet;
+            let _ = self.carpet.randomize();
         }
 
         for button in self.button_list.iter_mut() {
