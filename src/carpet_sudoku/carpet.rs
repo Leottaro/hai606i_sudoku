@@ -358,18 +358,20 @@ impl CarpetSudoku {
         max_difficulty: Option<SudokuDifficulty>,
     ) -> (bool, Vec<Vec<usize>>) {
         let mut used_rules = Vec::new();
-        let (rule_solve_result1, rule_solve_result2) = rule_solve_result;
         self.difficulty = SudokuDifficulty::Unknown;
         self.difficulty_score = 0;
         let mut did_anything = false;
-        while let Ok((result1, result2, rules)) = self.rule_solve(max_difficulty) {
+        while let Ok((modified_possibility, modified_value, rules)) =
+            self.rule_solve(max_difficulty)
+        {
             used_rules.push(rules);
-            if (result1, result2) == (rule_solve_result1, rule_solve_result2)
-                || (result1, result2) == (false, false)
-            {
+            if (modified_possibility, modified_value) == (false, false) {
                 break;
             }
             did_anything = true;
+            if (modified_possibility, modified_value) == rule_solve_result {
+                break;
+            }
         }
         (did_anything, used_rules)
     }

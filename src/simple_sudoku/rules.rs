@@ -10,36 +10,6 @@ use super::{
 };
 use crate::debug_only;
 
-/*
-difficulties info:
-
-Difficulty EASY:
-    min: 4ms
-    max: 39ms
-    average 10.22 ms
-    median: 10ms
-Difficulty MEDIUM:
-    min: 22ms
-    max: 572ms
-    average 151.64 ms
-    median: 130ms
-Difficulty HARD:
-    min: 19ms
-    max: 2770ms
-    average 126.52 ms
-    median: 79ms
-Difficulty MASTER:
-    min: 31ms
-    max: 2191ms
-    average 285.47 ms
-    median: 182ms
-Difficulty EXTREME:
-    min: 163ms
-    max: 27531ms
-    average 5025.82 ms
-    median: 3794ms
-*/
-
 impl Sudoku {
     pub const RULES: &'static [(usize, SudokuDifficulty, SudokuRule)] = &[
         (0, Easy, Sudoku::naked_singles),
