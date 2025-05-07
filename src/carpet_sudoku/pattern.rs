@@ -21,8 +21,8 @@ impl CarpetPattern {
             DenseDiagonal(size) => (3, Some(size as i16)),
             Carpet(size) => (4, Some(size as i16)),
             DenseCarpet(size) => (5, Some(size as i16)),
-            Thorus(size) => (6, Some(size as i16)),
-            DenseThorus(size) => (7, Some(size as i16)),
+            Torus(size) => (6, Some(size as i16)),
+            DenseTorus(size) => (7, Some(size as i16)),
             Custom(_) => panic!("Custom pattern not supported in DB"),
         }
     }
@@ -35,8 +35,8 @@ impl CarpetPattern {
             (3, Some(n)) => DenseDiagonal(n as usize),
             (4, Some(n)) => Carpet(n as usize),
             (5, Some(n)) => DenseCarpet(n as usize),
-            (6, Some(n)) => Thorus(n as usize),
-            (7, Some(n)) => DenseThorus(n as usize),
+            (6, Some(n)) => Torus(n as usize),
+            (7, Some(n)) => DenseTorus(n as usize),
             (a, b) => panic!("pattern:{a} & pattern_size:{:?} not recognized !", b),
         }
     }
@@ -49,25 +49,25 @@ impl CarpetPattern {
             DenseDiagonal(2),
             Carpet(2),
             DenseCarpet(2),
-            Thorus(2),
+            Torus(2),
             Diagonal(3),
             DenseDiagonal(3),
             Carpet(3),
             DenseCarpet(3),
-            Thorus(3),
-            DenseThorus(3),
+            Torus(3),
+            DenseTorus(3),
             Diagonal(4),
             DenseDiagonal(4),
             Carpet(4),
             DenseCarpet(4),
-            Thorus(4),
-            DenseThorus(4),
+            Torus(4),
+            DenseTorus(4),
             Diagonal(5),
             DenseDiagonal(5),
             Carpet(5),
             DenseCarpet(5),
-            Thorus(5),
-            DenseThorus(5),
+            Torus(5),
+            DenseTorus(5),
         ]
         .into_iter()
     }
@@ -80,8 +80,8 @@ impl CarpetPattern {
             DenseDiagonal(2),
             Carpet(2),
             DenseCarpet(2),
-            Thorus(2),
-            DenseThorus(3),
+            Torus(2),
+            DenseTorus(3),
         ]
         .into_iter()
     }
@@ -91,7 +91,7 @@ impl CarpetPattern {
             Simple => 1,
             Samurai => 5,
             Diagonal(size) | DenseDiagonal(size) | Custom(size) => size,
-            Carpet(size) | DenseCarpet(size) | Thorus(size) | DenseThorus(size) => size * size,
+            Carpet(size) | DenseCarpet(size) | Torus(size) | DenseTorus(size) => size * size,
         }
     }
 
@@ -100,20 +100,21 @@ impl CarpetPattern {
             Simple => 1,
             Samurai => 5,
             Diagonal(size) | DenseDiagonal(size) | Carpet(size) | DenseCarpet(size)
-            | Thorus(size) | DenseThorus(size) | Custom(size) => size,
+            | Torus(size) | DenseTorus(size) | Custom(size) => size,
         }
     }
 
     pub fn sub_assign(&mut self, rhs: usize) {
         match self {
-            Diagonal(size) | Carpet(size) | DenseDiagonal(size) | DenseCarpet(size) => {
+            Diagonal(size) | Carpet(size) | DenseDiagonal(size) | DenseCarpet(size)
+            | Torus(size) => {
                 if *size >= rhs + 2 {
                     *size -= rhs;
                 } else {
                     *size = 2;
                 }
             }
-            Thorus(size) | DenseThorus(size) => {
+            DenseTorus(size) => {
                 if *size >= rhs + 3 {
                     *size -= rhs;
                 } else {
@@ -134,7 +135,7 @@ impl CarpetPattern {
     pub fn add_assign(&mut self, rhs: usize) {
         match self {
             Diagonal(size) | Carpet(size) | DenseDiagonal(size) | DenseCarpet(size)
-            | Thorus(size) | DenseThorus(size) | Custom(size) => *size += rhs,
+            | Torus(size) | DenseTorus(size) | Custom(size) => *size += rhs,
             Simple | Samurai => (),
         }
     }
@@ -191,7 +192,7 @@ impl CarpetPattern {
                 }
                 links
             }
-            Thorus(size) => {
+            Torus(size) => {
                 let mut links = Vec::new();
                 for y in 0..size {
                     for x in 0..size {
@@ -324,7 +325,7 @@ impl CarpetPattern {
                 }
                 links
             }
-            DenseThorus(size) => {
+            DenseTorus(size) => {
                 let mut links = Vec::new();
                 for y in 0..size {
                     for x in 0..size {
@@ -534,8 +535,8 @@ impl std::fmt::Display for CarpetPattern {
             DenseDiagonal(size) => write!(f, "DenseDiagonal({size})"),
             Carpet(size) => write!(f, "Carpet({size})"),
             DenseCarpet(size) => write!(f, "DenseCarpet({size})"),
-            Thorus(size) => write!(f, "Thorus({size})"),
-            DenseThorus(size) => write!(f, "DenseThorus({size})"),
+            Torus(size) => write!(f, "Torus({size})"),
+            DenseTorus(size) => write!(f, "DenseTorus({size})"),
             Custom(size) => write!(f, "Custom({size})"),
         }
     }

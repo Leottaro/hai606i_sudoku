@@ -1,31 +1,10 @@
+use super::{
+    display::{DECREASE, INCREASE},
+    Button,
+};
 use macroquad::prelude::*;
 
-use super::Button;
-
 impl Button {
-    pub fn new(
-        x: f32,
-        y: f32,
-        width: f32,
-        height: f32,
-        text: String,
-        clicked: bool,
-        scale_factor: f32,
-    ) -> Self {
-        Button {
-            x,
-            y,
-            width,
-            height,
-            enabled: true,
-            clickable: true,
-            text,
-            clicked,
-            hover: false,
-            scale_factor,
-        }
-    }
-
     pub fn x(&self) -> f32 {
         self.x * self.scale_factor
     }
@@ -48,6 +27,10 @@ impl Button {
 
     pub fn clicked(&self) -> bool {
         self.clicked
+    }
+
+    pub fn stroke(&self) -> bool {
+        self.stroke
     }
 
     pub fn set_enabled(&mut self, enabled: bool) {
@@ -75,57 +58,103 @@ impl Button {
     }
 
     pub async fn draw(&self, font: Font) {
-        let color = Color::from_hex(0xe4ebf2);
-        let hover_color = Color::from_hex(0xd0dbe7);
-        let clicked_color = Color::from_hex(0xc2ddf8);
-        let clicked_hovered_color = Color::from_hex(0x9ac5f8);
-        let blocked_color = Color::from_hex(0x818294);
+        let hover_color = Color::from_hex(0xd0dbe7).with_alpha(0.75);
+        let clicked_color = Color::from_hex(0xc2ddf8).with_alpha(0.75);
+        let blocked_color = Color::from_hex(0x818294).with_alpha(0.75);
+
+        let x = self.x * self.scale_factor;
+        let y = self.y * self.scale_factor;
+        let width = self.width * self.scale_factor;
+        let height = self.height * self.scale_factor;
+
+        if self.draw_border {
+            draw_rectangle(x - 1., y - 1., width + 2., height + 2., Color::from_hex(0));
+        }
+
+        draw_rectangle(x, y, width, height, self.background_color);
+
+        if self.clickable {
+            if self.hover {
+                draw_rectangle(x, y, width, height, hover_color);
+            }
+
+            if self.clicked {
+                draw_rectangle(x, y, width, height, clicked_color);
+            }
+        } else {
+            draw_rectangle(x, y, width, height, blocked_color);
+        }
+
+        if self.stroke {
+            draw_line(x, y, x + width, y + height, 1.0, Color::from_hex(0x000000));
+            draw_line(x, y + height, x + width, y, 1.0, Color::from_hex(0x000000));
+        }
+
+        if !self.draw_text {
+            return;
+        }
 
         let mut text_color = Color::from_hex(0x000000);
         if !self.clickable {
             text_color = Color::from_hex(0xffffff);
         }
 
-        let actual_color = if self.clickable {
-            if self.clicked {
-                if self.hover {
-                    clicked_hovered_color
-                } else {
-                    clicked_color
-                }
-            } else if self.hover {
-                hover_color
-            } else {
-                color
-            }
+        let font_size = if self.text.eq(DECREASE) || self.text.eq(INCREASE) {
+            height as u16
         } else {
-            blocked_color
+            (height as u16) / 4
         };
-
-        draw_rectangle(
-            self.x * self.scale_factor,
-            self.y * self.scale_factor,
-            self.width * self.scale_factor,
-            self.height * self.scale_factor,
-            actual_color,
-        );
-        let font_size = ((self.height * self.scale_factor) as u16) / 4;
         let text = self.text.clone();
-        let text_dimensions = measure_text(&text, Some(&font), font_size, 1.0);
-        let text_x = self.x * self.scale_factor
-            + (self.width * self.scale_factor - text_dimensions.width) / 2.0;
-        let text_y = self.y * self.scale_factor
-            + (self.height * self.scale_factor + text_dimensions.height) / 2.0;
-        draw_text_ex(
-            &text,
-            text_x,
-            text_y,
-            TextParams {
-                font: Some(&font),
-                font_size,
-                color: text_color,
-                ..Default::default()
-            },
-        );
+        let mut text_height = 0.;
+        for (i, line) in text.split("\n").enumerate() {
+            let text_dimensions = measure_text(line, Some(&font), font_size, 1.0);
+            text_height += if i == 0 {
+                text_dimensions.height
+            } else {
+                text_dimensions.height * 5. / 3.
+            };
+        }
+        let mut text_y = y + height / 2. - text_height / 2.;
+
+        for (i, line) in text.split("\n").enumerate() {
+            let text_dimensions = measure_text(line, Some(&font), font_size, 1.0);
+            text_y += if i == 0 {
+                text_dimensions.height
+            } else {
+                text_dimensions.height * 5. / 3.
+            };
+            draw_text_ex(
+                line,
+                x + (width - text_dimensions.width) / 2.,
+                text_y,
+                TextParams {
+                    font: Some(&font),
+                    font_size,
+                    color: text_color,
+                    ..Default::default()
+                },
+            );
+        }
+    }
+}
+
+impl Default for Button {
+    fn default() -> Self {
+        Self {
+            x: 0.,
+            y: 0.,
+            width: 0.,
+            height: 0.,
+            enabled: true,
+            clickable: true,
+            text: "Default".to_string(),
+            clicked: false,
+            hover: false,
+            scale_factor: 1.,
+            background_color: Color::from_hex(0xe4ebf2),
+            draw_text: true,
+            draw_border: false,
+            stroke: false,
+        }
     }
 }

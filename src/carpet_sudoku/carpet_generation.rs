@@ -1,5 +1,8 @@
 use super::{CarpetPattern, CarpetSudoku};
-use crate::simple_sudoku::{sudoku_generation::duration_to_string, SudokuDifficulty, SudokuGroups};
+use crate::{
+    duration_to_string,
+    simple_sudoku::{SudokuDifficulty, SudokuGroups},
+};
 use rand::seq::SliceRandom;
 use std::{
     collections::HashSet,
@@ -30,7 +33,7 @@ impl std::fmt::Display for CarpetGenerationLogInfos {
         write!(
 			f,
 			"{} explored:{} skipped:{} below_minimal_filled_cells:{} non_unique:{} can_remove_a_cell:{} wrong_difficulty:{} solvable_sub_carpet:{}",
-			duration_to_string(self.start_time.elapsed()),
+			duration_to_string(&self.start_time.elapsed()),
 			self.explored_counter,
 			self.skipped_counter,
 			self.minimal_filled_cells_counter,
@@ -160,13 +163,10 @@ impl CarpetSudoku {
                 (sudoku_id, x, y, value)
             })
             .collect::<Vec<_>>();
-        let original_exploring_filled_cells = temp
-            .iter()
-            .map(|(_, _, _, value)| *value > 0)
-            .collect::<Vec<_>>();
-        let original_cells_to_remove = {
+        let (original_cells_to_remove, original_exploring_filled_cells) = {
             let mut cells_to_remove = HashSet::new();
-            for (i, x, y, value) in temp {
+            let mut exploring_filled_cells = vec![false; self.sudokus.len() * self.n2 * self.n2];
+            for &(i, x, y, value) in temp.iter() {
                 if value == 0 {
                     continue;
                 }
@@ -179,11 +179,12 @@ impl CarpetSudoku {
                     }
                 }
 
+                exploring_filled_cells[(i * self.n2 + y) * self.n2 + x] = to_insert;
                 if to_insert {
                     cells_to_remove.insert((i, x, y, value));
                 }
             }
-            cells_to_remove
+            (cells_to_remove, exploring_filled_cells)
         };
 
         let already_explored_filled_cells = Arc::new(Mutex::new(HashSet::new()));
@@ -315,10 +316,11 @@ impl CarpetSudoku {
             }
 
             println!(
-                "{} {} score {}: {}",
+                "{} {} (score {}) ({} filled cells): {}",
                 carpet.pattern,
                 carpet.difficulty,
                 carpet.difficulty_score,
+                carpet.get_filled_cells(),
                 log_infos.lock().unwrap()
             );
             return Some(carpet);
@@ -339,6 +341,21 @@ impl CarpetSudoku {
             return;
         }
 
+        // skip if we are below the minimal filled cells
+        if carpet_generation_input.cells_to_remove.len() < (2 * self.n2 - 1) {
+            let mut log_infos = log_infos.lock().unwrap();
+            log_infos.minimal_filled_cells_counter += 1;
+            print!(
+                "{} {} ({} filled cells): {}\r",
+                self.pattern,
+                aimed_difficulty,
+                carpet_generation_input.cells_to_remove.len(),
+                log_infos
+            );
+            stdout().flush().unwrap();
+            return;
+        }
+
         // skip if this possibility has already been explored
         if !already_explored_filled_cells
             .lock()
@@ -348,20 +365,11 @@ impl CarpetSudoku {
             let mut log_infos = log_infos.lock().unwrap();
             log_infos.skipped_counter += 1;
             print!(
-                "{} {}: {}          \r",
-                self.pattern, aimed_difficulty, log_infos
-            );
-            stdout().flush().unwrap();
-            return;
-        }
-
-        // skip if we are below the minimal filled cells
-        if carpet_generation_input.cells_to_remove.len() < (2 * self.n2 - 1) {
-            let mut log_infos = log_infos.lock().unwrap();
-            log_infos.minimal_filled_cells_counter += 1;
-            print!(
-                "{} {}: {}          \r",
-                self.pattern, aimed_difficulty, log_infos
+                "{} {} ({} filled cells): {}\r",
+                self.pattern,
+                aimed_difficulty,
+                carpet_generation_input.cells_to_remove.len(),
+                log_infos
             );
             stdout().flush().unwrap();
             return;
@@ -372,8 +380,11 @@ impl CarpetSudoku {
             let mut log_infos = log_infos.lock().unwrap();
             log_infos.explored_counter += 1;
             print!(
-                "{} {}: {}          \r",
-                self.pattern, aimed_difficulty, log_infos
+                "{} {} ({} filled cells): {}\r",
+                self.pattern,
+                aimed_difficulty,
+                carpet_generation_input.cells_to_remove.len(),
+                log_infos
             );
             stdout().flush().unwrap();
         }
@@ -403,16 +414,13 @@ impl CarpetSudoku {
                 return;
             }
 
-            let twin_cells = self.get_twin_cells(sudoku_id, x, y);
-            // remove the cell and its twins
+            // remove the cell (its twins are already removed from exploring_filled_cells and cells_to_remove)
             self.remove_value(sudoku_id, x, y).unwrap();
-            for &(i, x, y) in &twin_cells {
-                carpet_generation_input.exploring_filled_cells[(i * self.n2 + y) * self.n2 + x] =
-                    false;
-                carpet_generation_input
-                    .cells_to_remove
-                    .remove(&(i, x, y, removed_value));
-            }
+            carpet_generation_input.exploring_filled_cells
+                [(sudoku_id * self.n2 + y) * self.n2 + x] = false;
+            carpet_generation_input
+                .cells_to_remove
+                .remove(&(sudoku_id, x, y, removed_value));
 
             // if we can still solve the carpet
             let mut carpet = self.clone();
@@ -429,15 +437,13 @@ impl CarpetSudoku {
                 );
             }
 
-            // add back the cell and its twins
+            // add back the cell (not its twins)
             self.set_value(sudoku_id, x, y, removed_value).unwrap();
-            for (i, x, y) in twin_cells {
-                carpet_generation_input.exploring_filled_cells[(i * self.n2 + y) * self.n2 + x] =
-                    true;
-                carpet_generation_input
-                    .cells_to_remove
-                    .insert((i, x, y, removed_value));
-            }
+            carpet_generation_input.exploring_filled_cells
+                [(sudoku_id * self.n2 + y) * self.n2 + x] = true;
+            carpet_generation_input
+                .cells_to_remove
+                .insert((sudoku_id, x, y, removed_value));
         }
 
         // stop if a solution was found by another thread
@@ -450,8 +456,11 @@ impl CarpetSudoku {
             let mut log_infos = log_infos.lock().unwrap();
             log_infos.can_remove_a_cell_counter += 1;
             print!(
-                "{} {}: {}          \r",
-                self.pattern, aimed_difficulty, log_infos
+                "{} {} ({} filled cells): {}\r",
+                self.pattern,
+                aimed_difficulty,
+                carpet_generation_input.cells_to_remove.len(),
+                log_infos
             );
             stdout().flush().unwrap();
             return;
@@ -464,8 +473,11 @@ impl CarpetSudoku {
             let mut log_infos = log_infos.lock().unwrap();
             log_infos.wrong_difficulty_counter += 1;
             print!(
-                "{} {}: {}          \r",
-                self.pattern, aimed_difficulty, log_infos
+                "{} {} ({} filled cells): {}\r",
+                self.pattern,
+                aimed_difficulty,
+                carpet_generation_input.cells_to_remove.len(),
+                log_infos
             );
             stdout().flush().unwrap();
             return;
@@ -484,10 +496,7 @@ impl CarpetSudoku {
             if sub_carpet.is_filled() {
                 let mut log_infos = log_infos.lock().unwrap();
                 log_infos.solvable_sub_carpet_counter += 1;
-                print!(
-                    "{} {}: {}          \r",
-                    self.pattern, aimed_difficulty, log_infos
-                );
+                print!("{} {}: {}\r", self.pattern, aimed_difficulty, log_infos);
                 stdout().flush().unwrap();
                 return;
             }

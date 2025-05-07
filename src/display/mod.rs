@@ -6,9 +6,12 @@ use crate::{
     carpet_sudoku::{CarpetPattern, CarpetSudoku},
     simple_sudoku::{Coords, SudokuDifficulty},
 };
+
+use macroquad::color::Color;
+#[cfg(feature = "database")]
 use macroquad::texture::Texture2D;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     rc::Rc,
     sync::{Arc, Mutex},
     thread::JoinHandle,
@@ -29,13 +32,12 @@ pub struct SudokuDisplay {
     y_offset: f32,
     font: macroquad::text::Font,
     button_list: Vec<Button>,
-    actions_boutons: HashMap<String, ButtonFunction>,
-    background_victoire: Texture2D,
-    background_defaite: Texture2D,
+    buttons_action: HashMap<String, ButtonFunction>,
     last_processed_keys: Option<Instant>,
 
     mode: String,
     analyse_text: Vec<String>,
+    hint_text: String,
     hovered_cell: Option<(usize, usize, usize)>,
     selected_cell: Option<(usize, usize, usize)>,
     note: bool,
@@ -43,10 +45,12 @@ pub struct SudokuDisplay {
     #[allow(clippy::type_complexity)]
     wrong_cell: Arc<Mutex<Option<(usize, usize, usize, usize)>>>,
     wrong_cell_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
-    player_pboard: Vec<Vec<Vec<HashSet<usize>>>>,
-    player_pboard_history: Vec<Vec<Vec<Vec<HashSet<usize>>>>>,
+    player_pboard: Vec<Vec<Vec<HashMap<usize, u32>>>>,
+    #[allow(clippy::type_complexity)]
+    history: Vec<(CarpetSudoku, Vec<Vec<Vec<HashMap<usize, u32>>>>)>,
+    selected_color: u32,
     pattern_list: Vec<CarpetPattern>,
-    thorus_view: Coords,
+    torus_view: Coords,
 
     #[cfg(feature = "database")]
     database: Option<Database>,
@@ -54,6 +58,10 @@ pub struct SudokuDisplay {
     difficulty: SudokuDifficulty,
     pattern: CarpetPattern,
     correction_board: Vec<Vec<Vec<usize>>>,
+    #[cfg(feature = "database")]
+    cloud_texture: Texture2D,
+    #[cfg(feature = "database")]
+    no_cloud_texture: Texture2D,
 }
 
 pub struct Button {
@@ -67,4 +75,8 @@ pub struct Button {
     pub clicked: bool,
     pub hover: bool,
     pub scale_factor: f32,
+    pub background_color: Color,
+    pub draw_text: bool,
+    pub draw_border: bool,
+    pub stroke: bool,
 }

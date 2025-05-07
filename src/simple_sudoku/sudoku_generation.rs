@@ -1,40 +1,13 @@
+use crate::duration_to_string;
+
+use super::{Sudoku, SudokuDifficulty, SudokuGroups};
+use rand::seq::SliceRandom;
 use std::{
     collections::HashSet,
     io::{stdout, Write},
     sync::{mpsc, Arc, Mutex},
     thread::{self, available_parallelism},
 };
-
-use rand::seq::SliceRandom;
-
-use super::{Sudoku, SudokuDifficulty, SudokuGroups};
-
-pub fn duration_to_string(duration: std::time::Duration) -> String {
-    let milliseconds = duration.as_millis();
-    let seconds = milliseconds / 1000;
-    let minutes = milliseconds / 60_000;
-    let hours = milliseconds / 3_600_000;
-    if hours > 0 {
-        format!(
-            "{}h {}m {}.{}s",
-            hours,
-            minutes % 60,
-            seconds % 60,
-            milliseconds % 1000
-        )
-    } else if minutes > 0 {
-        format!(
-            "{}m {}.{}s",
-            minutes % 60,
-            seconds % 60,
-            milliseconds % 1000
-        )
-    } else if seconds > 0 {
-        format!("{}.{}s", seconds % 60, milliseconds % 1000)
-    } else {
-        format!("{}ms", milliseconds % 1000)
-    }
-}
 
 struct SudokuGenerationThreadInput {
     pub tx: mpsc::Sender<Option<Sudoku>>,
@@ -57,7 +30,7 @@ impl std::fmt::Display for SudokuGenerationLogInfos {
         write!(
 			f,
 			"{}: explored:{} skipped:{} below_minimal_filled_cells:{} non_unique:{} can_remove_a_cell:{} wrong_difficulty:{}",
-			duration_to_string(self.start_time.elapsed()),
+			duration_to_string(&self.start_time.elapsed()),
 			self.explored_counter,
 			self.skipped_counter,
 			self.minimal_filled_cells_counter,
@@ -221,7 +194,11 @@ impl Sudoku {
                 let _ = join_handle.join();
             }
 
-            println!("{}: {}", aimed_difficulty, log_infos.lock().unwrap());
+            println!(
+                "{aimed_difficulty} ({} filled_cells): {}",
+                sudoku.filled_cells,
+                log_infos.lock().unwrap()
+            );
             sudoku.difficulty = aimed_difficulty;
             return Some(sudoku);
         }
@@ -241,6 +218,18 @@ impl Sudoku {
             return;
         }
 
+        // skip if we are below the minimal filled cells
+        if sudoku_generation_input.cells_to_remove.len() < (2 * self.n2 - 1) {
+            let mut log_infos = log_infos.lock().unwrap();
+            log_infos.minimal_filled_cells_counter += 1;
+            print!(
+                "{aimed_difficulty} ({} filled_cells): {log_infos}\r",
+                sudoku_generation_input.cells_to_remove.len()
+            );
+            stdout().flush().unwrap();
+            return;
+        }
+
         // skip if this possibility has already been explored
         if !already_explored_filled_cells
             .lock()
@@ -249,16 +238,10 @@ impl Sudoku {
         {
             let mut log_infos = log_infos.lock().unwrap();
             log_infos.skipped_counter += 1;
-            print!("{}          \r", log_infos);
-            stdout().flush().unwrap();
-            return;
-        }
-
-        // skip if we are below the minimal filled cells
-        if sudoku_generation_input.cells_to_remove.len() < (2 * self.n2 - 1) {
-            let mut log_infos = log_infos.lock().unwrap();
-            log_infos.minimal_filled_cells_counter += 1;
-            print!("{log_infos}          \r");
+            print!(
+                "{aimed_difficulty} ({} filled_cells): {log_infos}\r",
+                sudoku_generation_input.cells_to_remove.len()
+            );
             stdout().flush().unwrap();
             return;
         }
@@ -267,7 +250,10 @@ impl Sudoku {
         {
             let mut log_infos = log_infos.lock().unwrap();
             log_infos.explored_counter += 1;
-            print!("{}          \r", log_infos);
+            print!(
+                "{aimed_difficulty} ({} filled_cells): {log_infos}\r",
+                sudoku_generation_input.cells_to_remove.len()
+            );
             stdout().flush().unwrap();
         }
 
@@ -335,7 +321,10 @@ impl Sudoku {
         if can_remove_a_cell {
             let mut log_infos = log_infos.lock().unwrap();
             log_infos.can_remove_a_cell_counter += 1;
-            print!("{}          \r", log_infos);
+            print!(
+                "{aimed_difficulty} ({} filled_cells): {log_infos}\r",
+                sudoku_generation_input.cells_to_remove.len()
+            );
             stdout().flush().unwrap();
             return;
         }
@@ -346,7 +335,10 @@ impl Sudoku {
         if !verify_sudoku.is_filled() || verify_sudoku.difficulty != aimed_difficulty {
             let mut log_infos = log_infos.lock().unwrap();
             log_infos.wrong_difficulty_counter += 1;
-            print!("{}          \r", log_infos);
+            print!(
+                "{aimed_difficulty} ({} filled_cells): {log_infos}\r",
+                sudoku_generation_input.cells_to_remove.len()
+            );
             stdout().flush().unwrap();
             return;
         }
