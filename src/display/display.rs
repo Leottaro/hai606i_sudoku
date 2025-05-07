@@ -735,6 +735,11 @@ impl SudokuDisplay {
         if let Some(new_carpet) = new_carpet {
             self.carpet = new_carpet;
             let _ = self.carpet.randomize();
+            self.player_pboard =
+                vec![
+                    vec![vec![HashMap::new(); self.carpet.get_n2()]; self.carpet.get_n2()];
+                    self.carpet.get_n_sudokus()
+                ];
         }
 
         for button in self.button_list.iter_mut() {
