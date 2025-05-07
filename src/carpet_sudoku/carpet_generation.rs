@@ -339,14 +339,10 @@ impl CarpetSudoku {
             return;
         }
 
-        // skip if this possibility has already been explored
-        if !already_explored_filled_cells
-            .lock()
-            .unwrap()
-            .insert(carpet_generation_input.exploring_filled_cells.clone())
-        {
+        // skip if we are below the minimal filled cells
+        if carpet_generation_input.cells_to_remove.len() < (2 * self.n2 - 1) {
             let mut log_infos = log_infos.lock().unwrap();
-            log_infos.skipped_counter += 1;
+            log_infos.minimal_filled_cells_counter += 1;
             print!(
                 "{} {}: {}          \r",
                 self.pattern, aimed_difficulty, log_infos
@@ -355,10 +351,14 @@ impl CarpetSudoku {
             return;
         }
 
-        // skip if we are below the minimal filled cells
-        if carpet_generation_input.cells_to_remove.len() < (2 * self.n2 - 1) {
+        // skip if this possibility has already been explored
+        if !already_explored_filled_cells
+            .lock()
+            .unwrap()
+            .insert(carpet_generation_input.exploring_filled_cells.clone())
+        {
             let mut log_infos = log_infos.lock().unwrap();
-            log_infos.minimal_filled_cells_counter += 1;
+            log_infos.skipped_counter += 1;
             print!(
                 "{} {}: {}          \r",
                 self.pattern, aimed_difficulty, log_infos
