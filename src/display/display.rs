@@ -14,15 +14,16 @@ use std::time::{Duration, Instant};
 
 pub const PLAY: &str = "Play";
 pub const ANALYSE: &str = "Analyse";
-pub const SOLVE_ONCE: &str = "Solve once";
+pub const SOLVE_ONCE: &str = "Solve\nonce";
 pub const SOLVE: &str = "Solve";
 pub const HINT: &str = "Hint";
 
 pub const NOTE: &str = "Note";
-pub const FILL_NOTES: &str = "Fill Notes";
+pub const FILL_NOTES: &str = "Fill\nnotes";
 pub const UNDO: &str = "Undo";
+pub const REVERT_SOLVE: &str = "Revert\nsolve";
 
-pub const NEW_GAME: &str = "New Game";
+pub const NEW_GAME: &str = "New game";
 pub const CANCEL: &str = "Cancel";
 pub const EMPTY: &str = "Empty";
 pub const INCREASE: &str = "+";
@@ -58,7 +59,7 @@ impl SudokuDisplay {
         let mode = PLAY.to_string();
         let analyse_text = vec!["Ready to analyze".to_string()];
         let hint_text = String::new();
-        let player_pboard_history = Vec::new();
+        let history = Vec::new();
         let player_pboard = vec![
             vec![vec![HashMap::new(); carpet.get_n2()]; carpet.get_n2()];
             carpet.get_n_sudokus()
@@ -93,6 +94,7 @@ impl SudokuDisplay {
             height: button_sizey,
             text: PLAY.to_string(),
             scale_factor,
+            clicked: true,
             ..Default::default()
         };
         buttons_action.insert(
@@ -368,6 +370,22 @@ impl SudokuDisplay {
         buttons_action.insert(HINT.to_string(), Rc::new(Box::new(SudokuDisplay::hint)));
         button_list.push(button_hint);
 
+        let button_revert_solve = Button {
+            x: x_offset + grid_size / 2.0 + button_sizex + b_padding,
+            y: 2.0 * b_padding,
+            width: button_sizex,
+            height: button_sizey,
+            text: REVERT_SOLVE.to_string(),
+            scale_factor,
+            enabled: mode == ANALYSE,
+            ..Default::default()
+        };
+        buttons_action.insert(
+            REVERT_SOLVE.to_string(),
+            Rc::new(Box::new(SudokuDisplay::undo_btn)),
+        );
+        button_list.push(button_revert_solve);
+
         // ==========================================================
         // ====================== Notes Buttons =====================
         // ==========================================================
@@ -533,7 +551,7 @@ impl SudokuDisplay {
             mode,
             analyse_text,
             hint_text,
-            player_pboard_history,
+            history,
             player_pboard,
             selected_color,
             note,
@@ -575,7 +593,9 @@ impl SudokuDisplay {
                 vec![vec![HashMap::new(); self.carpet.get_n2()]; self.carpet.get_n2()];
                 self.carpet.get_n_sudokus()
             ];
-        self.player_pboard_history.clear();
+        self.history.clear();
+        self.hint_text.clear();
+        self.analyse_text = vec!["Ready to analyze".to_string()];
         self.torus_view = (0, 0);
     }
 
@@ -733,13 +753,6 @@ impl SudokuDisplay {
             .map(|sudoku| sudoku.get_board().clone())
             .collect();
         self.set_new_game_btn(true);
-        self.player_pboard_history = Vec::new();
-        self.player_pboard =
-            vec![
-                vec![vec![HashMap::new(); self.carpet.get_n2()]; self.carpet.get_n2()];
-                self.carpet.get_n_sudokus()
-            ];
-        self.analyse_text = vec!["Ready to analyze".to_string()];
     }
 
     fn set_mode(&mut self, mode: &str) {
@@ -750,42 +763,34 @@ impl SudokuDisplay {
             }
         }
 
-        for bouton in self.button_list.iter_mut() {
-            if bouton.text.eq(ANALYSE) {
-                bouton.set_clicked(mode == ANALYSE);
-            }
-            if bouton.text.eq(PLAY) {
-                bouton.set_clicked(mode == PLAY);
-            }
-        }
+        self.history.clear();
+        self.hint_text.clear();
 
         for button in self.button_list.iter_mut() {
-            if button.text == NOTE
-                || button.text == UNDO
-                || button.text == FILL_NOTES
-                || button.text == HINT
-                || button.text.contains("Lifes: ")
-            {
-                button.set_enabled(mode == PLAY);
+            match button.text.as_str() {
+                PLAY => button.set_clicked(mode == PLAY),
+                ANALYSE => button.set_clicked(mode == ANALYSE),
+                REVERT_SOLVE => button.set_enabled(mode == ANALYSE),
+                NOTE | FILL_NOTES | UNDO | HINT => button.set_enabled(mode == PLAY),
+                text => {
+                    if text.starts_with("Lifes: ") {
+                        button.set_enabled(mode == PLAY);
+                    }
+                }
             }
         }
     }
 
     pub fn solve_once(&mut self) {
-        if self.mode != ANALYSE {
-            if let Some(action) = self.buttons_action.get(ANALYSE).cloned() {
-                action(self);
-            }
+        if self.mode == ANALYSE {
+            self.history
+                .push((self.carpet.clone(), self.player_pboard.clone()));
+        } else {
+            self.history.clear();
+            self.hint_text.clear();
         }
-        let previous_boards = self
-            .carpet
-            .get_sudokus()
-            .iter()
-            .map(|sudoku| sudoku.get_board().clone())
-            .collect::<Vec<_>>();
 
-        let reponse = self.carpet.rule_solve_until((true, true), None);
-        let (_, rules_used) = reponse;
+        let (_, rules_used) = self.carpet.rule_solve_until((true, true), None);
         self.analyse_text.clear();
         for used_rules in rules_used.iter() {
             for (sudoku, rule) in used_rules.iter().enumerate() {
@@ -795,30 +800,17 @@ impl SudokuDisplay {
                 ));
             }
         }
-        self.player_pboard_history.clear();
 
-        let board = self
-            .carpet
-            .get_sudokus()
-            .iter()
-            .map(|sudoku| sudoku.get_board().clone())
-            .collect::<Vec<_>>();
-        for sudoku_i in 0..self.carpet.get_n_sudokus() {
-            for x in 0..self.carpet.get_n2() {
-                for y in 0..self.carpet.get_n2() {
-                    if previous_boards[sudoku_i][y][x] != board[sudoku_i][y][x] {
-                        self.carpet
-                            .get_cell_possibilities_mut(sudoku_i, x, y)
-                            .clear();
-                        self.player_pboard[sudoku_i][y][x].clear();
-                        let value = board[sudoku_i][y][x];
-                        for (x1, y1) in self.carpet.get_cell_group(sudoku_i, x, y, All) {
-                            if self.carpet.get_cell_value(sudoku_i, x1, y1) == 0 {
-                                self.player_pboard[sudoku_i][y1][x1].remove(&value);
-                                self.carpet
-                                    .get_cell_possibilities_mut(sudoku_i, x1, y1)
-                                    .remove(&value);
-                            }
+        for sudoku_id in 0..self.carpet.get_n_sudokus() {
+            for y in 0..self.carpet.get_n2() {
+                for x in 0..self.carpet.get_n2() {
+                    for value in 1..=self.carpet.get_n2() {
+                        if !self
+                            .carpet
+                            .get_cell_possibilities(sudoku_id, x, y)
+                            .contains(&value)
+                        {
+                            self.player_pboard[sudoku_id][y][x].remove(&value);
                         }
                     }
                 }
@@ -882,7 +874,13 @@ impl SudokuDisplay {
         }
     }
 
+    pub fn revert_solve(&mut self) {}
+
     fn solve(&mut self) {
+        self.history
+            .push((self.carpet.clone(), self.player_pboard.clone()));
+        self.hint_text.clear();
+
         self.carpet.rule_solve_until((false, false), None);
         for sudoku_i in 0..self.carpet.get_n_sudokus() {
             for x in 0..self.carpet.get_n2() {
@@ -910,7 +908,7 @@ impl SudokuDisplay {
 
     fn fill_notes_btn(&mut self, easy: bool) {
         let mut changed = false;
-        let old_pboard = self.player_pboard.clone();
+        let old_state = (self.carpet.clone(), self.player_pboard.clone());
         for sudoku_i in 0..self.carpet.get_n_sudokus() {
             for x in 0..self.carpet.get_n2() {
                 for y in 0..self.carpet.get_n2() {
@@ -932,12 +930,13 @@ impl SudokuDisplay {
             }
         }
         if changed {
-            self.player_pboard_history.push(old_pboard);
+            self.history.push(old_state);
         }
     }
 
     fn undo_btn(&mut self) {
-        if let Some(last_pboard) = self.player_pboard_history.pop() {
+        if let Some((last_carpet, last_pboard)) = self.history.pop() {
+            self.carpet = last_carpet;
             self.player_pboard = last_pboard;
         }
     }
@@ -955,9 +954,10 @@ impl SudokuDisplay {
             return;
         }
 
-        if self.note {
-            self.player_pboard_history.push(self.player_pboard.clone());
+        self.history
+            .push((self.carpet.clone(), self.player_pboard.clone()));
 
+        if self.note {
             for (sudoku2, x2, y2) in self.carpet.get_twin_cells(sudoku_i, x1, y1) {
                 if self.button_list[button_id].clicked {
                     if self.selected_color == self.player_pboard[sudoku2][y2][x2][&value] {
@@ -982,8 +982,8 @@ impl SudokuDisplay {
             if self.carpet.set_value(sudoku_i, x1, y1, value).is_err() {
                 let _ = self.carpet.remove_value(sudoku_i, x1, y1);
             } else {
-                self.player_pboard_history.clear();
-
+                self.history.clear();
+                self.hint_text.clear();
                 for (sudoku2, x2, y2) in self.carpet.get_twin_cells(sudoku_i, x1, y1) {
                     self.player_pboard[sudoku2][y2][x2].clear();
                 }
@@ -1001,12 +1001,12 @@ impl SudokuDisplay {
         }
 
         self.lifes -= 1;
-        let old_pboard = self.player_pboard.clone();
+        let old_state = (self.carpet.clone(), self.player_pboard.clone());
         if self.player_pboard[sudoku_i][y1][x1]
             .remove(&value)
             .is_some()
         {
-            self.player_pboard_history.push(old_pboard);
+            self.history.push(old_state);
         }
         *self.wrong_cell.lock().unwrap() = Some((sudoku_i, x1, y1, value));
 
@@ -2018,8 +2018,8 @@ impl SudokuDisplay {
             if bouton.text.contains("Lifes: ") {
                 bouton.text = format!("Lifes: {}", self.lifes);
             }
-            if bouton.text == UNDO {
-                if self.player_pboard_history.is_empty() {
+            if bouton.text == UNDO || bouton.text == REVERT_SOLVE {
+                if self.history.is_empty() {
                     bouton.set_clickable(false);
                 } else {
                     bouton.set_clickable(true);

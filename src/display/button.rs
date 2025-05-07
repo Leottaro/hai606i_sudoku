@@ -1,9 +1,8 @@
-use macroquad::prelude::*;
-
 use super::{
     display::{DECREASE, INCREASE},
     Button,
 };
+use macroquad::prelude::*;
 
 impl Button {
     pub fn x(&self) -> f32 {
@@ -106,20 +105,36 @@ impl Button {
             (height as u16) / 4
         };
         let text = self.text.clone();
-        let text_dimensions = measure_text(&text, Some(&font), font_size, 1.0);
-        let text_x = x + (width - text_dimensions.width) / 2.0;
-        let text_y = y + (height + text_dimensions.height) / 2.0;
-        draw_text_ex(
-            &text,
-            text_x,
-            text_y,
-            TextParams {
-                font: Some(&font),
-                font_size,
-                color: text_color,
-                ..Default::default()
-            },
-        );
+        let mut text_height = 0.;
+        for (i, line) in text.split("\n").enumerate() {
+            let text_dimensions = measure_text(line, Some(&font), font_size, 1.0);
+            text_height += if i == 0 {
+                text_dimensions.height
+            } else {
+                text_dimensions.height * 5. / 3.
+            };
+        }
+        let mut text_y = y + height / 2. - text_height / 2.;
+
+        for (i, line) in text.split("\n").enumerate() {
+            let text_dimensions = measure_text(line, Some(&font), font_size, 1.0);
+            text_y += if i == 0 {
+                text_dimensions.height
+            } else {
+                text_dimensions.height * 5. / 3.
+            };
+            draw_text_ex(
+                line,
+                x + (width - text_dimensions.width) / 2.,
+                text_y,
+                TextParams {
+                    font: Some(&font),
+                    font_size,
+                    color: text_color,
+                    ..Default::default()
+                },
+            );
+        }
     }
 }
 
