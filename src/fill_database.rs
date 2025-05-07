@@ -283,15 +283,7 @@ fn carpet_games(max_number: usize) {
     while remaining_number > 0 {
         println!("\n\n\n{remaining_number} filled carpets remaining");
 
-        let mut patterns = CarpetPattern::iter().collect::<Vec<_>>();
-        patterns.sort_by(|a, b| {
-            a.get_n_sudokus().cmp(&b.get_n_sudokus()).then(
-                a.get_carpet_links(3)
-                    .len()
-                    .cmp(&b.get_carpet_links(3).len()),
-            )
-        });
-        for pattern in patterns.into_iter().cycle() {
+        for pattern in CarpetPattern::iter() {
             println!("\n{}: ", pattern);
 
             let filled = CarpetSudoku::generate_full(3, pattern);
