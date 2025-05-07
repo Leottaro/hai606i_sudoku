@@ -27,7 +27,7 @@ impl std::fmt::Display for SudokuGroups {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub enum SudokuDifficulty {
     Unknown = 0,
     Easy = 1,
