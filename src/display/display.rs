@@ -57,6 +57,7 @@ impl SudokuDisplay {
         let carpet = CarpetSudoku::new(n, CarpetPattern::Simple);
         let mode = PLAY.to_string();
         let analyse_text = vec!["Ready to analyze".to_string()];
+        let hint_text = String::new();
         let player_pboard_history = Vec::new();
         let player_pboard = vec![
             vec![vec![HashMap::new(); carpet.get_n2()]; carpet.get_n2()];
@@ -531,6 +532,7 @@ impl SudokuDisplay {
             y_offset,
             mode,
             analyse_text,
+            hint_text,
             player_pboard_history,
             player_pboard,
             selected_color,
@@ -761,6 +763,7 @@ impl SudokuDisplay {
             if button.text == NOTE
                 || button.text == UNDO
                 || button.text == FILL_NOTES
+                || button.text == HINT
                 || button.text.contains("Lifes: ")
             {
                 button.set_enabled(mode == PLAY);
@@ -827,11 +830,12 @@ impl SudokuDisplay {
         if self.carpet.get_filled_cells() == 0 {
             return;
         }
-        if self.mode != ANALYSE {
-            if let Some(action) = self.buttons_action.get(ANALYSE).cloned() {
+        if self.mode != PLAY {
+            if let Some(action) = self.buttons_action.get(PLAY).cloned() {
                 action(self);
             }
         }
+        self.hint_text.clear();
         let mut rules_used: HashMap<usize, usize> = HashMap::new();
         for i in 0..self.carpet.get_n_sudokus() {
             if let Some(sudoku) = self.carpet.get_sudoku(i) {
@@ -840,39 +844,39 @@ impl SudokuDisplay {
                     .rule_solve(None, Some(self.carpet.get_difficulty()))
                 {
                     rules_used.insert(i, rule);
+                } else {
+                    return;
                 }
             }
         }
         match self.carpet.get_pattern() {
             CarpetPattern::Torus(size) | CarpetPattern::DenseTorus(size) => {
                 let torus_view = self.torus_view.1 * size + self.torus_view.0;
-                self.analyse_text.clear();
                 if let Some(rule) = rules_used.get(&torus_view) {
-                    self.analyse_text.push(format!(
+                    self.hint_text = format!(
                         "Current sudoku could use \"{}\" somewhere",
                         Sudoku::get_rule_name_by_id(*rule)
-                    ));
+                    );
                 } else {
-                    self.analyse_text.push("No hint available".to_string());
+                    self.hint_text = "No hint available".to_string();
                 }
             }
             CarpetPattern::Simple => {
                 let rule = rules_used.get(&0).unwrap();
-                self.analyse_text.push(format!(
+                self.hint_text = format!(
                     "Sudoku could use \"{}\" somewhere",
                     Sudoku::get_rule_name_by_id(*rule)
-                ));
+                );
             }
             _ => {
                 let mut rng = rng();
                 let (sudoku, rule) = rules_used.iter().choose(&mut rng).unwrap();
-                self.analyse_text.push("Hint used".to_string());
                 if self.carpet.get_n_sudokus() > 1 {
-                    self.analyse_text.push(format!(
+                    self.hint_text = format!(
                         "Sudoku {} could use \"{}\" somewhere",
                         sudoku,
                         Sudoku::get_rule_name_by_id(*rule)
-                    ));
+                    );
                 }
             }
         }
@@ -2050,9 +2054,9 @@ impl SudokuDisplay {
             action(self);
         }
 
+        let font_size = self.grid_size / 30.;
+        let bx_offset = 100. * self.scale_factor - self.pixel_per_cell / 2.;
         if self.mode == ANALYSE {
-            let font_size = self.grid_size / 30.;
-            let bx_offset = 100. * self.scale_factor - self.pixel_per_cell / 2.;
             for (index, rule) in self.analyse_text.iter().enumerate() {
                 draw_text_ex(
                     rule,
@@ -2068,6 +2072,18 @@ impl SudokuDisplay {
                     },
                 );
             }
+        } else {
+            draw_text_ex(
+                &self.hint_text,
+                self.x_offset + self.grid_size / 2.0 + (320. * self.scale_factor) + 10.,
+                (150. * self.scale_factor) / 2.0,
+                TextParams {
+                    font: Some(&font),
+                    font_size: font_size as u16,
+                    color: Color::from_hex(FOREGROUND_COLOR),
+                    ..Default::default()
+                },
+            );
         }
 
         // KEYBOARD LOGIC

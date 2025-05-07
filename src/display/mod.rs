@@ -37,6 +37,7 @@ pub struct SudokuDisplay {
 
     mode: String,
     analyse_text: Vec<String>,
+    hint_text: String,
     hovered_cell: Option<(usize, usize, usize)>,
     selected_cell: Option<(usize, usize, usize)>,
     note: bool,
