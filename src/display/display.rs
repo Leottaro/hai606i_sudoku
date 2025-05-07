@@ -882,10 +882,10 @@ impl SudokuDisplay {
         self.hint_text.clear();
         self.analyse_text.clear();
 
+        let old_state = (self.carpet.clone(), self.player_pboard.clone());
         let (did_something, _) = self.carpet.rule_solve_until((false, false), None);
         if did_something {
-            self.history
-                .push((self.carpet.clone(), self.player_pboard.clone()));
+            self.history.push(old_state);
         }
 
         if self.mode == PLAY {
