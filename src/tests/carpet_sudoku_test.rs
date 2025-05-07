@@ -17,7 +17,7 @@ mod tests {
                 stdout().flush().unwrap();
 
                 let mut randomized = original.clone();
-                randomized.randomize().unwrap(); // TODO: fix
+                randomized.randomize().unwrap();
                 print!(", randomized");
                 stdout().flush().unwrap();
 
@@ -66,7 +66,7 @@ mod tests {
 
             for difficulty in SudokuDifficulty::iter() {
                 println!("\ndifficulty: {difficulty}");
-                let game1 = filled1.generate_from(difficulty);
+                let game1 = filled1.generate_from(difficulty).unwrap();
                 let db_game = game1.db_to_game();
                 let game2 = CarpetSudoku::db_from_game(
                     db_game,

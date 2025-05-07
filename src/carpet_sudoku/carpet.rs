@@ -24,8 +24,16 @@ impl CarpetSudoku {
         self.pattern
     }
 
-    pub fn get_sudokus(&self) -> Vec<Sudoku> {
-        self.sudokus.clone()
+    pub fn get_sudokus(&self) -> &Vec<Sudoku> {
+        &self.sudokus
+    }
+
+    pub fn get_sudoku(&self, key: usize) -> Option<&Sudoku> {
+        if self.sudokus.len() > key {
+            Some(&self.sudokus[key])
+        } else {
+            None
+        }
     }
 
     pub fn get_n_sudokus(&self) -> usize {
@@ -109,14 +117,15 @@ impl CarpetSudoku {
         x: usize,
         y: usize,
     ) -> Vec<(usize, usize, usize)> {
-        let dx = x % self.n;
-        let dy = y % self.n;
-        let x0 = x - dx;
-        let y0: usize = y - dy;
-        let square_id = y0 + x0 / self.n;
         let mut twins = vec![(sudoku_id, x, y)];
 
         if self.links.contains_key(&sudoku_id) {
+            let dx = x % self.n;
+            let dy = y % self.n;
+            let x0 = x - dx;
+            let y0: usize = y - dy;
+            let square_id = y0 + x0 / self.n;
+
             for &(square1, sudoku2, square2) in self.links.get(&sudoku_id).unwrap() {
                 if square_id != square1 {
                     continue;
@@ -136,8 +145,7 @@ impl CarpetSudoku {
 
     pub fn new(n: usize, pattern: CarpetPattern) -> Self {
         let pattern = match pattern {
-            CarpetPattern::Diagonal(1) | CarpetPattern::Carpet(1) => CarpetPattern::Simple,
-            CarpetPattern::Diagonal(2) => CarpetPattern::Double,
+            CarpetPattern::Diagonal(1) | CarpetPattern::Carpet(1) | CarpetPattern::DenseDiagonal(1) | CarpetPattern::DenseCarpet(1) => CarpetPattern::Simple,
 			CarpetPattern::Custom(_) => panic!("Can't call CarpetSudoku::new() with a CarpetPattern::Custom pattern ! Try using CarpetSudoku::new_custom() instead."),
             pattern => pattern,
         };
@@ -150,6 +158,7 @@ impl CarpetSudoku {
             n2: n * n,
             pattern,
             difficulty: SudokuDifficulty::Unknown,
+            difficulty_score: 0,
             sudokus,
             links,
             filled_board_hash: 0,
@@ -163,6 +172,7 @@ impl CarpetSudoku {
             n2: n * n,
             pattern: CarpetPattern::Custom(links.len()),
             difficulty: SudokuDifficulty::Unknown,
+            difficulty_score: 0,
             sudokus,
             links,
             filled_board_hash: 0,
@@ -174,7 +184,7 @@ impl CarpetSudoku {
     ///////////////////////////////////////////////////////   MODIFICATION   ///////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    fn update_link(&mut self) -> Result<(), SudokuError> {
+    pub(in crate::carpet_sudoku) fn update_link(&mut self) -> Result<(), SudokuError> {
         for (&sudoku1, links) in self.links.to_owned().iter() {
             for &(square1, sudoku2, square2) in links.iter() {
                 let y1 = (square1 / self.n) * self.n;
@@ -281,27 +291,23 @@ impl CarpetSudoku {
         y: usize,
     ) -> Result<usize, SudokuError> {
         let value = self.get_cell_value(sudoku_id, x, y);
-        let twin_cells = self.get_twin_cells(sudoku_id, x, y);
-        let is_in_link = twin_cells.len() > 1;
-        for (sudoku2, x2, y2) in twin_cells {
+
+        // remove the value in each sudoku
+        for (sudoku2, x2, y2) in self.get_twin_cells(sudoku_id, x, y) {
             self.sudokus[sudoku2].remove_value(x2, y2)?;
         }
 
-        if is_in_link {
-            return Ok(value);
-        }
+        for (sudoku_id, x, y) in self.get_global_cell_group(sudoku_id, x, y, SudokuGroups::All) {
+            if self
+                .get_global_cell_group(sudoku_id, x, y, SudokuGroups::All)
+                .into_iter()
+                .any(|(sudoku3, x3, y3)| self.sudokus[sudoku3].get_cell_value(x3, y3) == value)
+            {
+                continue;
+            }
 
-        for (x, y) in self.sudokus[sudoku_id].get_cell_group(x, y, SudokuGroups::All) {
             for (sudoku2, x2, y2) in self.get_twin_cells(sudoku_id, x, y) {
-                if self.sudokus[sudoku2]
-                    .get_cell_group(x2, y2, SudokuGroups::All)
-                    .into_iter()
-                    .any(|(x3, y3)| self.sudokus[sudoku2].get_cell_value(x3, y3) == value)
-                {
-                    self.sudokus[sudoku_id]
-                        .get_cell_possibilities_mut(x, y)
-                        .remove(&value);
-                } else {
+                if self.sudokus[sudoku2].get_cell_value(x2, y2) == 0 {
                     self.sudokus[sudoku2]
                         .get_cell_possibilities_mut(x2, y2)
                         .insert(value);
@@ -309,6 +315,7 @@ impl CarpetSudoku {
             }
         }
 
+        self.update_link()?;
         Ok(value)
     }
 
@@ -319,17 +326,18 @@ impl CarpetSudoku {
     pub fn rule_solve(
         &mut self,
         max_difficulty: Option<SudokuDifficulty>,
-    ) -> Result<(bool, bool), SudokuError> {
+    ) -> Result<(bool, bool, Vec<usize>), SudokuError> {
         let mut modified_possibility = false;
         let mut modified_value = false;
+        let mut rules_used = Vec::new();
         for sudoku in self.sudokus.iter_mut() {
             match sudoku.rule_solve(None, max_difficulty) {
-                Ok(Some(0 | 1)) => {
-                    modified_value = true;
+                Ok(Some(a)) => {
+                    if a == 0 || a == 1 {
+                        modified_value = true;
+                    }
                     modified_possibility = true;
-                }
-                Ok(Some(_)) => {
-                    modified_possibility = true;
+                    rules_used.push(a);
                 }
                 Ok(None) => (),
                 Err(err) => {
@@ -339,23 +347,31 @@ impl CarpetSudoku {
             }
             self.difficulty = self.difficulty.max(sudoku.get_difficulty());
         }
+        self.difficulty_score += rules_used.iter().fold(0, |acc, e| acc + *e);
         self.update_link()
-            .map(|_| (modified_possibility, modified_value))
+            .map(|_| (modified_possibility, modified_value, rules_used))
     }
 
     pub fn rule_solve_until(
         &mut self,
         rule_solve_result: (bool, bool),
         max_difficulty: Option<SudokuDifficulty>,
-    ) -> bool {
+    ) -> (bool, Vec<Vec<usize>>) {
+        let mut used_rules = Vec::new();
+        let (rule_solve_result1, rule_solve_result2) = rule_solve_result;
+        self.difficulty = SudokuDifficulty::Unknown;
+        self.difficulty_score = 0;
         let mut did_anything = false;
-        while let Ok(result) = self.rule_solve(max_difficulty) {
-            if result == rule_solve_result || result == (false, false) {
+        while let Ok((result1, result2, rules)) = self.rule_solve(max_difficulty) {
+            used_rules.push(rules);
+            if (result1, result2) == (rule_solve_result1, rule_solve_result2)
+                || (result1, result2) == (false, false)
+            {
                 break;
             }
             did_anything = true;
         }
-        did_anything
+        (did_anything, used_rules)
     }
 
     pub fn backtrack_solve(&mut self) -> bool {
@@ -373,12 +389,8 @@ impl CarpetSudoku {
     }
 
     fn _backtrack_solve(&mut self, mut empty_cells: Vec<(usize, usize, usize)>) -> bool {
-        empty_cells.sort_by(|&a, &b| {
-            self.sudokus[a.0]
-                .get_cell_possibilities(a.1, a.2)
-                .len()
-                .cmp(&self.sudokus[b.0].get_cell_possibilities(b.1, b.2).len())
-        });
+        empty_cells
+            .sort_by_key(|&(sudoku, x, y)| self.sudokus[sudoku].get_cell_possibilities(x, y).len());
 
         let mut i = 0;
         while i < empty_cells.len() {
@@ -432,23 +444,75 @@ impl CarpetSudoku {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     pub fn randomize(&mut self) -> Result<(), SudokuError> {
-        if !self.is_filled() {
-            return Err(SudokuError::InvalidState(format!(
-                "randomize() when this carpet isn't filled: {self}"
-            )));
-        }
         if !self.is_canonical {
             return Err(SudokuError::InvalidState(format!(
                 "randomize() when this carpet is already randomized: {self}"
             )));
         }
 
-        // TODO: rows_swap is the same for same-height sudoku and a bit shifted for linked sudoku but not at the same height
-        self.sudokus[0].randomize(None, None)?;
-        let rows_swap = self.sudokus[0].get_rows_swap();
+        if self.links.is_empty() {
+            for sudoku in self.sudokus.iter_mut() {
+                sudoku.randomize(None, None, true)?;
+            }
+            return Ok(());
+        }
+
+        self.sudokus[0].randomize(None, None, false)?;
+        let mut rows_swaps = vec![Default::default(); self.sudokus.len()];
         let values_swap = self.sudokus[0].get_values_swap();
-        for sudoku in self.sudokus.iter_mut().skip(1) {
-            sudoku.randomize(Some(rows_swap.clone()), Some(values_swap.clone()))?;
+        rows_swaps[0] = self.sudokus[0].get_rows_swap();
+
+        // fill the rows_swaps linked
+        for &(square1, sudoku2, square2) in self.links.get(&0).unwrap() {
+            let y1 = square1 - square1 % self.n;
+            let y2 = square2 - square2 % self.n;
+            for dy in 0..self.n {
+                let (to_y1, from_y1) = rows_swaps[0][&(y1 + dy)];
+                rows_swaps[sudoku2].insert(y2 + dy, (y2 + to_y1 % self.n, y2 + from_y1 % self.n));
+            }
+        }
+
+        for (sudoku1, sudoku) in self.sudokus.iter_mut().enumerate().skip(1) {
+            // complete the rows_swap
+            for y0 in (0..self.n2).step_by(self.n) {
+                if rows_swaps[sudoku1].contains_key(&y0) {
+                    continue;
+                }
+                let mut to_ys = {
+                    let mut dxs = (0..self.n).collect::<Vec<_>>();
+                    dxs.shuffle(&mut rng());
+                    dxs.into_iter()
+                };
+                for y in y0..y0 + self.n {
+                    let to_y = y0 + to_ys.next().unwrap();
+                    rows_swaps[sudoku1]
+                        .entry(y)
+                        .and_modify(|(a, _)| *a = to_y)
+                        .or_insert((to_y, 0));
+
+                    rows_swaps[sudoku1]
+                        .entry(to_y)
+                        .and_modify(|(_, b)| *b = y)
+                        .or_insert((0, y));
+                }
+            }
+
+            // fill the rows_swaps linked
+            for &(square1, sudoku2, square2) in self.links.get(&sudoku1).unwrap() {
+                let y1 = square1 - square1 % self.n;
+                let y2 = square2 - square2 % self.n;
+                for dy in 0..self.n {
+                    let (to_y1, from_y1) = rows_swaps[sudoku1][&(y1 + dy)];
+                    rows_swaps[sudoku2]
+                        .insert(y2 + dy, (y2 + to_y1 % self.n, y2 + from_y1 % self.n));
+                }
+            }
+
+            sudoku.randomize(
+                Some(rows_swaps[sudoku1].clone()),
+                Some(values_swap.clone()),
+                false,
+            )?;
         }
 
         self.is_canonical = false;
@@ -483,7 +547,7 @@ impl CarpetSudoku {
         self.sudokus.iter().all(|sudoku| sudoku.is_filled())
     }
 
-    pub fn is_unique(&mut self) -> bool {
+    pub fn is_unique(&self) -> bool {
         self.count_solutions(Some(2)) == 1
     }
 
@@ -511,12 +575,8 @@ impl CarpetSudoku {
         mut empty_cells: Vec<(usize, usize, usize)>,
         max_solutions: Option<usize>,
     ) -> usize {
-        empty_cells.sort_by(|&a, &b| {
-            self.sudokus[a.0]
-                .get_cell_possibilities(a.1, a.2)
-                .len()
-                .cmp(&self.sudokus[b.0].get_cell_possibilities(b.1, b.2).len())
-        });
+        empty_cells
+            .sort_by_key(|&(sudoku, x, y)| self.sudokus[sudoku].get_cell_possibilities(x, y).len());
 
         let mut i = 0;
         while i < empty_cells.len() {
@@ -663,6 +723,7 @@ impl CarpetSudoku {
                 .wrapping_sub(u64::MAX / 2 + 1)
                 as i64,
             carpet_game_difficulty: self.difficulty as i16,
+            carpet_game_difficulty_score: self.difficulty_score as i16,
             carpet_game_filled_cells: filled_cells,
             carpet_game_filled_cells_count: filled_cells_count,
         }
@@ -720,10 +781,14 @@ impl CarpetSudoku {
         carpet
     }
 
-    pub fn load_filled_from_db(database: &mut Database, n: usize, pattern: CarpetPattern) -> Self {
+    pub fn load_filled_from_db(
+        database: &mut Database,
+        n: usize,
+        pattern: CarpetPattern,
+    ) -> Option<Self> {
         database
             .get_random_canonical_carpet(n as i16, pattern.to_db())
-            .unwrap()
+            .ok()
     }
 
     pub fn load_game_from_db(
@@ -731,10 +796,21 @@ impl CarpetSudoku {
         n: usize,
         pattern: CarpetPattern,
         difficulty: SudokuDifficulty,
-    ) -> Self {
+    ) -> Option<Self> {
         database
             .get_random_canonical_carpet_game(n as i16, pattern.to_db(), difficulty as i16)
-            .unwrap()
+            .ok()
+    }
+
+    pub fn load_minimal_game_from_db(
+        database: &mut Database,
+        n: usize,
+        pattern: CarpetPattern,
+        difficulty: SudokuDifficulty,
+    ) -> Option<Self> {
+        database
+            .get_random_minimal_canonical_carpet_game(n as i16, pattern.to_db(), difficulty as i16)
+            .ok()
     }
 
     // TODO:

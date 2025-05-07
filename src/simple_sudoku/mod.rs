@@ -27,7 +27,7 @@ impl std::fmt::Display for SudokuGroups {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub enum SudokuDifficulty {
     Unknown = 0,
     Easy = 1,
@@ -42,14 +42,14 @@ pub enum SudokuDifficulty {
 impl std::fmt::Display for SudokuDifficulty {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SudokuDifficulty::Unknown => write!(f, "UNKNOWN"),
-            SudokuDifficulty::Easy => write!(f, "EASY"),
-            SudokuDifficulty::Medium => write!(f, "MEDIUM"),
-            SudokuDifficulty::Hard => write!(f, "HARD"),
-            SudokuDifficulty::Master => write!(f, "MASTER"),
-            SudokuDifficulty::Extreme => write!(f, "EXTREME"),
-            SudokuDifficulty::Useless => write!(f, "USELESS"),
-            SudokuDifficulty::Unimplemented => write!(f, "UNIMPLEMENTED"),
+            SudokuDifficulty::Unknown => write!(f, "Unknown"),
+            SudokuDifficulty::Easy => write!(f, "Easy"),
+            SudokuDifficulty::Medium => write!(f, "Medium"),
+            SudokuDifficulty::Hard => write!(f, "Hard"),
+            SudokuDifficulty::Master => write!(f, "Master"),
+            SudokuDifficulty::Extreme => write!(f, "Extreme"),
+            SudokuDifficulty::Useless => write!(f, "Useless"),
+            SudokuDifficulty::Unimplemented => write!(f, "Unimplemented"),
         }
     }
 }
@@ -168,6 +168,6 @@ pub struct Sudoku {
 
     is_canonical: bool,
     canonical_filled_board_hash: u64,
-    values_swap: HashMap<usize, (usize, usize)>, // 1 -> (2, 3) exprime les règles 1 donne 2 et 3 donne 1
-    rows_swap: HashMap<usize, (usize, usize)>,
+    values_swap: HashMap<usize, Coords>, // 1 -> (2, 3) exprime les règles 1 donne 2 et 3 donne 1
+    rows_swap: HashMap<usize, Coords>,
 }

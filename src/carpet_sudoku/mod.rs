@@ -1,4 +1,4 @@
-use crate::simple_sudoku::{Sudoku, SudokuDifficulty};
+use crate::simple_sudoku::{Coords, Sudoku, SudokuDifficulty};
 use std::collections::{HashMap, HashSet};
 
 pub mod carpet;
@@ -6,7 +6,7 @@ mod carpet_generation;
 pub mod pattern;
 
 pub type CarpetLinks = HashMap<usize, HashSet<(usize, usize, usize)>>;
-type RawLink = ((usize, usize), (usize, usize));
+type RawLink = (Coords, Coords);
 #[derive(Clone)]
 pub struct CarpetSudoku {
     n: usize,
@@ -14,7 +14,9 @@ pub struct CarpetSudoku {
     pattern: CarpetPattern,
     sudokus: Vec<Sudoku>,
     links: CarpetLinks,
+
     difficulty: SudokuDifficulty,
+    difficulty_score: usize,
 
     filled_board_hash: u64,
     is_canonical: bool,
@@ -23,9 +25,12 @@ pub struct CarpetSudoku {
 #[derive(PartialEq, Eq, Copy, Clone, Hash, Debug)]
 pub enum CarpetPattern {
     Simple,
-    Double,
     Samurai,
     Diagonal(usize),
+    DenseDiagonal(usize),
     Carpet(usize),
+    DenseCarpet(usize),
+    Torus(usize),
+    DenseTorus(usize),
     Custom(usize),
 }

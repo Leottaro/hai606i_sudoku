@@ -1,6 +1,5 @@
-use graph::prelude::{Graph, GraphBuilder, UndirectedCsrGraph, UndirectedNeighbors};
 use log::warn;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use super::{
     Coords, Sudoku,
@@ -45,24 +44,25 @@ impl Sudoku {
     pub const RULES: &'static [(usize, SudokuDifficulty, SudokuRule)] = &[
         (0, Easy, Sudoku::naked_singles),
         (1, Easy, Sudoku::hidden_singles),
-        (8, Easy, Sudoku::pointing_pair),
         (2, Easy, Sudoku::naked_pairs),
-        (3, Medium, Sudoku::naked_triples),
+        (3, Easy, Sudoku::naked_triples),
+        (4, Medium, Sudoku::hidden_pairs),
+        (5, Medium, Sudoku::hidden_triples),
+        (8, Medium, Sudoku::pointing_pair),
         (9, Medium, Sudoku::pointing_triple),
         (10, Medium, Sudoku::box_reduction),
-        (4, Medium, Sudoku::hidden_pairs),
+        (6, Medium, Sudoku::naked_quads),
+        (7, Hard, Sudoku::hidden_quads),
+        (11, Hard, Sudoku::x_wing),
         (12, Hard, Sudoku::finned_x_wing),
-        (18, Hard, Sudoku::w_wing),
-        (17, Hard, Sudoku::y_wing),
+        (19, Hard, Sudoku::swordfish),
         (15, Master, Sudoku::skyscraper),
-        // (16, Master, Sudoku::simple_coloring),
-        (5, Master, Sudoku::hidden_triples),
-        (20, Master, Sudoku::finned_swordfish),
-        (11, Extreme, Sudoku::x_wing),
-        (6, Extreme, Sudoku::naked_quads),
-        (19, Extreme, Sudoku::swordfish),
-        (7, Extreme, Sudoku::hidden_quads),
+        (17, Master, Sudoku::y_wing),
+        (16, Master, Sudoku::simple_coloring),
+        (18, Extreme, Sudoku::w_wing),
         (13, Extreme, Sudoku::franken_x_wing),
+        (20, Extreme, Sudoku::finned_swordfish),
+        // Useless rules
         (29, Useless, Sudoku::bi_value_universal_grave),
         (35, Useless, Sudoku::avoidable_rectangle),
         (36, Useless, Sudoku::unique_rectangle),
@@ -100,6 +100,67 @@ impl Sudoku {
         (53, Unimplemented, Sudoku::pattern_overlay),
         (54, Unimplemented, Sudoku::bowmans_bingo),
     ];
+
+    pub const fn get_rule_name_by_id(id: usize) -> &'static str {
+        match id {
+            0 => "Naked Singles",
+            1 => "Hidden Singles",
+            2 => "Naked Pairs",
+            3 => "Naked Triples",
+            4 => "Hidden Pairs",
+            5 => "Hidden Triples",
+            6 => "Naked Quads",
+            7 => "Hidden Quads",
+            8 => "Pointing Pair",
+            9 => "Pointing Triple",
+            10 => "Box Reduction",
+            11 => "X-Wing",
+            12 => "Finned X-Wing",
+            13 => "Franken X-Wing",
+            14 => "Finned Mutant X-Wing",
+            15 => "Skyscraper",
+            16 => "Simple Coloring",
+            17 => "Y-Wing",
+            18 => "W-Wing",
+            19 => "Swordfish",
+            20 => "Finned Swordfish",
+            21 => "Sashimi Finned Swordfish",
+            22 => "Franken Swordfish",
+            23 => "Mutant Swordfish",
+            24 => "Finned Mutant Swordfish",
+            25 => "Sashimi Finned Mutant Swordfish",
+            26 => "Sue de Coq",
+            27 => "XYZ-Wing",
+            28 => "X-Cycle",
+            29 => "Bi-Value Universal Grave",
+            30 => "XY-Chain",
+            31 => "3D Medusa",
+            32 => "Jellyfish",
+            33 => "Finned Jellyfish",
+            34 => "Sashimi Finned Jellyfish",
+            35 => "Avoidable Rectangle",
+            36 => "Unique Rectangle",
+            37 => "Hidden Unique Rectangle",
+            38 => "WXYZ-Wing",
+            39 => "Firework",
+            40 => "Subset Exclusion",
+            41 => "Empty Rectangle",
+            42 => "Sue de Coq Extended",
+            43 => "SK Loop",
+            44 => "Exocet",
+            45 => "Almost Locked Sets",
+            46 => "Alternating Inference Chain",
+            47 => "Digit Forcing Chains",
+            48 => "Nishio Forcing Chains",
+            49 => "Cell Forcing Chains",
+            50 => "Unit Forcing Chains",
+            51 => "Almost Locked Set Forcing Chain",
+            52 => "Death Blossom",
+            53 => "Pattern Overlay",
+            54 => "Bowman's Bingo",
+            _ => "Unknown Rule",
+        }
+    }
 
     // RULES SOLVING
     // CHECK https://www.taupierbw.be/SudokuCoach
@@ -918,24 +979,32 @@ impl Sudoku {
     }
 
     // règle 16: http://www.taupierbw.be/SudokuCoach/SC_SimpleColoring.shtml
-    fn simple_coloring(&mut self) -> Result<bool, SudokuError> {
+    pub fn simple_coloring(&mut self) -> Result<bool, SudokuError> {
         let mut modified = false;
         for value in 1..=self.n2 {
-            let mut chains: Vec<Vec<usize>> = Vec::new(); // ne contient pas les (x,y) mais y*n+x (plus simple a traiter)
-            let strong_links = self
-                .get_strong_links(value)
-                .into_iter()
-                .map(|((x1, y1), (x2, y2))| (y1 * self.n2 + x1, y2 * self.n2 + x2))
-                .collect::<Vec<_>>();
-            let graph: UndirectedCsrGraph<usize> = GraphBuilder::new()
-                .csr_layout(graph::prelude::CsrLayout::Unsorted)
-                .edges(strong_links)
-                .build();
+            let raw_strong_links = self.get_strong_links(value);
+            let mut strong_links: HashMap<Coords, HashSet<Coords>> = HashMap::new();
+            for (cell1, cell2) in raw_strong_links {
+                strong_links
+                    .entry(cell1)
+                    .and_modify(|cell1_links| {
+                        cell1_links.insert(cell2);
+                    })
+                    .or_insert_with(|| vec![cell2].into_iter().collect());
 
-            for node in 0..graph.node_count() {
-                let mut visited: HashSet<usize> = HashSet::new();
-                let mut stack = vec![(node, vec![])];
+                strong_links
+                    .entry(cell2)
+                    .and_modify(|cell2_links| {
+                        cell2_links.insert(cell1);
+                    })
+                    .or_insert_with(|| vec![cell1].into_iter().collect());
+            }
 
+            let mut chains: Vec<Vec<Coords>> = Vec::new();
+            for cell in strong_links.keys().cloned().collect::<Vec<_>>() {
+                let mut visited: HashSet<Coords> = HashSet::new();
+
+                let mut stack = vec![(cell, vec![])];
                 while let Some((current, mut path)) = stack.pop() {
                     if visited.contains(&current) {
                         continue;
@@ -943,25 +1012,29 @@ impl Sudoku {
                     visited.insert(current);
                     path.push(current);
 
-                    for &neighbor in graph.neighbors(current) {
-                        if !visited.contains(&neighbor) {
-                            stack.push((neighbor, path.clone()));
-                        } else if path.contains(&neighbor) {
+                    for neighbor in strong_links.get(&current).unwrap() {
+                        if !visited.contains(neighbor) {
+                            stack.push((*neighbor, path.clone()));
+                        } else if path.contains(neighbor) {
                             chains.push(path.clone());
                         }
                     }
                 }
             }
 
-            let mut chains_hashset: Vec<(Vec<usize>, HashSet<usize>)> = chains
+            let mut chains_hashset: Vec<(Vec<Coords>, HashSet<Coords>)> = chains
                 .into_iter()
-                .map(|chain| (chain.clone(), chain.into_iter().collect::<HashSet<usize>>()))
+                .map(|chain| {
+                    (
+                        chain.clone(),
+                        chain.into_iter().collect::<HashSet<Coords>>(),
+                    )
+                })
                 .collect();
-            chains_hashset.sort_by(|(chain1, _), (chain2, _)| chain2.len().cmp(&chain1.len()));
+            chains_hashset.sort_by_key(|(chain, _hashset)| chain.len());
 
-            let mut keeped_hashsets: Vec<&HashSet<usize>> = Vec::new();
+            let mut keeped_hashsets: Vec<&HashSet<Coords>> = Vec::new();
             let mut keeped_chains: Vec<Vec<Coords>> = Vec::new();
-
             for (chain1, hash1) in chains_hashset.iter() {
                 if chain1.len() < 3 || keeped_hashsets.contains(&hash1) {
                     continue;
@@ -974,37 +1047,43 @@ impl Sudoku {
                 }
                 if keep {
                     keeped_hashsets.push(hash1);
-                    keeped_chains.push(
-                        chain1
-                            .iter()
-                            .map(|cell_id| (cell_id % self.n2, cell_id / self.n2))
-                            .collect(),
-                    );
+                    keeped_chains.push(chain1.clone());
                 }
             }
 
             for chain in keeped_chains {
-                let chain_len = chain.len();
                 let &(x1, y1) = chain.first().unwrap();
-                let &(x2, y2) = chain.get(chain_len - 1).unwrap();
-                if chain_len % 2 == 0 {
+                let &(x2, y2) = chain.last().unwrap();
+                if chain.len() % 2 == 0 {
                     let cell_group1: HashSet<Coords> = self.get_cell_group(x1, y1, All);
                     let cell_group2: HashSet<Coords> = self.get_cell_group(x2, y2, All);
                     let common_cells: HashSet<&Coords> =
                         cell_group1.intersection(&cell_group2).collect();
                     for &(x3, y3) in common_cells {
-                        if (x3 == x1 && y3 == y1) || (x3 == x2 && y3 == y2) {
+                        if (x3, y3) == (x1, y1) || (x3, y3) == (x2, y2) {
                             continue;
                         }
                         if self.possibility_board[y3][x3].remove(&value) {
-                            debug_only!("({}, {}): possibilité {} supprimée", x3, y3, value);
+                            debug_only!(
+                                "({}, {}): possibilité {} supprimée (chaine {:?})",
+                                x3,
+                                y3,
+                                value,
+                                chain
+                            );
                             modified = true;
                         }
                     }
                 } else if self.is_same_group(x1, y1, x2, y2) {
                     for &(x, y) in chain.iter().step_by(2) {
                         if self.possibility_board[y][x].remove(&value) {
-                            debug_only!("({}, {}): possibilité {} supprimée", x, y, value);
+                            debug_only!(
+                                "({}, {}): possibilité {} supprimée (chaine {:?})",
+                                x,
+                                y,
+                                value,
+                                chain
+                            );
                             modified = true;
                         }
                     }
@@ -1701,7 +1780,7 @@ impl Sudoku {
                                 let rectangle_refs: HashSet<_> = rectangle.iter().collect();
                                 let mut last_cell = rectangle_refs
                                     .difference(&bi_cell)
-                                    .collect::<Vec<&&(usize, usize)>>();
+                                    .collect::<Vec<&&Coords>>();
                                 let (x2, y2) = last_cell.pop().unwrap();
                                 //remove the bi-value possibilities from the other corner
                                 if val1.len() == 2 {

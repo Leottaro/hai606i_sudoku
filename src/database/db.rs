@@ -1,5 +1,5 @@
 use diesel::{
-    connection::DefaultLoadingMode, BoolExpressionMethods, Connection, ExpressionMethods,
+    connection::DefaultLoadingMode, dsl::min, BoolExpressionMethods, Connection, ExpressionMethods,
     JoinOnDsl, PgConnection, PgExpressionMethods, QueryDsl, RunQueryDsl,
 };
 
@@ -472,6 +472,115 @@ impl Database {
                     .and(carpet_pattern.eq(pattern))
                     .and(carpet_game_difficulty.eq(difficulty))
                     .and(carpet_pattern_size.is_not_distinct_from(pattern_size)),
+            )
+            .order(random())
+            .get_result::<(DBCanonicalCarpetGame, Option<DBCanonicalCarpet>)>(
+                &mut self.connection,
+            )?;
+        let db_carpet = db_carpet.unwrap();
+
+        let (db_carpet_sudokus, db_sudokus): (Vec<_>, Vec<_>) = canonical_carpet_sudokus
+            .left_join(canonical_sudokus.on(filled_board_hash.eq(carpet_sudoku_filled_board_hash)))
+            .filter(carpet_sudoku_carpet_filled_board_hash.eq(db_carpet.carpet_filled_board_hash))
+            .order_by(carpet_sudoku_i)
+            .load_iter::<(DBCanonicalCarpetSudoku, Option<DBCanonicalSudoku>), DefaultLoadingMode>(
+                &mut self.connection,
+            )?
+            .filter_map(|a| {
+                if let Ok((db_carpet_sudoku, Some(db_sudoku))) = a {
+                    Some((db_carpet_sudoku, db_sudoku))
+                } else {
+                    None
+                }
+            })
+            .unzip();
+
+        if db_carpet_sudokus.len() != db_sudokus.len()
+            || db_sudokus.len() != (db_carpet.carpet_sudoku_number as usize)
+        {
+            Err(diesel::result::Error::NotFound)
+        } else {
+            Ok(CarpetSudoku::db_from_game(
+                game_info,
+                db_carpet,
+                db_carpet_sudokus,
+                db_sudokus,
+            ))
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////   GET MINIMAL   /////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    pub fn get_random_minimal_canonical_sudoku_game(
+        &mut self,
+        n: i16,
+        difficulty: i16,
+    ) -> Result<SimpleSudoku, diesel::result::Error> {
+        let min_filled_cells_count = canonical_sudoku_games
+            .left_join(canonical_sudokus.on(filled_board_hash.eq(sudoku_game_filled_board_hash)))
+            .filter(sudoku_n.eq(n).and(sudoku_game_difficulty.eq(difficulty)))
+            .select(min(sudoku_game_filled_cells_count))
+            .get_result::<Option<i16>>(&mut self.connection)?;
+        if min_filled_cells_count.is_none() {
+            return Err(diesel::result::Error::NotFound);
+        }
+        let min_filled_cells_count = min_filled_cells_count.unwrap();
+
+        let (game_info, filled_info) = canonical_sudoku_games
+            .left_join(canonical_sudokus.on(filled_board_hash.eq(sudoku_game_filled_board_hash)))
+            .filter(
+                sudoku_n
+                    .eq(n)
+                    .and(sudoku_game_difficulty.eq(difficulty))
+                    .and(sudoku_game_filled_cells_count.eq(min_filled_cells_count)),
+            )
+            .order(random())
+            .limit(1)
+            .get_result::<(DBCanonicalSudokuGame, Option<DBCanonicalSudoku>)>(
+                &mut self.connection,
+            )?;
+        Ok(SimpleSudoku::db_from_game(game_info, filled_info.unwrap()))
+    }
+
+    pub fn get_random_minimal_canonical_carpet_game(
+        &mut self,
+        n: i16,
+        (pattern, pattern_size): (i16, Option<i16>),
+        difficulty: i16,
+    ) -> Result<CarpetSudoku, diesel::result::Error> {
+        let min_filled_cells_count = canonical_carpet_games
+            .left_join(
+                canonical_carpets
+                    .on(carpet_game_carpet_filled_board_hash.eq(carpet_filled_board_hash)),
+            )
+            .filter(
+                carpet_n
+                    .eq(n)
+                    .and(carpet_pattern.eq(pattern))
+                    .and(carpet_game_difficulty.eq(difficulty))
+                    .and(carpet_pattern_size.is_not_distinct_from(pattern_size)),
+            )
+            .select(min(carpet_game_filled_cells_count))
+            .get_result::<Option<i16>>(&mut self.connection)?;
+        if min_filled_cells_count.is_none() {
+            return Err(diesel::result::Error::NotFound);
+        }
+        let min_filled_cells_count = min_filled_cells_count.unwrap();
+
+        let (game_info, db_carpet) = canonical_carpet_games
+            .left_join(
+                canonical_carpets
+                    .on(carpet_game_carpet_filled_board_hash.eq(carpet_filled_board_hash)),
+            )
+            .filter(
+                carpet_n
+                    .eq(n)
+                    .and(carpet_pattern.eq(pattern))
+                    .and(carpet_game_difficulty.eq(difficulty))
+                    .and(carpet_pattern_size.is_not_distinct_from(pattern_size))
+                    .and(carpet_game_filled_cells_count.eq(min_filled_cells_count)),
             )
             .order(random())
             .get_result::<(DBCanonicalCarpetGame, Option<DBCanonicalCarpet>)>(

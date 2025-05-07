@@ -89,11 +89,11 @@ impl Sudoku {
         self.canonical_filled_board_hash
     }
 
-    pub fn get_values_swap(&self) -> HashMap<usize, (usize, usize)> {
+    pub fn get_values_swap(&self) -> HashMap<usize, Coords> {
         self.values_swap.clone()
     }
 
-    pub fn get_rows_swap(&self) -> HashMap<usize, (usize, usize)> {
+    pub fn get_rows_swap(&self) -> HashMap<usize, Coords> {
         self.rows_swap.clone()
     }
 
@@ -412,14 +412,10 @@ impl Sudoku {
 
     pub fn randomize(
         &mut self,
-        rows_swap: Option<HashMap<usize, (usize, usize)>>,
-        values_swap: Option<HashMap<usize, (usize, usize)>>,
+        rows_swap: Option<HashMap<usize, Coords>>,
+        values_swap: Option<HashMap<usize, Coords>>,
+        shuffle_floors: bool,
     ) -> Result<(), SudokuError> {
-        if !self.is_filled() {
-            return Err(SudokuError::InvalidState(format!(
-                "randomize() when this sudoku isn't filled: {self}"
-            )));
-        }
         if !self.is_canonical {
             return Err(SudokuError::InvalidState(format!(
                 "randomize() when this sudoku is already randomized: {self}"
@@ -434,68 +430,87 @@ impl Sudoku {
                 .map(|floor| floor.to_vec())
                 .collect::<Vec<_>>();
 
-            // shuffle each floor (not the first floor)
-            floors.shuffle(&mut rng);
+            // shuffle each floor
+            if shuffle_floors {
+                floors.shuffle(&mut rng);
+            }
 
-            // shuffle each row inside a floor (not the first row)
+            // shuffle each row inside a floor
             for floor in floors.iter_mut() {
                 floor.shuffle(&mut rng);
             }
 
             let shuffled_rows = floors.into_iter().flatten().enumerate().collect::<Vec<_>>();
 
-            let mut rows_swap = (0..self.n2).map(|y| (y, (0, 0))).collect::<HashMap<_, _>>();
+            let mut rows_swap = HashMap::new();
             for (y, to_y) in shuffled_rows {
-                rows_swap.get_mut(&y).unwrap().0 = to_y;
-                rows_swap.get_mut(&to_y).unwrap().1 = y;
+                rows_swap
+                    .entry(y)
+                    .and_modify(|(a, _)| *a = to_y)
+                    .or_insert((to_y, 0));
+                rows_swap
+                    .entry(to_y)
+                    .and_modify(|(_, b)| *b = y)
+                    .or_insert((0, y));
             }
             rows_swap
         });
 
         self.values_swap = values_swap.unwrap_or({
-            let mut values_swap = (1..=self.n2)
-                .map(|y| (y, (0, 0)))
-                .collect::<HashMap<_, _>>();
+            let mut to_values = (1..=self.n2).collect::<Vec<_>>();
+            to_values.shuffle(&mut rng);
 
-            let mut values = (1..=self.n2).collect::<Vec<_>>();
-            values.shuffle(&mut rng);
-
-            for (i, to_value) in values.into_iter().enumerate() {
-                let value = i + 1;
-                values_swap.get_mut(&value).unwrap().0 = to_value;
-                values_swap.get_mut(&to_value).unwrap().1 = value;
+            let mut values_swap = HashMap::new();
+            for (value, to_value) in to_values
+                .iter()
+                .cloned()
+                .enumerate()
+                .map(|(i, to_value)| (i + 1, to_value))
+            {
+                values_swap
+                    .entry(value)
+                    .and_modify(|(a, _)| *a = to_value)
+                    .or_insert((to_value, 0));
+                values_swap
+                    .entry(to_value)
+                    .and_modify(|(_, b)| *b = value)
+                    .or_insert((0, value));
             }
-
             values_swap
         });
 
         // swap rows randomly following self.rows_swap rules
         let mut new_board = vec![Vec::new(); self.n2];
+        let mut new_possibility_board = vec![Vec::new(); self.n2];
         for y in 0..self.n2 {
             let (to_y, _) = self.rows_swap[&y];
             new_board[to_y] = self.board[y].clone();
+            new_possibility_board[to_y] = self.possibility_board[y].clone();
         }
         self.board = new_board;
+        self.possibility_board = new_possibility_board;
+        self.is_canonical = false;
 
-        // swap value randomly
+        // swap value randomly following self.values_swap rules
         for y in 0..self.n2 {
             for x in 0..self.n2 {
                 let value = self.board[y][x];
-                let (to_value, _) = self.values_swap[&value];
-                self.board[y][x] = to_value;
+                if value != 0 {
+                    let (to_value, _) = self.values_swap[&value];
+                    self.board[y][x] = to_value;
+                } else {
+                    let possibilities = self.possibility_board[y][x]
+                        .iter()
+                        .map(|value| self.values_swap[value].0)
+                        .collect::<HashSet<_>>();
+                    self.possibility_board[y][x] = possibilities;
+                }
             }
         }
-
-        self.is_canonical = false;
         Ok(())
     }
 
     pub fn canonize(&mut self) -> Result<(), SudokuError> {
-        if !self.is_filled() {
-            return Err(SudokuError::InvalidState(format!(
-                "canonize() when this sudoku isn't filled: {self}"
-            )));
-        }
         if self.is_canonical {
             return Err(SudokuError::InvalidState(format!(
                 "canonize() when this sudoku is already canonized: {self}"
@@ -599,6 +614,7 @@ impl Sudoku {
         specific_rules: Option<Range<usize>>,
         max_difficulty: Option<SudokuDifficulty>,
     ) -> Result<Option<usize>, SudokuError> {
+        let mut used_rule: Option<usize> = None;
         let rules: Vec<_> = Sudoku::RULES
             .iter()
             .filter(|(rule_id, difficulty, _rule)| {
@@ -619,23 +635,20 @@ impl Sudoku {
             })
             .collect();
 
-        let mut rule_used: Option<usize> = None;
         // try the rules and set the difficulty in consequence
         for &&(rule_id, difficulty, rule) in rules.iter() {
             // if the rule can't be applied, then pass to the next one
             if !rule(self).unwrap_or(false) {
                 continue;
             }
-
+            used_rule = Some(rule_id);
             debug_only!("règle {} appliquée", rule_id);
             debug_only!("Sudoku actuel:\n{}", self);
 
-            rule_used = Some(rule_id);
             self.difficulty = max(self.difficulty, difficulty);
             break;
         }
-
-        Ok(rule_used)
+        Ok(used_rule)
     }
 
     pub fn rule_solve_until(
@@ -696,19 +709,19 @@ impl Sudoku {
 
     // UTILITY
 
+    pub fn is_empty(&self) -> bool {
+        self.filled_cells == 0
+    }
+
     pub fn is_filled(&self) -> bool {
         self.filled_cells == self.n2 * self.n2
     }
 
-    pub fn is_unique(&mut self, safe_possibilities: Option<&HashSet<Vec<bool>>>) -> bool {
-        self.count_solutions(Some(2), safe_possibilities) == 1
+    pub fn is_unique(&mut self) -> bool {
+        self.count_solutions(Some(2)) == 1
     }
 
-    pub fn count_solutions(
-        &self,
-        max_solutions: Option<usize>,
-        safe_possibilities: Option<&HashSet<Vec<bool>>>,
-    ) -> usize {
+    pub fn count_solutions(&self, max_solutions: Option<usize>) -> usize {
         self.clone()._count_solutions(
             (0..self.n2 * self.n2)
                 .filter_map(|cell_i| {
@@ -723,35 +736,15 @@ impl Sudoku {
                 })
                 .collect::<Vec<_>>(),
             max_solutions,
-            safe_possibilities,
         )
     }
 
     fn _count_solutions(
         &mut self,
-        mut empty_cells: Vec<(usize, usize)>,
+        mut empty_cells: Vec<Coords>,
         max_solutions: Option<usize>,
-        safe_possibilities: Option<&HashSet<Vec<bool>>>,
     ) -> usize {
-        if let Some(safe_possibilities) = safe_possibilities {
-            let filled_cells = (0..self.n2 * self.n2)
-                .map(|cell_i| {
-                    let y = cell_i / self.n2;
-                    let x = cell_i % self.n2;
-                    let value = self.board[y][x];
-                    value > 0
-                })
-                .collect::<Vec<_>>();
-            if safe_possibilities.contains(&filled_cells) {
-                return 1;
-            }
-        }
-
-        empty_cells.sort_by(|&(x1, y1), &(x2, y2)| {
-            self.possibility_board[y1][x1]
-                .len()
-                .cmp(&self.possibility_board[y2][x2].len())
-        });
+        empty_cells.sort_by_key(|&(x1, y1)| self.possibility_board[y1][x1].len());
 
         let mut i = 0;
         while i < empty_cells.len() {
@@ -786,8 +779,7 @@ impl Sudoku {
                 }
             }
 
-            sub_solutions +=
-                self._count_solutions(empty_cells.clone(), max_solutions, safe_possibilities);
+            sub_solutions += self._count_solutions(empty_cells.clone(), max_solutions);
             if let Some(max_solutions) = max_solutions {
                 if sub_solutions >= max_solutions {
                     return sub_solutions;
@@ -1030,6 +1022,16 @@ impl Sudoku {
     ) -> Self {
         database
             .get_random_canonical_sudoku_game(n as i16, difficulty as i16)
+            .unwrap()
+    }
+
+    pub fn load_minimal_game_from_db(
+        database: &mut Database,
+        n: usize,
+        difficulty: SudokuDifficulty,
+    ) -> Self {
+        database
+            .get_random_minimal_canonical_sudoku_game(n as i16, difficulty as i16)
             .unwrap()
     }
 }
