@@ -530,7 +530,7 @@ impl std::fmt::Display for CarpetPattern {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Simple => write!(f, "Simple"),
-            Samurai => write!(f, "Samurai"),
+            Samurai => write!(f, "Samuraï"),
             Diagonal(size) => write!(f, "Diagonal({size})"),
             DenseDiagonal(size) => write!(f, "DenseDiagonal({size})"),
             Carpet(size) => write!(f, "Carpet({size})"),
