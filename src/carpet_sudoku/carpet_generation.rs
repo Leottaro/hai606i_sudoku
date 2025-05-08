@@ -1,8 +1,5 @@
 use super::{CarpetPattern, CarpetSudoku};
-use crate::{
-    duration_to_string,
-    simple_sudoku::{SudokuDifficulty, SudokuGroups},
-};
+use crate::{duration_to_string, simple_sudoku::SudokuDifficulty};
 use rand::seq::SliceRandom;
 use std::{
     collections::HashSet,
@@ -396,19 +393,9 @@ impl CarpetSudoku {
             .into_iter()
             .collect::<Vec<_>>();
         randomized_cells_to_remove.shuffle(&mut carpet_generation_input.rng);
-        randomized_cells_to_remove.sort_by_key(|(sudoku_id, x, y, _)| {
-            let mut possibilities = (1..=self.n2).collect::<HashSet<_>>();
-            for (i, x, y) in self.get_global_cell_group(*sudoku_id, *x, *y, SudokuGroups::All) {
-                let cell_value = self.sudokus[i].get_cell_value(x, y);
-                if cell_value != 0 {
-                    possibilities.remove(&cell_value);
-                }
-            }
-            possibilities.len()
-        });
-
         let mut can_remove_a_cell = false;
-        for (sudoku_id, x, y, removed_value) in randomized_cells_to_remove {
+        for (sudoku_id, x, y, removed_value) in randomized_cells_to_remove.into_iter().take(self.n2)
+        {
             // stop if a solution was found by another thread
             if *thread_should_stop.lock().unwrap() {
                 return;

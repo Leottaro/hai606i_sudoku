@@ -1,6 +1,6 @@
 use crate::duration_to_string;
 
-use super::{Sudoku, SudokuDifficulty, SudokuGroups};
+use super::{Sudoku, SudokuDifficulty};
 use rand::seq::SliceRandom;
 use std::{
     collections::HashSet,
@@ -264,19 +264,8 @@ impl Sudoku {
             .into_iter()
             .collect::<Vec<_>>();
         randomized_cells_to_remove.shuffle(&mut sudoku_generation_input.rng);
-        randomized_cells_to_remove.sort_by_key(|(x, y, _)| {
-            let mut possibilities = (1..=self.n2).collect::<HashSet<_>>();
-            for (x, y) in self.get_cell_group(*x, *y, SudokuGroups::All) {
-                let cell_value = self.board[y][x];
-                if cell_value != 0 {
-                    possibilities.remove(&cell_value);
-                }
-            }
-            possibilities.len()
-        });
-
         let mut can_remove_a_cell = false;
-        for (x, y, removed_value) in randomized_cells_to_remove {
+        for (x, y, removed_value) in randomized_cells_to_remove.into_iter().take(self.n2) {
             // stop if a solution was found by another thread
             if *thread_should_stop.lock().unwrap() {
                 return;
