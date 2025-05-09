@@ -277,7 +277,7 @@ fn carpet_filled(max_number: usize) {
 
 fn carpet_games(max_number: usize) {
     let database = Arc::new(Mutex::new(Database::connect().unwrap()));
-    let mut join_handle: Option<thread::JoinHandle<bool>> = None;
+    let mut join_handle: Option<thread::JoinHandle<Result<(), diesel::result::Error>>> = None;
     let mut patterns = CarpetPattern::iter_simple().collect::<Vec<_>>();
     for _ in 0..max_number {
         for pattern in patterns.iter_mut() {
@@ -286,9 +286,8 @@ fn carpet_games(max_number: usize) {
             let filled = CarpetSudoku::generate_full(3, *pattern);
 
             if let Some(my_join_handle) = join_handle {
-                let no_problem = my_join_handle.join().unwrap();
-                if !no_problem {
-                    return;
+                if let Err(err) = my_join_handle.join().unwrap() {
+                    panic!("{}", err);
                 }
             }
 
@@ -306,14 +305,14 @@ fn carpet_games(max_number: usize) {
                     if let Ok((db_sudoku, db_squares)) =
                         thread_filled.get_sudokus()[0].filled_to_db()
                     {
-                        let _ = thread_database
+                        thread_database
                             .lock()
                             .unwrap()
-                            .insert_canonical_sudoku(true, db_sudoku, db_squares);
+                            .insert_canonical_sudoku(true, db_sudoku, db_squares)?;
                     }
                 }
 
-                if let Err(err) = thread_database
+                thread_database
                     .lock()
                     .unwrap()
                     .insert_ignore_multiple_canonical_sudokus(
@@ -322,24 +321,15 @@ fn carpet_games(max_number: usize) {
                             .into_iter()
                             .flatten()
                             .collect::<Vec<_>>(),
-                    )
-                {
-                    eprintln!("\nERROR :\n{thread_filled}\nCOULDN'T INSERT THIS FILLED CARPET'S SUDOKUS: {err}\n");
-                    return false;
-                }
+                    )?;
 
-                if let Err(err) = thread_database.lock().unwrap().insert_canonical_carpet(
+                thread_database.lock().unwrap().insert_canonical_carpet(
                     true,
                     db_filled,
                     db_filled_sudokus,
-                ) {
-                    eprintln!(
-                        "\nERROR :\n{thread_filled}\nCOULDN'T INSERT THIS FILLED CARPET: {err}\n"
-                    );
-                    return false;
-                }
+                )?;
 
-                true
+                Ok(())
             }));
 
             for difficulty in SudokuDifficulty::iter() {
@@ -348,8 +338,8 @@ fn carpet_games(max_number: usize) {
                     pattern.to_db(),
                     difficulty as i16,
                 ) {
-                    Ok(_) => (),
-                    Err(diesel::result::Error::NotFound) => continue,
+                    Ok(_) => continue,
+                    Err(diesel::result::Error::NotFound) => (),
                     Err(err) => panic!("Couldn't check if a carpet game exists: {err}"),
                 }
 
@@ -359,9 +349,8 @@ fn carpet_games(max_number: usize) {
                 let game = filled.generate_from(difficulty).unwrap();
 
                 if let Some(my_join_handle) = join_handle {
-                    let no_problem = my_join_handle.join().unwrap();
-                    if !no_problem {
-                        return;
+                    if let Err(err) = my_join_handle.join().unwrap() {
+                        panic!("{}", err);
                     }
                 }
 
@@ -369,23 +358,19 @@ fn carpet_games(max_number: usize) {
                 join_handle = Some(thread::spawn(move || {
                     if game.get_pattern() == CarpetPattern::Simple {
                         if let Ok(sudoku_game_db) = game.get_sudokus()[0].game_to_db() {
-                            let _ = database
+                            database
                                 .lock()
                                 .unwrap()
-                                .insert_canonical_sudoku_game(true, sudoku_game_db);
+                                .insert_canonical_sudoku_game(true, sudoku_game_db)?;
                         }
                     }
 
-                    if let Err(err) = database
+                    database
                         .lock()
                         .unwrap()
-                        .insert_canonical_carpet_game(game.db_to_game())
-                    {
-                        eprintln!("\nERROR :\n{game}\nCOULDN'T INSERT THIS CARPET GAME: {err}\n");
-                        return false;
-                    }
+                        .insert_canonical_carpet_game(game.db_to_game())?;
 
-                    true
+                    Ok(())
                 }));
             }
 
