@@ -1,5 +1,5 @@
 use std::{
-    io::{stdout, Write},
+    io::{stdin, stdout, Write},
     ops::SubAssign,
     sync::{mpsc, Arc, Mutex},
     thread::{self, available_parallelism},
@@ -13,37 +13,79 @@ use hai606i_sudoku::{
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    if args.len() != 4 {
-        eprintln!("Wrong usage: needed 4 args, got {}", args.len());
-        eprintln!(
-            "Usage: {} <sudoku|carpet> <filled|games> <max_number>",
-            args[0]
-        );
+    if args.len() == 4 {
+        let max_number = args[3].parse::<usize>().unwrap();
+
+        if args[1].eq("sudoku") {
+            if args[2].eq("filled") {
+                sudoku_filled(max_number);
+                return;
+            } else if args[2].eq("games") {
+                sudoku_games(max_number);
+                return;
+            }
+        } else if args[1].eq("carpet") {
+            if args[2].eq("filled") {
+                carpet_filled(max_number);
+                return;
+            } else if args[2].eq("games") {
+                carpet_games(max_number);
+                return;
+            }
+        }
+    } else if args.len() == 1 {
+        println!(
+			"Hint: you can start this executalbe with the arguments : {} <sudoku|carpet> <filled|games> <max_number>", 
+			args[0]
+		);
+
+        let mut object = String::new();
+        while object.ne("sudoku") && object.ne("carpet") {
+            print!("what type of object do you want to create ? (sudoku, carpet) : ");
+            stdout().flush().unwrap();
+            stdin().read_line(&mut object).unwrap();
+            object = object.trim().to_string();
+        }
+
+        let mut caracteristic = String::new();
+        while caracteristic.ne("filled") && caracteristic.ne("games") {
+            print!("what caracteristic do you want to create ? (filled, games) : ");
+            stdout().flush().unwrap();
+            stdin().read_line(&mut caracteristic).unwrap();
+            caracteristic = caracteristic.trim().to_string();
+        }
+
+        let mut max_number = String::new();
+        while max_number.parse::<usize>().is_err() {
+            print!("what is the max_number ? (unsigned int) : ");
+            stdout().flush().unwrap();
+            stdin().read_line(&mut max_number).unwrap();
+            max_number = max_number.trim().to_string();
+        }
+        let max_number = max_number.parse::<usize>().unwrap();
+
+        if object.eq("sudoku") {
+            if caracteristic.eq("filled") {
+                sudoku_filled(max_number);
+            } else if caracteristic.eq("games") {
+                sudoku_games(max_number);
+            }
+        } else if object.eq("carpet") {
+            if caracteristic.eq("filled") {
+                carpet_filled(max_number);
+            } else if caracteristic.eq("games") {
+                carpet_games(max_number);
+            }
+        }
         return;
     }
-    let max_number = args[3].parse::<usize>().unwrap();
 
-    if args[1].eq("sudoku") {
-        if args[2].eq("filled") {
-            sudoku_filled(max_number);
-            return;
-        } else if args[2].eq("games") {
-            sudoku_games(max_number);
-            return;
-        }
-    } else if args[1].eq("carpet") {
-        if args[2].eq("filled") {
-            carpet_filled(max_number);
-            return;
-        } else if args[2].eq("games") {
-            carpet_games(max_number);
-            return;
-        }
-    }
+    eprintln!("Wrong usage: either needed 0 or 3 args, got {}", args.len());
     eprintln!(
-        "Usage: {} <sudoku|carpet> <filled|games> <max_number>",
+        "Usage 1: {} <sudoku|carpet> <filled|games> <max_number>",
         args[0]
     );
+    eprintln!("Usage 2: {}", args[0]);
 }
 
 fn sudoku_filled(max_number: usize) {
