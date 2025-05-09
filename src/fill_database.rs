@@ -278,15 +278,12 @@ fn carpet_filled(max_number: usize) {
 fn carpet_games(max_number: usize) {
     let database = Arc::new(Mutex::new(Database::connect().unwrap()));
     let mut join_handle: Option<thread::JoinHandle<bool>> = None;
-
-    let mut remaining_number = max_number;
-    while remaining_number > 0 {
-        println!("\n\n\n{remaining_number} filled carpets remaining");
-
-        for pattern in CarpetPattern::iter() {
+    let mut patterns = CarpetPattern::iter_simple().collect::<Vec<_>>();
+    for _ in 0..max_number {
+        for pattern in patterns.iter_mut() {
             println!("\n{}: ", pattern);
 
-            let filled = CarpetSudoku::generate_full(3, pattern);
+            let filled = CarpetSudoku::generate_full(3, *pattern);
 
             if let Some(my_join_handle) = join_handle {
                 let no_problem = my_join_handle.join().unwrap();
@@ -346,6 +343,16 @@ fn carpet_games(max_number: usize) {
             }));
 
             for difficulty in SudokuDifficulty::iter() {
+                match database.lock().unwrap().get_random_canonical_carpet_game(
+                    3,
+                    pattern.to_db(),
+                    difficulty as i16,
+                ) {
+                    Ok(_) => (),
+                    Err(diesel::result::Error::NotFound) => continue,
+                    Err(err) => panic!("Couldn't check if a carpet game exists: {err}"),
+                }
+
                 print!("{}: \r", difficulty);
                 stdout().flush().unwrap();
 
@@ -381,7 +388,8 @@ fn carpet_games(max_number: usize) {
                     true
                 }));
             }
+
+            pattern.add_assign(1);
         }
-        remaining_number -= 1;
     }
 }

@@ -212,6 +212,7 @@ impl CarpetPattern {
 
                         let corner_i = ((y + 1) % size) * size + (x + 1) % size;
                         links.push(((sudoku_i, bottom_right), (corner_i, up_left)));
+
                         let corner_i =
                             ((y + 1) % size) * size + if x == 0 { size - 1 } else { x - 1 };
                         links.push(((sudoku_i, bottom_left), (corner_i, up_right)));
@@ -326,72 +327,28 @@ impl CarpetPattern {
                 links
             }
             DenseTorus(size) => {
+                let original_links = DenseCarpet(size).get_raw_links(n);
                 let mut links = Vec::new();
-                for y in 0..size {
-                    for x in 0..size {
-                        let sudoku1 = y * size + x;
 
-                        for dy in 0..n {
-                            for dx in 0..n {
-                                if dx == 0 && dy == 0 {
-                                    continue;
-                                }
-                                let x_plus_dx = (x + dx) % size;
-                                let y_plus_dy = (y + dy) % size;
-                                let x_minus_dx = if x >= dx { x - dx } else { x + size - dx };
-                                let y_minus_dy = if y >= dy { y - dy } else { y + size - dy };
+                for dy in 0..size {
+                    for dx in 0..size {
+                        links.extend(original_links.clone().into_iter().map(
+                            |((sudoku1, square1), (sudoku2, square2))| {
+                                let new_sudoku_x1 = ((sudoku1 % size) + dx) % size;
+                                let new_sudoku_y1 = ((sudoku1 / size) + dy) % size;
 
-                                let sudoku2 = y_plus_dy * size + x_plus_dx;
-                                for y1 in dy..n {
-                                    let y2 = y1 - dy;
-                                    for x1 in dx..n {
-                                        let x2 = x1 - dx;
-                                        links.push((
-                                            (sudoku1, (y1 * n) + x1),
-                                            (sudoku2, (y2 * n) + x2),
-                                        ));
-                                    }
-                                }
+                                let new_sudoku_x2 = ((sudoku2 % size) + dx) % size;
+                                let new_sudoku_y2 = ((sudoku2 / size) + dy) % size;
 
-                                let sudoku2 = y_plus_dy * size + x_minus_dx;
-                                for y1 in dy..n {
-                                    let y2 = y1 - dy;
-                                    for x1 in 0..n - dx {
-                                        let x2 = x1 + dx;
-                                        links.push((
-                                            (sudoku1, (y1 * n) + x1),
-                                            (sudoku2, (y2 * n) + x2),
-                                        ));
-                                    }
-                                }
-
-                                let sudoku2 = y_minus_dy * size + x_plus_dx;
-                                for y1 in 0..n - dy {
-                                    let y2 = y1 + dy;
-                                    for x1 in dx..n {
-                                        let x2 = x1 - dx;
-                                        links.push((
-                                            (sudoku1, (y1 * n) + x1),
-                                            (sudoku2, (y2 * n) + x2),
-                                        ));
-                                    }
-                                }
-
-                                let sudoku2 = y_minus_dy * size + x_minus_dx;
-                                for y1 in 0..n - dy {
-                                    let y2 = y1 + dy;
-                                    for x1 in 0..n - dx {
-                                        let x2 = x1 + dx;
-                                        links.push((
-                                            (sudoku1, (y1 * n) + x1),
-                                            (sudoku2, (y2 * n) + x2),
-                                        ));
-                                    }
-                                }
-                            }
-                        }
+                                (
+                                    (new_sudoku_y1 * size + new_sudoku_x1, square1),
+                                    (new_sudoku_y2 * size + new_sudoku_x2, square2),
+                                )
+                            },
+                        ));
                     }
                 }
+
                 links
             }
             Custom(_) => vec![],

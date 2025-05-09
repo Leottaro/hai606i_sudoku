@@ -69,7 +69,9 @@ impl CarpetSudoku {
             carpet.is_canonical = true;
 
             if carpet.backtrack_solve() {
-                println!();
+                if tries > 1 {
+                    println!();
+                }
                 return carpet;
             }
 
