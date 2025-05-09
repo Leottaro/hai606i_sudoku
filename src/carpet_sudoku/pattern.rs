@@ -43,29 +43,29 @@ impl CarpetPattern {
 
     pub fn iter() -> impl Iterator<Item = CarpetPattern> {
         vec![
-            Simple,
-            Samurai,
+            // Simple,
+            // Samurai,
             DenseTorus,
-            Diagonal(2),
-            DenseDiagonal(2),
-            Carpet(2),
-            DenseCarpet(2),
-            Torus(2),
-            Diagonal(3),
-            DenseDiagonal(3),
-            Carpet(3),
-            DenseCarpet(3),
-            Torus(3),
-            Diagonal(4),
-            DenseDiagonal(4),
-            Carpet(4),
-            DenseCarpet(4),
-            Torus(4),
-            Diagonal(5),
-            DenseDiagonal(5),
-            Carpet(5),
-            DenseCarpet(5),
-            Torus(5),
+            // Diagonal(2),
+            // DenseDiagonal(2),
+            // Carpet(2),
+            // DenseCarpet(2),
+            // Torus(2),
+            // Diagonal(3),
+            // DenseDiagonal(3),
+            // Carpet(3),
+            // DenseCarpet(3),
+            // Torus(3),
+            // Diagonal(4),
+            // DenseDiagonal(4),
+            // Carpet(4),
+            // DenseCarpet(4),
+            // Torus(4),
+            // Diagonal(5),
+            // DenseDiagonal(5),
+            // Carpet(5),
+            // DenseCarpet(5),
+            // Torus(5),
         ]
         .into_iter()
     }
@@ -381,18 +381,18 @@ impl CarpetPattern {
         }
         let mut owned_sub_links = PATTERN_SUB_LINKS.write().unwrap();
 
-        let sub_links = if let DenseTorus = self {
-            let links = self.get_carpet_links(n);
-            let mut already_explored_combinaisons = HashSet::new();
-
-            Self::_get_sub_links(
-                self.get_n_sudokus(n),
-                &links,
-                &mut already_explored_combinaisons,
-            )
+        let links = if let DenseTorus = *self {
+            HashMap::new()
         } else {
-            vec![]
+            self.get_carpet_links(n)
         };
+
+        let mut already_explored_combinaisons = HashSet::new();
+        let sub_links = Self::_get_sub_links(
+            self.get_n_sudokus(n),
+            &links,
+            &mut already_explored_combinaisons,
+        );
 
         match self {
             Custom(_) => (),
