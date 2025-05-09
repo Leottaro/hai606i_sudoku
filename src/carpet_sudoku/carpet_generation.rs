@@ -58,8 +58,6 @@ impl CarpetSudoku {
     pub fn into_generate_full_from(self) -> Self {
         let mut tries = 0;
         loop {
-            tries += 1;
-            print!("\r{} generate_full has {tries} tries", self.pattern);
             let mut carpet = self.clone();
             if !carpet._generate_canonical_from(0, 0, 0) {
                 panic!("pattern: {} juste pas possible en fait", carpet.pattern);
@@ -74,6 +72,9 @@ impl CarpetSudoku {
                 println!();
                 return carpet;
             }
+
+            tries += 1;
+            print!("\r{} generate_full has {tries} tries", self.pattern);
         }
     }
 
@@ -150,35 +151,30 @@ impl CarpetSudoku {
         self.difficulty = SudokuDifficulty::Unknown;
         self.difficulty_score = 0;
 
-        let temp = (0..self.sudokus.len() * self.n2 * self.n2)
-            .map(|i| {
-                let sudoku_id = i / (self.n2 * self.n2);
-                let cell_i = i - sudoku_id * self.n2 * self.n2;
-                let y = cell_i / self.n2;
-                let x = cell_i % self.n2;
-                let value = self.sudokus[sudoku_id].get_cell_value(x, y);
-                (sudoku_id, x, y, value)
-            })
-            .collect::<Vec<_>>();
         let (original_cells_to_remove, original_exploring_filled_cells) = {
             let mut cells_to_remove = HashSet::new();
             let mut exploring_filled_cells = vec![false; self.sudokus.len() * self.n2 * self.n2];
-            for &(i, x, y, value) in temp.iter() {
-                if value == 0 {
-                    continue;
-                }
+            for sudoku_id in 0..self.sudokus.len() {
+                for y in 0..self.n2 {
+                    for x in 0..self.n2 {
+                        let value = self.sudokus[sudoku_id].get_cell_value(x, y);
+                        if value == 0 {
+                            continue;
+                        }
 
-                let mut to_insert = true;
-                for (i2, x2, y2) in self.get_twin_cells(i, x, y) {
-                    if cells_to_remove.contains(&(i2, x2, y2, value)) {
-                        to_insert = false;
-                        break;
+                        let mut to_insert = true;
+                        for (i2, x2, y2) in self.get_twin_cells(sudoku_id, x, y) {
+                            if cells_to_remove.contains(&(i2, x2, y2, value)) {
+                                to_insert = false;
+                                break;
+                            }
+                        }
+
+                        exploring_filled_cells[(sudoku_id * self.n2 + y) * self.n2 + x] = to_insert;
+                        if to_insert {
+                            cells_to_remove.insert((sudoku_id, x, y, value));
+                        }
                     }
-                }
-
-                exploring_filled_cells[(i * self.n2 + y) * self.n2 + x] = to_insert;
-                if to_insert {
-                    cells_to_remove.insert((i, x, y, value));
                 }
             }
             (cells_to_remove, exploring_filled_cells)
@@ -483,7 +479,13 @@ impl CarpetSudoku {
             if sub_carpet.is_filled() {
                 let mut log_infos = log_infos.lock().unwrap();
                 log_infos.solvable_sub_carpet_counter += 1;
-                print!("{} {}: {}\r", self.pattern, aimed_difficulty, log_infos);
+                print!(
+                    "{} {} ({} filled cells): {}\r",
+                    self.pattern,
+                    aimed_difficulty,
+                    carpet_generation_input.cells_to_remove.len(),
+                    log_infos
+                );
                 stdout().flush().unwrap();
                 return;
             }

@@ -1273,59 +1273,34 @@ impl SudokuDisplay {
         let n = self.carpet.get_n();
         let n2 = self.carpet.get_n2();
 
-        if let Some((sudoku_i, _, _)) = self.selected_cell {
-            if sudoku_i >= 1 {
-                let mut x1: usize = 1;
-                let mut y1: usize = 1;
-                for x in 0..2 {
-                    for y in 0..2 {
-                        let i = 1 + x + y * 2;
-                        if i == sudoku_i {
-                            x1 = x;
-                            y1 = y;
-                            continue;
-                        }
-                        self.draw_simple_sudoku(
-                            font.clone(),
-                            1 + x + y * 2,
-                            (2 * n2 - 2 * n) * x,
-                            (2 * n2 - 2 * n) * y,
-                        )
-                        .await;
-                    }
-                }
-                self.draw_simple_sudoku(font.clone(), 0, n2 - n, n2 - n)
-                    .await;
+        self.draw_simple_sudoku(font.clone(), 0, n2 - n, n2 - n)
+            .await;
+        for x in 0..2 {
+            for y in 0..2 {
                 self.draw_simple_sudoku(
                     font.clone(),
-                    sudoku_i,
-                    (2 * n2 - 2 * n) * x1,
-                    (2 * n2 - 2 * n) * y1,
+                    1 + x + y * 2,
+                    (2 * n2 - 2 * n) * x,
+                    (2 * n2 - 2 * n) * y,
                 )
                 .await;
-            } else {
-                for x in 0..2 {
-                    for y in 0..2 {
-                        self.draw_simple_sudoku(
-                            font.clone(),
-                            1 + x + y * 2,
-                            (2 * n2 - 2 * n) * x,
-                            (2 * n2 - 2 * n) * y,
-                        )
-                        .await;
-                    }
-                }
-                self.draw_simple_sudoku(font.clone(), 0, n2 - n, n2 - n)
-                    .await;
             }
-        } else {
-            self.draw_simple_sudoku(font.clone(), 0, n2 - n, n2 - n)
-                .await;
-            for x in 0..2 {
-                for y in 0..2 {
+        }
+
+        if let Some((selected_i, selected_x, selected_y)) = self.selected_cell {
+            for (i, _, _) in self
+                .carpet
+                .get_twin_cells(selected_i, selected_x, selected_y)
+            {
+                if i == 0 {
+                    self.draw_simple_sudoku(font.clone(), 0, n2 - n, n2 - n)
+                        .await;
+                } else {
+                    let y = (i - 1) / 2;
+                    let x = (i - 1) % 2;
                     self.draw_simple_sudoku(
                         font.clone(),
-                        1 + x + y * 2,
+                        i,
                         (2 * n2 - 2 * n) * x,
                         (2 * n2 - 2 * n) * y,
                     )
@@ -1339,31 +1314,21 @@ impl SudokuDisplay {
         let n = self.carpet.get_n();
         let n2 = self.carpet.get_n2();
         let n_sudokus = self.carpet.get_n_sudokus();
-        if let Some((selected_i, _, _)) = self.selected_cell {
-            let (selected_x1, selected_y1) = if dense {
-                (selected_i * n, (n_sudokus - selected_i - 1) * n)
-            } else {
-                (
-                    selected_i * (n2 - n),
-                    (n_sudokus - selected_i - 1) * (n2 - n),
-                )
-            };
 
-            for i in 0..n_sudokus {
-                if i == selected_i {
-                    continue;
-                }
-                let (x1, y1) = if dense {
-                    (i * n, (n_sudokus - i - 1) * n)
-                } else {
-                    (i * (n2 - n), (n_sudokus - i - 1) * (n2 - n))
-                };
-                self.draw_simple_sudoku(font.clone(), i, x1, y1).await;
-                self.draw_simple_sudoku(font.clone(), selected_i, selected_x1, selected_y1)
-                    .await;
-            }
-        } else {
-            for i in 0..n_sudokus {
+        for i in 0..n_sudokus {
+            let (x1, y1) = if dense {
+                (i * n, (n_sudokus - i - 1) * n)
+            } else {
+                (i * (n2 - n), (n_sudokus - i - 1) * (n2 - n))
+            };
+            self.draw_simple_sudoku(font.clone(), i, x1, y1).await;
+        }
+
+        if let Some((selected_i, selected_x, selected_y)) = self.selected_cell {
+            for (i, _, _) in self
+                .carpet
+                .get_twin_cells(selected_i, selected_x, selected_y)
+            {
                 let (x1, y1) = if dense {
                     (i * n, (n_sudokus - i - 1) * n)
                 } else {
@@ -1380,36 +1345,20 @@ impl SudokuDisplay {
         let n_sudokus = self.carpet.get_n_sudokus();
         let carpet_size = self.carpet.get_pattern().get_size();
 
-        if let Some((selected_i, _, _)) = self.selected_cell {
-            let (selected_x1, selected_y1) = if dense {
-                (
-                    (selected_i % carpet_size) * n,
-                    (selected_i / carpet_size) * n,
-                )
+        for i in 0..n_sudokus {
+            let (x1, y1) = if dense {
+                ((i % carpet_size) * n, (i / carpet_size) * n)
             } else {
-                (
-                    (selected_i % carpet_size) * (n2 - n),
-                    (selected_i / carpet_size) * (n2 - n),
-                )
+                ((i % carpet_size) * (n2 - n), (i / carpet_size) * (n2 - n))
             };
+            self.draw_simple_sudoku(font.clone(), i, x1, y1).await;
+        }
 
-            for i in 0..n_sudokus {
-                if i == selected_i {
-                    continue;
-                }
-
-                let (x1, y1) = if dense {
-                    ((i % carpet_size) * n, (i / carpet_size) * n)
-                } else {
-                    ((i % carpet_size) * (n2 - n), (i / carpet_size) * (n2 - n))
-                };
-                self.draw_simple_sudoku(font.clone(), i, x1, y1).await;
-
-                self.draw_simple_sudoku(font.clone(), selected_i, selected_x1, selected_y1)
-                    .await;
-            }
-        } else {
-            for i in 0..n_sudokus {
+        if let Some((selected_i, selected_x, selected_y)) = self.selected_cell {
+            for (i, _, _) in self
+                .carpet
+                .get_twin_cells(selected_i, selected_x, selected_y)
+            {
                 let (x1, y1) = if dense {
                     ((i % carpet_size) * n, (i / carpet_size) * n)
                 } else {
