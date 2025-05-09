@@ -22,7 +22,7 @@ impl CarpetPattern {
             Carpet(size) => (4, Some(size as i16)),
             DenseCarpet(size) => (5, Some(size as i16)),
             Torus(size) => (6, Some(size as i16)),
-            DenseTorus(size) => (7, Some(size as i16)),
+            DenseTorus => (7, None),
             Custom(_) => panic!("Custom pattern not supported in DB"),
         }
     }
@@ -36,7 +36,7 @@ impl CarpetPattern {
             (4, Some(n)) => Carpet(n as usize),
             (5, Some(n)) => DenseCarpet(n as usize),
             (6, Some(n)) => Torus(n as usize),
-            (7, Some(n)) => DenseTorus(n as usize),
+            (7, None) => DenseTorus,
             (a, b) => panic!("pattern:{a} & pattern_size:{:?} not recognized !", b),
         }
     }
@@ -45,6 +45,7 @@ impl CarpetPattern {
         vec![
             Simple,
             Samurai,
+            DenseTorus,
             Diagonal(2),
             DenseDiagonal(2),
             Carpet(2),
@@ -55,19 +56,16 @@ impl CarpetPattern {
             Carpet(3),
             DenseCarpet(3),
             Torus(3),
-            DenseTorus(3),
             Diagonal(4),
             DenseDiagonal(4),
             Carpet(4),
             DenseCarpet(4),
             Torus(4),
-            DenseTorus(4),
             Diagonal(5),
             DenseDiagonal(5),
             Carpet(5),
             DenseCarpet(5),
             Torus(5),
-            DenseTorus(5),
         ]
         .into_iter()
     }
@@ -81,26 +79,28 @@ impl CarpetPattern {
             Carpet(2),
             DenseCarpet(2),
             Torus(2),
-            DenseTorus(3),
+            DenseTorus,
         ]
         .into_iter()
     }
 
-    pub fn get_n_sudokus(&self) -> usize {
+    pub fn get_n_sudokus(&self, n: usize) -> usize {
         match *self {
             Simple => 1,
             Samurai => 5,
+            DenseTorus => n * n,
             Diagonal(size) | DenseDiagonal(size) | Custom(size) => size,
-            Carpet(size) | DenseCarpet(size) | Torus(size) | DenseTorus(size) => size * size,
+            Carpet(size) | DenseCarpet(size) | Torus(size) => size * size,
         }
     }
 
-    pub fn get_size(&self) -> usize {
+    pub fn get_size(&self, n: usize) -> usize {
         match *self {
             Simple => 1,
             Samurai => 5,
+            DenseTorus => n,
             Diagonal(size) | DenseDiagonal(size) | Carpet(size) | DenseCarpet(size)
-            | Torus(size) | DenseTorus(size) | Custom(size) => size,
+            | Torus(size) | Custom(size) => size,
         }
     }
 
@@ -114,13 +114,6 @@ impl CarpetPattern {
                     *size = 2;
                 }
             }
-            DenseTorus(size) => {
-                if *size >= rhs + 3 {
-                    *size -= rhs;
-                } else {
-                    *size = 3;
-                }
-            }
             Custom(size) => {
                 if *size > rhs {
                     *size -= rhs;
@@ -128,15 +121,15 @@ impl CarpetPattern {
                     *size = 1;
                 }
             }
-            Simple | Samurai => (),
+            Simple | Samurai | DenseTorus => (),
         }
     }
 
     pub fn add_assign(&mut self, rhs: usize) {
         match self {
             Diagonal(size) | Carpet(size) | DenseDiagonal(size) | DenseCarpet(size)
-            | Torus(size) | DenseTorus(size) | Custom(size) => *size += rhs,
-            Simple | Samurai => (),
+            | Torus(size) | Custom(size) => *size += rhs,
+            Simple | Samurai | DenseTorus => (),
         }
     }
 
@@ -326,23 +319,23 @@ impl CarpetPattern {
                 }
                 links
             }
-            DenseTorus(size) => {
-                let original_links = DenseCarpet(size).get_raw_links(n);
+            DenseTorus => {
+                let original_links = DenseCarpet(n).get_raw_links(n);
                 let mut links = Vec::new();
 
-                for dy in 0..size {
-                    for dx in 0..size {
+                for dy in 0..n {
+                    for dx in 0..n {
                         links.extend(original_links.clone().into_iter().map(
                             |((sudoku1, square1), (sudoku2, square2))| {
-                                let new_sudoku_x1 = ((sudoku1 % size) + dx) % size;
-                                let new_sudoku_y1 = ((sudoku1 / size) + dy) % size;
+                                let new_sudoku_x1 = ((sudoku1 % n) + dx) % n;
+                                let new_sudoku_y1 = ((sudoku1 / n) + dy) % n;
 
-                                let new_sudoku_x2 = ((sudoku2 % size) + dx) % size;
-                                let new_sudoku_y2 = ((sudoku2 / size) + dy) % size;
+                                let new_sudoku_x2 = ((sudoku2 % n) + dx) % n;
+                                let new_sudoku_y2 = ((sudoku2 / n) + dy) % n;
 
                                 (
-                                    (new_sudoku_y1 * size + new_sudoku_x1, square1),
-                                    (new_sudoku_y2 * size + new_sudoku_x2, square2),
+                                    (new_sudoku_y1 * n + new_sudoku_x1, square1),
+                                    (new_sudoku_y2 * n + new_sudoku_x2, square2),
                                 )
                             },
                         ));
@@ -386,23 +379,25 @@ impl CarpetPattern {
                 }
             }
         }
+        let mut owned_sub_links = PATTERN_SUB_LINKS.write().unwrap();
 
-        let links = self.get_carpet_links(n);
-        let mut already_explored_combinaisons = HashSet::new();
+        let sub_links = if let DenseTorus = self {
+            let links = self.get_carpet_links(n);
+            let mut already_explored_combinaisons = HashSet::new();
 
-        let sub_links = Self::_get_sub_links(
-            self.get_n_sudokus(),
-            &links,
-            &mut already_explored_combinaisons,
-        );
+            Self::_get_sub_links(
+                self.get_n_sudokus(n),
+                &links,
+                &mut already_explored_combinaisons,
+            )
+        } else {
+            vec![]
+        };
 
         match self {
             Custom(_) => (),
             pattern => {
-                PATTERN_SUB_LINKS
-                    .write()
-                    .unwrap()
-                    .insert((n, *pattern), sub_links.clone());
+                owned_sub_links.insert((n, *pattern), sub_links.clone());
             }
         }
         sub_links
@@ -493,7 +488,7 @@ impl std::fmt::Display for CarpetPattern {
             Carpet(size) => write!(f, "Carpet({size})"),
             DenseCarpet(size) => write!(f, "DenseCarpet({size})"),
             Torus(size) => write!(f, "Torus({size})"),
-            DenseTorus(size) => write!(f, "DenseTorus({size})"),
+            DenseTorus => write!(f, "DenseTorus"),
             Custom(size) => write!(f, "Custom({size})"),
         }
     }

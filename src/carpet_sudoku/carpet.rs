@@ -149,7 +149,7 @@ impl CarpetSudoku {
 			CarpetPattern::Custom(_) => panic!("Can't call CarpetSudoku::new() with a CarpetPattern::Custom pattern ! Try using CarpetSudoku::new_custom() instead."),
             pattern => pattern,
         };
-        let n_sudokus = pattern.get_n_sudokus();
+        let n_sudokus = pattern.get_n_sudokus(n);
         let sudokus = (0..n_sudokus).map(|_| Sudoku::new(n)).collect();
         let links: CarpetLinks = pattern.get_carpet_links(n);
 
