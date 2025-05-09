@@ -1,3 +1,8 @@
+use std::{
+    fs,
+    io::{stdin},
+};
+
 use diesel::{
     connection::DefaultLoadingMode, dsl::min, BoolExpressionMethods, Connection, ExpressionMethods,
     JoinOnDsl, PgConnection, PgExpressionMethods, QueryDsl, RunQueryDsl,
@@ -22,7 +27,15 @@ impl Database {
     pub fn connect() -> Option<Self> {
         dotenv::dotenv().ok();
         let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|err| {
-            panic!("Couldn't get DATABASE_URL environment variable: {}", err)
+            eprintln!("Couldn't get DATABASE_URL environment variable: {}", err);
+			
+			println!("Please enter the mandatory DATABASE_URL (postgresql://<USER>:<USER_PASSWORD>@<DB_IP>/database) :");
+			let mut database_url = String::new();
+			stdin().read_line(&mut database_url).unwrap();
+			database_url = database_url.trim().to_string();
+
+			fs::write(".env", format!("DATABASE_URL={database_url}")).unwrap();
+			database_url
         });
 
         let connection = PgConnection::establish(&database_url);

@@ -2,13 +2,35 @@ use hai606i_sudoku::{
     duration_to_string,
     simple_sudoku::{Sudoku, SudokuDifficulty},
 };
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::HashMap,
+    io::{stdin, stdout, Write},
+    time::Duration,
+};
 
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+
+    let iterations = if args.len() == 2 {
+        args[1].parse::<usize>().unwrap()
+    } else if args.len() == 1 {
+        print!("Please enter thr number of iterations: ");
+        stdout().flush().unwrap();
+        let mut line = String::new();
+        stdin().read_line(&mut line).unwrap();
+        line.trim().parse::<usize>().unwrap()
+    } else {
+        panic!(
+            "Wrong usage: either needed 0 or 3 args, got {}\nUsage 1: {} <iterations> Usage 2: {}",
+            args.len(),
+            args[0],
+            args[0]
+        );
+    };
+
     let mut time_samples = SudokuDifficulty::iter()
         .map(|diff| (diff, Vec::new()))
         .collect::<HashMap<_, _>>();
-    let iterations: usize = 5;
 
     let end_function = |time_samples: HashMap<SudokuDifficulty, Vec<Duration>>,
                         iterations: usize| {
