@@ -320,7 +320,7 @@ fn carpet_filled(max_number: usize) {
 fn carpet_games(max_number: usize) {
     let database = Arc::new(Mutex::new(Database::connect().unwrap()));
     let mut join_handle: Option<thread::JoinHandle<Result<(), diesel::result::Error>>> = None;
-    let mut patterns = CarpetPattern::iter_simple().collect::<Vec<_>>();
+    let mut patterns = CarpetPattern::iter().collect::<Vec<_>>();
     for _ in 0..max_number {
         for pattern in patterns.iter_mut() {
             println!("\n{}: ", pattern);

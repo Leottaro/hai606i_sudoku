@@ -75,7 +75,7 @@ impl SudokuDisplay {
         let wrong_cell_handle = Arc::new(Mutex::new(None));
         let difficulty = SudokuDifficulty::Easy;
         let pattern: CarpetPattern = CarpetPattern::Simple;
-        let pattern_list = CarpetPattern::iter_simple().collect::<Vec<_>>();
+        let pattern_list = CarpetPattern::iter().collect::<Vec<_>>();
         let torus_view = (0, 0);
         #[cfg(feature = "database")]
         let cloud_texture = load_texture("res/icons/cloud.png").await.unwrap();
@@ -784,13 +784,13 @@ impl SudokuDisplay {
     }
 
     pub fn solve_once(&mut self) {
+        let old_state = (self.carpet.clone(), self.player_pboard.clone());
         let (did_anything, rules_used) = self.carpet.rule_solve_until((true, true), None);
         if !did_anything {
             return;
         }
 
-        self.history
-            .push((self.carpet.clone(), self.player_pboard.clone()));
+        self.history.push(old_state);
         self.analyse_text.clear();
 
         if self.mode == PLAY {

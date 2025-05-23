@@ -43,35 +43,6 @@ impl CarpetPattern {
 
     pub fn iter() -> impl Iterator<Item = CarpetPattern> {
         vec![
-            // Simple,
-            // Samurai,
-            DenseTorus,
-            // Diagonal(2),
-            // DenseDiagonal(2),
-            // Carpet(2),
-            // DenseCarpet(2),
-            // Torus(2),
-            // Diagonal(3),
-            // DenseDiagonal(3),
-            // Carpet(3),
-            // DenseCarpet(3),
-            // Torus(3),
-            // Diagonal(4),
-            // DenseDiagonal(4),
-            // Carpet(4),
-            // DenseCarpet(4),
-            // Torus(4),
-            // Diagonal(5),
-            // DenseDiagonal(5),
-            // Carpet(5),
-            // DenseCarpet(5),
-            // Torus(5),
-        ]
-        .into_iter()
-    }
-
-    pub fn iter_simple() -> impl Iterator<Item = CarpetPattern> {
-        vec![
             Simple,
             Samurai,
             Diagonal(2),
