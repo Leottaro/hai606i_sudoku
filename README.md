@@ -1,6 +1,6 @@
 # HAI606I Sudoku Project
 
-This project is a Sudoku application written in Rust. It includes features such as Sudoku generation, solving, and database integration for storing and retrieving Sudoku puzzles. It also supports multiple carpet patterns, allowing for diverse Sudoku configurations.
+This project is a Sudoku application written in Rust. It includes features such as Sudoku generation, solving, and database integration for storing and retrieving Sudoku puzzles. It also supports multiple carpet patterns, allowing for diverse Sudoku configurations. We wrote a project report explaining the details of this project in `report/`.
 
 ## Requirements
 
@@ -24,7 +24,6 @@ To set up your own database:
     ```
 3. Run Diesel migrations to initialize the database schema:
     ```bash
-    diesel setup
     diesel migration run
     ```
 
